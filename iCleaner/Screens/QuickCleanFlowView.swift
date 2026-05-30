@@ -107,7 +107,7 @@ struct QuickCleanFlowView: View {
 
     // Same gate as SimilarFlow — lib's 30s global cap handles back-to-back protection.
     private func showInterstitialThenDismiss() {
-        guard !PermissionManager.shared.isPremium,
+        guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else {
             dismiss()
             return

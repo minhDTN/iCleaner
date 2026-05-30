@@ -125,7 +125,7 @@ struct CompressView: View {
     private var quotaBadge: some View {
         let canMore = compressor.canCompressMore
         let label: String = {
-            if PermissionManager.shared.isPremium { return "Unlimited (Premium)" }
+            if PremiumGate.isPremium { return "Unlimited (Premium)" }
             return "Today's uses: \(compressor.usesUsedToday)/\(VideoCompressor.dailyLimit)"
         }()
         return HStack(spacing: 6) {
@@ -320,7 +320,7 @@ struct CompressView: View {
                     .foregroundStyle(Color(hex: 0x64748B))
                     .multilineTextAlignment(.center)
 
-                if !PermissionManager.shared.isPremium {
+                if !PremiumGate.isPremium {
                     Text("Today's uses: \(compressor.usesUsedToday)/\(VideoCompressor.dailyLimit)")
                         .font(.custom("Inter-Medium", size: 13))
                         .foregroundStyle(AppColor.warning)
@@ -609,7 +609,7 @@ struct CompressView: View {
     }
 
     private func fireResultInterstitial() {
-        guard !PermissionManager.shared.isPremium,
+        guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
             adUnitID: AdUnits.interCompressResult,

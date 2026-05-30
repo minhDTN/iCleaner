@@ -90,7 +90,7 @@ final class VideoCompressor {
     }
     var usesRemainingToday: Int { max(0, Self.dailyLimit - usesUsedToday) }
     var canCompressMore: Bool {
-        PermissionManager.shared.isPremium || usesRemainingToday > 0
+        PremiumGate.isPremium || usesRemainingToday > 0
     }
 
     private static func dailyKey() -> String {

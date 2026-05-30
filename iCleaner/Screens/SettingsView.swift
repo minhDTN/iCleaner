@@ -12,12 +12,21 @@ import LibEarnMoneyIOS
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var vault = VaultService()
-    @State private var isPremium = PermissionManager.shared.isPremium
+    @State private var observedPremium = PermissionManager.shared.isPremium
+    @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
     @State private var showPaywall = false
     @State private var showLanguage = false
     @State private var showShareSheet = false
     @State private var showEraseConfirm = false
     @State private var restoreMessage: String?
+
+    private var isPremium: Bool {
+        #if DEBUG
+        return observedPremium || forcePremium
+        #else
+        return observedPremium
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,6 +40,9 @@ struct SettingsView: View {
                     }
                     stayInTouchSection
                     supportSection
+                    #if DEBUG
+                    developerSection
+                    #endif
                     Spacer(minLength: 24)
                 }
                 .padding(.horizontal, 16)
@@ -56,7 +68,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .onReceive(PermissionManager.shared.$isPremium) { isPremium = $0 }
+        .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .fullScreenCover(isPresented: $showLanguage) { LanguageView(onStart: { showLanguage = false }, onBack: { showLanguage = false }) }
         .sheet(isPresented: $showShareSheet) {
@@ -75,6 +87,34 @@ struct SettingsView: View {
             Text("This permanently deletes the passcode, encryption key, and every encrypted photo in the vault. This action cannot be undone.")
         }
     }
+
+    // MARK: - Developer section (DEBUG only)
+
+    #if DEBUG
+    private var developerSection: some View {
+        SettingsSection(title: "Developer (DEBUG)") {
+            HStack(spacing: 16) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.premiumGold)
+                    .frame(width: 24, height: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Force Premium")
+                        .font(.custom("Inter-Regular", size: 16))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                    Text("Bypass ads, paywall, quotas")
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                }
+                Spacer()
+                Toggle("", isOn: $forcePremium)
+                    .labelsHidden()
+                    .tint(AppColor.brandPrimary)
+            }
+            .padding(16)
+        }
+    }
+    #endif
 
     // MARK: - Vault section
 
@@ -182,7 +222,7 @@ struct SettingsView: View {
         Task {
             await InAppService.shared.restore()
             await MainActor.run {
-                restoreMessage = PermissionManager.shared.isPremium
+                restoreMessage = PremiumGate.isPremium
                     ? "Premium restored successfully."
                     : "No purchases to restore."
             }

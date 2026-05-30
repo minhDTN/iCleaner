@@ -199,7 +199,7 @@ struct ContactsIncompleteView: View {
             try await service.delete(contacts: selectedContacts)
             contacts.removeAll { selection.contains($0.identifier) }
             selection.removeAll()
-            if !PermissionManager.shared.isPremium, let vc = AdHelpers.topViewController() {
+            if !PremiumGate.isPremium, let vc = AdHelpers.topViewController() {
                 AdManager.shared.showInterstitialAd(
                     adUnitID: AdUnits.interContactsAction,
                     from: vc,

@@ -165,7 +165,7 @@ struct SimilarFlowView: View {
     // safe to call on every successful delete. Premium-gated by AdManager —
     // completion still fires (immediately) if the ad is suppressed.
     private func showInterstitialThenDismiss() {
-        guard !PermissionManager.shared.isPremium,
+        guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else {
             dismiss()
             return

@@ -3,18 +3,29 @@ import LibEarnMoneyIOS
 
 // Reactively collapses to zero height when the user is premium so callers don't
 // need to know about the premium state — the slot disappears from layout.
+// Honors PremiumGate (DEBUG override) so the Settings "Force Premium" toggle
+// also collapses banners.
 struct BannerAdView: View {
     let adUnitID: String
-    @State private var isPremium = PermissionManager.shared.isPremium
+    @State private var observedPremium = PermissionManager.shared.isPremium
+    @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
+
+    private var isHidden: Bool {
+        #if DEBUG
+        return observedPremium || forcePremium
+        #else
+        return observedPremium
+        #endif
+    }
 
     var body: some View {
         Group {
-            if !isPremium {
+            if !isHidden {
                 BannerHost(adUnitID: adUnitID)
                     .frame(height: 60)
             }
         }
-        .onReceive(PermissionManager.shared.$isPremium) { isPremium = $0 }
+        .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
     }
 }
 

@@ -46,7 +46,7 @@ struct VaultView: View {
     }
 
     private func fireUnlockInterstitial() {
-        guard !PermissionManager.shared.isPremium,
+        guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
             adUnitID: AdUnits.interVaultUnlock,

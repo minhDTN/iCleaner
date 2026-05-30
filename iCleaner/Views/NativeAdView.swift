@@ -3,19 +3,29 @@ import LibEarnMoneyIOS
 import GoogleMobileAds // needed for AdLoader / NativeAd / Request types only
 
 // Reactively collapses when premium so the slot vanishes from the layout.
+// Honors PremiumGate (DEBUG override) so Settings "Force Premium" hides natives.
 struct NativeAdView: View {
     let adUnitID: String
     var height: CGFloat = 100
-    @State private var isPremium = PermissionManager.shared.isPremium
+    @State private var observedPremium = PermissionManager.shared.isPremium
+    @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
+
+    private var isHidden: Bool {
+        #if DEBUG
+        return observedPremium || forcePremium
+        #else
+        return observedPremium
+        #endif
+    }
 
     var body: some View {
         Group {
-            if !isPremium {
+            if !isHidden {
                 NativeHost(adUnitID: adUnitID)
                     .frame(height: height)
             }
         }
-        .onReceive(PermissionManager.shared.$isPremium) { isPremium = $0 }
+        .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
     }
 }
 

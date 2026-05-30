@@ -57,7 +57,7 @@ struct RootView: View {
             // mid-session (playbook §4).
             guard !didTriggerLaunchPaywall else { return }
             didTriggerLaunchPaywall = true
-            guard !PermissionManager.shared.isPremium else { return }
+            guard !PremiumGate.isPremium else { return }
             try? await Task.sleep(for: .milliseconds(400))
             showLaunchPaywall = true
         }

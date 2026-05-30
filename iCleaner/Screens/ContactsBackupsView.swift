@@ -150,7 +150,7 @@ struct ContactsBackupsView: View {
     }
 
     private func fireActionInterstitial() {
-        guard !PermissionManager.shared.isPremium,
+        guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
             adUnitID: AdUnits.interContactsAction,
