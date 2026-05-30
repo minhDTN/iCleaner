@@ -1,33 +1,29 @@
-//
-//  AppTab.swift
-//  QRCode
-//
-
 import Foundation
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case scan
-    case create
-    case history
-    case settings
+    case home
+    case contacts
+    case vault
+    case compress
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .scan:     return "Scan"
-        case .create:   return "Create"
-        case .history:  return "History"
-        case .settings: return "Setting"
+        case .home:     return "Home"
+        case .contacts: return "Contacts"
+        case .vault:    return "Vault"
+        case .compress: return "Compress"
         }
     }
 
-    var iconAssetName: String {
+    // SF Symbol fallback — swap to asset-catalog Figma icons (TabBar/ic_tab_*) when downloaded.
+    var systemImageName: String {
         switch self {
-        case .scan:     return "TabBar/ic_tab_scan"
-        case .create:   return "TabBar/ic_tab_create"
-        case .history:  return "TabBar/ic_tab_history"
-        case .settings: return "TabBar/ic_tab_settings"
+        case .home:     return "house.fill"
+        case .contacts: return "person.crop.circle"
+        case .vault:    return "lock.shield.fill"
+        case .compress: return "arrow.down.right.and.arrow.up.left"
         }
     }
 }
