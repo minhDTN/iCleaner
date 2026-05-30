@@ -1,8 +1,3 @@
-//
-//  AppColor.swift
-//  QRCode
-//
-
 import SwiftUI
 
 extension Color {
@@ -14,54 +9,60 @@ extension Color {
     }
 }
 
+// All tokens hex-pulled from Figma file `yVC01XIRPo28KmyMUXV5Et` (Cleaner-IOS).
+// Hardcode RGB so dark mode can't override the design (see playbook §7).
 enum AppColor {
-    // Brand — gradient blue 600 → purple 600 at 135°.
-    // `brandPrimary` is the gradient start (solid use where gradients aren't supported);
-    // `brandGradient` is the canonical brand fill for active states / CTAs.
-    static let brandPrimary = Color(hex: 0x155DFC)
-    static let brandPurple  = Color(hex: 0x9810FA)
-    static let brandAccent  = Color(hex: 0x10A2F7)
-    static let linkPrimary  = Color(hex: 0x135BEC)
+    // Brand
+    static let brandPrimary  = Color(hex: 0x0D7FF2)  // CTA, active tab, links
+    static let brandSoft     = Color(hex: 0x0D7FF2, alpha: 0.10)
+    static let brandSubtle   = Color(hex: 0x0D7FF2, alpha: 0.20)
+    static let brandMid      = Color(hex: 0x0D7FF2, alpha: 0.40)
+    static let brandDeep     = Color(hex: 0x004AC6)  // gradient end / paywall accent
 
-    static let brandGradient = LinearGradient(
-        colors: [Color(hex: 0x155DFC), Color(hex: 0x9810FA)],
-        startPoint: .top,
-        endPoint: .bottom
-    )
+    // Status
+    static let success       = Color(hex: 0x10B981)  // success badges / cleaned indicator
+    static let warning       = Color(hex: 0xFFB04C)  // storage warning, premium-required
+    static let danger        = Color(hex: 0xEF4444)  // delete buttons / destructive
+    static let dangerSoft    = Color(hex: 0xFEF2F2)  // destructive tinted bg
+    static let premiumGold   = Color(hex: 0xECBA16)  // "Premium" pill on paywall card
 
     // Text
-    static let textPrimary   = Color(hex: 0x0F172A)  // Slate-900 — page title
-    static let textBody      = Color(hex: 0x1E293B)  // Slate-800 — list row body
-    static let textSecondary = Color(hex: 0x64748B)  // Slate-500 — section labels
-    static let textMuted     = Color(hex: 0x94A3B8)  // Slate-400 — version value
-    static let chevron       = Color(hex: 0xCBD5E1)  // Slate-300 — chevron right
+    static let textPrimary   = Color(hex: 0x0F172A)  // titles
+    static let textBody      = Color(hex: 0x1E293B)  // body
+    static let textStrong    = Color(hex: 0x334155)
+    static let textSecondary = Color(hex: 0x64748B)  // captions, secondary
+    static let textMuted     = Color(hex: 0x94A3B8)  // disabled, placeholder
+    static let chevron       = Color(hex: 0xCBD5E1)
     static let textOnBrand   = Color(hex: 0xFFFFFF)
     static let textBlack     = Color(hex: 0x000000)
 
-    // Surface
+    // Surfaces
     static let surfaceBackground = Color(hex: 0xFFFFFF)
     static let surfaceCard       = Color(hex: 0xF8FAFC)
-    static let surfaceMuted      = Color(hex: 0xF7F5F8)
-    static let surfaceDark       = Color(hex: 0x444444)
+    static let surfaceMuted      = Color(hex: 0xF1F5F9)
 
-    // Border
-    static let borderLight  = Color(hex: 0xE2E8F0)
-    static let borderSubtle = Color(hex: 0xF1F5F9)
-    static let borderGray   = Color(hex: 0xEEEEEE)
+    // Tinted card backgrounds (category icon tiles on home, paywall source pills)
+    static let tintBlueSoft    = Color(hex: 0xDBEAFE)
+    static let tintBlueLighter = Color(hex: 0xE4F1FF)
+    static let tintIndigoSoft  = Color(hex: 0xDAE2FD)
+    static let tintLavender    = Color(hex: 0xEDEDF9)
+    static let tintGreenSoft   = Color(hex: 0xE6F3EC)
+    static let tintRedSoft     = Color(hex: 0xFFECEA)
+    static let tintYellowSoft  = Color(hex: 0xFDF7CD)
 
-    // Status
-    static let success = Color(hex: 0x4BC539)
+    // Borders
+    static let borderLight   = Color(hex: 0xE2E8F0)
+    static let borderSubtle  = Color(hex: 0xF1F5F9)
+    static let borderNeutral = Color(hex: 0xCBD5E1)
 
-    // Tinted backgrounds
-    static let brandTintedBg = Color(hex: 0x155DFC, alpha: 0.1)
+    // Glass / overlays
+    static let glassFill20   = Color(hex: 0xFFFFFF, alpha: 0.20)
+    static let glassFill60   = Color(hex: 0xFFFFFF, alpha: 0.60)
+    static let glassFill90   = Color(hex: 0xFFFFFF, alpha: 0.90)
+    static let overlayDimLight  = Color(hex: 0x000000, alpha: 0.30)  // modal dim
+    static let overlayDimStrong = Color(hex: 0x000000, alpha: 0.50)  // photo viewer dim
 
-    // Glass / overlay
-    static let glassFill    = Color(hex: 0xFFFFFF, alpha: 0.2)
-    static let glassBorder  = Color(hex: 0xFFFFFF, alpha: 0.1)
-    static let glassSurface = Color(hex: 0xFFFFFF, alpha: 0.5)
-    static let overlayDim   = Color(hex: 0x000000, alpha: 0.5)
-
-    // Tab pill active state (non-Scan tabs) — subtle gray pill on white container, no stroke.
-    static let tabPillActiveFill   = Color(hex: 0xE5E7EB)
-    static let tabPillActiveStroke = Color.clear
+    // Tab bar
+    static let tabInactive = Color(hex: 0x9E9E9E)
+    static let tabActive   = brandPrimary
 }
