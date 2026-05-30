@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var showPopulated: Bool = true
     @State private var openedCategory: HomeCategory?
     @State private var showQuickClean: Bool = false
+    @State private var showSettings: Bool = false
 
     private var categories: [HomeCategory] {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
@@ -35,6 +36,7 @@ struct HomeView: View {
 
             ScrollView {
                 VStack(spacing: 15) {
+                    topNav
                     storageHeader
                     ForEach(categories) { cat in
                         HomeCategoryCard(
@@ -55,6 +57,24 @@ struct HomeView: View {
         }
         .fullScreenCover(isPresented: $showQuickClean) {
             QuickCleanFlowView()
+        }
+        .fullScreenCover(isPresented: $showSettings) {
+            SettingsView()
+        }
+    }
+
+    private var topNav: some View {
+        HStack {
+            Spacer()
+            Button(action: { showSettings = true }) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColor.brandPrimary)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle().fill(AppColor.brandPrimary.opacity(0.10))
+                    )
+            }
         }
     }
 

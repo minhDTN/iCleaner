@@ -39,6 +39,8 @@
 		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
 		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
 		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
+		AA0000000000000000000260 /* FAQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E0 /* FAQView.swift */; };
+		AA0000000000000000000261 /* ContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E1 /* ContactView.swift */; };
 		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
 		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
 		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
@@ -86,6 +88,8 @@
 		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001E0 /* FAQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FAQView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001E1 /* ContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
@@ -209,6 +213,8 @@
 				AA00000000000000000001D0 /* QuickCleanFlowView.swift */,
 				AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */,
 				AA00000000000000000001D2 /* QuickCleanSuccessView.swift */,
+				AA00000000000000000001E0 /* FAQView.swift */,
+				AA00000000000000000001E1 /* ContactView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -346,6 +352,8 @@
 				AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */,
 				AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */,
 				AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */,
+				AA0000000000000000000260 /* FAQView.swift in Sources */,
+				AA0000000000000000000261 /* ContactView.swift in Sources */,
 				AA0000000000000000000214 /* BannerAdView.swift in Sources */,
 				AA0000000000000000000215 /* NativeAdView.swift in Sources */,
 				AA0000000000000000000216 /* AdHelpers.swift in Sources */,
