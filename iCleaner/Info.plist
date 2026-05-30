@@ -2,26 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSCameraUsageDescription</key>
-    <string>QRCode needs camera access to scan QR codes and barcodes.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>QRCode needs photo library access to scan QR codes from images.</string>
+    <string>iCleaner needs photo library access to find similar photos, duplicates, and screenshots you can clean up.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>QRCode needs permission to save your generated QR codes to Photos.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>QRCode needs your location to fill in the coordinates when creating a Location QR code.</string>
+    <string>iCleaner needs permission to save your compressed videos back to Photos.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>iCleaner uses the camera to add photos directly to your private vault.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>iCleaner reads your contacts to find duplicates, incomplete entries, and back them up safely.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>iCleaner uses Face ID to unlock your private vault.</string>
+
     <key>UIAppFonts</key>
     <array>
         <string>Inter-Regular.ttf</string>
         <string>Inter-Medium.ttf</string>
         <string>Inter-SemiBold.ttf</string>
         <string>Inter-Bold.ttf</string>
-        <string>PublicSans-Regular.ttf</string>
-        <string>PublicSans-Bold.ttf</string>
-        <string>Montserrat-Bold.ttf</string>
     </array>
 
-    <!-- AdMob: replace with real QRCode app ID before release. -->
+    <!-- AdMob: replace with real iCleaner app ID before release. -->
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-5904408074441373~8649480938</string>
 
