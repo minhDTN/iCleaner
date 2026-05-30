@@ -186,7 +186,16 @@ private struct SimilarPhotoCell: View {
         }
     }
 
+    @ViewBuilder
     private var placeholderImage: some View {
+        if let assetID = photo.assetID {
+            PHAssetThumbnail(localIdentifier: assetID, targetSize: CGSize(width: 320, height: 320))
+        } else {
+            mockGradient
+        }
+    }
+
+    private var mockGradient: some View {
         let palettes: [[Color]] = [
             [Color(hex: 0xDBEAFE), Color(hex: 0xBFDBFE)],
             [Color(hex: 0xE0E7FF), Color(hex: 0xC7D2FE)],

@@ -9,6 +9,10 @@ import SwiftUI
 // MVP: drives a fake 0→1 progress over 2.4s then calls onComplete. Phase 3
 // Part B swaps to real PHPhotoLibrary delete progress.
 struct SimilarCleaningView: View {
+    // Real delete invoked in parallel with the visual progress. Even if the
+    // PHPhotoLibrary call returns instantly, we hold the UI for the animation
+    // so the user gets visual feedback. Pass `{ }` for visual-only demos.
+    var performDelete: () async -> Void = {}
     var onComplete: () -> Void
 
     @State private var progress: Double = 0
@@ -48,17 +52,25 @@ struct SimilarCleaningView: View {
             }
         }
         .task {
-            // Drive fake progress + log roll.
-            let total: Double = 2.4
-            let steps = 60
-            for i in 0...steps {
-                try? await Task.sleep(nanoseconds: UInt64(total / Double(steps) * 1_000_000_000))
-                progress = Double(i) / Double(steps)
-                if i % 6 == 0 {
-                    logIndex = (logIndex + 1) % Self.logPaths.count
-                }
-            }
+            // Run the real PHPhotoLibrary delete in parallel with the visual
+            // animation. The animation always plays for the full 2.4s so the
+            // user sees consistent feedback (the delete itself is usually <1s).
+            async let deletion: Void = performDelete()
+            async let animation: Void = runAnimation()
+            _ = await (deletion, animation)
             onComplete()
+        }
+    }
+
+    private func runAnimation() async {
+        let total: Double = 2.4
+        let steps = 60
+        for i in 0...steps {
+            try? await Task.sleep(nanoseconds: UInt64(total / Double(steps) * 1_000_000_000))
+            progress = Double(i) / Double(steps)
+            if i % 6 == 0 {
+                logIndex = (logIndex + 1) % Self.logPaths.count
+            }
         }
     }
 

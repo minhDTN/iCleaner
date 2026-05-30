@@ -33,6 +33,8 @@
 		AA0000000000000000000233 /* SimilarDeleteConfirm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */; };
 		AA0000000000000000000234 /* SimilarCleaningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B4 /* SimilarCleaningView.swift */; };
 		AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B5 /* SimilarSuccessView.swift */; };
+		AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C0 /* PhotoLibraryService.swift */; };
+		AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C1 /* PHAssetThumbnail.swift */; };
 		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
 		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
 		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
@@ -74,6 +76,8 @@
 		AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarDeleteConfirm.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B4 /* SimilarCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarCleaningView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B5 /* SimilarSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarSuccessView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C0 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C1 /* PHAssetThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHAssetThumbnail.swift; sourceTree = "<group>"; };
 		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
@@ -123,6 +127,7 @@
 				AA0000000000000000000082 /* Navigation */,
 				AA0000000000000000000083 /* Screens */,
 				AA0000000000000000000084 /* Views */,
+				AA0000000000000000000085 /* Storage */,
 				AA0000000000000000000132 /* Assets.xcassets */,
 				AA0000000000000000000005 /* Preview Content */,
 				AA0000000000000000000101 /* AppDelegate.swift */,
@@ -205,6 +210,15 @@
 				AA0000000000000000000116 /* AdHelpers.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000085 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				AA00000000000000000001C0 /* PhotoLibraryService.swift */,
+				AA00000000000000000001C1 /* PHAssetThumbnail.swift */,
+			);
+			path = Storage;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -314,6 +328,8 @@
 				AA0000000000000000000233 /* SimilarDeleteConfirm.swift in Sources */,
 				AA0000000000000000000234 /* SimilarCleaningView.swift in Sources */,
 				AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */,
+				AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */,
+				AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */,
 				AA0000000000000000000214 /* BannerAdView.swift in Sources */,
 				AA0000000000000000000215 /* NativeAdView.swift in Sources */,
 				AA0000000000000000000216 /* AdHelpers.swift in Sources */,
