@@ -19,6 +19,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var showPopulated: Bool = true
     @State private var openedCategory: HomeCategory?
+    @State private var showQuickClean: Bool = false
 
     private var categories: [HomeCategory] {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
@@ -51,6 +52,9 @@ struct HomeView: View {
         }
         .fullScreenCover(item: $openedCategory) { cat in
             SimilarFlowView(categoryTitle: cat.title)
+        }
+        .fullScreenCover(isPresented: $showQuickClean) {
+            QuickCleanFlowView()
         }
     }
 
@@ -105,7 +109,7 @@ struct HomeView: View {
     }
 
     private var quickCleanCTA: some View {
-        Button(action: {}) {
+        Button(action: { showQuickClean = true }) {
             HStack(spacing: 12) {
                 // Figma uses Material Icons `auto_fix_high` — SF Symbol substitute.
                 Image(systemName: "wand.and.stars")

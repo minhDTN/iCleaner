@@ -1,0 +1,210 @@
+import SwiftUI
+import Photos
+import LibEarnMoneyIOS
+
+// 1-tap cleanup across ALL detected similar groups. Auto-selects every
+// non-Best-Match photo in every group. Presented from Home's sticky
+// "Quick Clean (X MB)" CTA.
+//
+// State machine: scanning → confirm → cleaning → success / empty / permGate.
+// Reuses SimilarCleaningView (parameterized title). Interstitial after success
+// via lib's 30s global cap (same pattern as SimilarFlowView).
+//
+// Figma: `2005:23105` (confirm popup), `2005:23265` (cleaning your phone),
+// `2005:23298` (success — 3 stat tiles).
+struct QuickCleanFlowView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var photoLibrary = PhotoLibraryService()
+    @State private var step: Step = .scanning
+    @State private var deletableAssets: [PHAsset] = []
+    @State private var deletableSizeMB: Int = 0
+    @State private var deletablePhotoCount: Int = 0
+    @State private var deletableGroupCount: Int = 0
+    @State private var deleteError: String?
+
+    private enum Step { case scanning, permissionGate, confirm, empty, cleaning, success }
+
+    var body: some View {
+        ZStack {
+            switch step {
+            case .scanning, .cleaning, .empty, .permissionGate, .success:
+                // Scaffold uses brand-tinted bg so the confirm modal pops on top
+                // with proper contrast (matches Figma popup-over-home framing).
+                AppColor.surfaceBackground.ignoresSafeArea()
+            case .confirm:
+                Color.black.opacity(0.5).ignoresSafeArea()
+            }
+
+            switch step {
+            case .scanning:           scanningView
+            case .permissionGate:     permissionGateView
+            case .confirm:            confirmModal
+            case .empty:              emptyView
+            case .cleaning:
+                SimilarCleaningView(
+                    title: "Cleaning your phone...",
+                    performDelete: performQuickClean,
+                    onComplete: { step = .success }
+                )
+            case .success:
+                QuickCleanSuccessView(
+                    cleanedMB: deletableSizeMB,
+                    photosOptimized: deletablePhotoCount,
+                    memoryBoosted: deletableSizeMB * 4,  // estimate boost ≈ deleted × 4 (cache + thumbs)
+                    onContinue: showInterstitialThenDismiss
+                )
+            }
+        }
+        .alert("Couldn't delete", isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
+        }
+        .task { await bootstrap() }
+        .animation(.easeInOut(duration: 0.3), value: step)
+    }
+
+    // MARK: - Lifecycle
+
+    private func bootstrap() async {
+        if photoLibrary.authStatus == .notDetermined {
+            await photoLibrary.requestAuthorization()
+        }
+        guard photoLibrary.authStatus.canRead else {
+            step = .permissionGate
+            return
+        }
+        let groups = await photoLibrary.detectSimilarGroups()
+        guard !groups.isEmpty else {
+            step = .empty
+            return
+        }
+        // Auto-select all non-Best-Match across every group.
+        var assets: [PHAsset] = []
+        for g in groups {
+            for (idx, asset) in g.assets.enumerated() where idx != g.bestMatchIndex {
+                assets.append(asset)
+            }
+        }
+        deletableAssets = assets
+        deletablePhotoCount = assets.count
+        deletableSizeMB = assets.reduce(0) { $0 + Int($1.estimatedSizeKB) } / 1024
+        deletableGroupCount = groups.count
+        step = .confirm
+    }
+
+    private func performQuickClean() async {
+        guard !deletableAssets.isEmpty else { return }
+        do {
+            try await photoLibrary.delete(assets: deletableAssets)
+        } catch {
+            deleteError = (error as NSError).localizedDescription
+        }
+    }
+
+    // Same gate as SimilarFlow — lib's 30s global cap handles back-to-back protection.
+    private func showInterstitialThenDismiss() {
+        guard !PermissionManager.shared.isPremium,
+              let vc = AdHelpers.topViewController() else {
+            dismiss()
+            return
+        }
+        AdManager.shared.showInterstitialAd(
+            adUnitID: AdUnits.interQuickClean,
+            from: vc
+        ) {
+            Task { @MainActor in dismiss() }
+        }
+    }
+
+    // MARK: - Step subviews
+
+    private var scanningView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .tint(AppColor.brandPrimary)
+                .scaleEffect(1.4)
+            Text("Scanning for similar photos…")
+                .font(.custom("Inter-SemiBold", size: 14))
+                .foregroundStyle(AppColor.textSecondary)
+        }
+    }
+
+    private var permissionGateView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 64))
+                .foregroundStyle(AppColor.brandPrimary)
+            Text("Photos access required")
+                .font(.custom("Inter-Bold", size: 22))
+                .foregroundStyle(AppColor.textPrimary)
+            Text("iCleaner needs access to your photo library to scan for cleanup.")
+                .font(.custom("Inter-Regular", size: 14))
+                .foregroundStyle(AppColor.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button(action: { photoLibrary.opensSettings() }) {
+                Text("Open Settings")
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(AppColor.brandPrimary)
+                    )
+            }
+            .padding(.horizontal, 32)
+            Button(action: { dismiss() }) {
+                Text("Back")
+                    .font(.custom("Inter-SemiBold", size: 14))
+                    .foregroundStyle(AppColor.textSecondary)
+            }
+        }
+    }
+
+    private var emptyView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(AppColor.success)
+            Text("Already squeaky clean")
+                .font(.custom("Inter-Bold", size: 20))
+                .foregroundStyle(AppColor.textPrimary)
+            Text("We didn't find any similar photos to clean right now.")
+                .font(.custom("Inter-Regular", size: 14))
+                .foregroundStyle(AppColor.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button(action: { dismiss() }) {
+                Text("Done")
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(AppColor.brandPrimary)
+                    )
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private var confirmModal: some View {
+        QuickCleanConfirmModal(
+            sizeMB: deletableSizeMB,
+            photoCount: deletablePhotoCount,
+            groupCount: deletableGroupCount,
+            onCancel: { dismiss() },
+            onClean: { step = .cleaning }
+        )
+    }
+}
+
+#Preview {
+    QuickCleanFlowView()
+}

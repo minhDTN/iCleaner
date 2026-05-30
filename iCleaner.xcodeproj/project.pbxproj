@@ -35,6 +35,9 @@
 		AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B5 /* SimilarSuccessView.swift */; };
 		AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C0 /* PhotoLibraryService.swift */; };
 		AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C1 /* PHAssetThumbnail.swift */; };
+		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
+		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
+		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
 		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
 		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
 		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
@@ -78,6 +81,9 @@
 		AA00000000000000000001B5 /* SimilarSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarSuccessView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C0 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C1 /* PHAssetThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHAssetThumbnail.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
@@ -198,6 +204,9 @@
 				AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */,
 				AA00000000000000000001B4 /* SimilarCleaningView.swift */,
 				AA00000000000000000001B5 /* SimilarSuccessView.swift */,
+				AA00000000000000000001D0 /* QuickCleanFlowView.swift */,
+				AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */,
+				AA00000000000000000001D2 /* QuickCleanSuccessView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -330,6 +339,9 @@
 				AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */,
 				AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */,
 				AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */,
+				AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */,
+				AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */,
+				AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */,
 				AA0000000000000000000214 /* BannerAdView.swift in Sources */,
 				AA0000000000000000000215 /* NativeAdView.swift in Sources */,
 				AA0000000000000000000216 /* AdHelpers.swift in Sources */,

@@ -9,6 +9,7 @@ import SwiftUI
 // MVP: drives a fake 0→1 progress over 2.4s then calls onComplete. Phase 3
 // Part B swaps to real PHPhotoLibrary delete progress.
 struct SimilarCleaningView: View {
+    var title: String = "Deleting Selected photos..."
     // Real delete invoked in parallel with the visual progress. Even if the
     // PHPhotoLibrary call returns instantly, we hold the UI for the animation
     // so the user gets visual feedback. Pass `{ }` for visual-only demos.
@@ -39,7 +40,7 @@ struct SimilarCleaningView: View {
 
                 Spacer().frame(height: 56)
 
-                Text("Deleting Selected photos...")
+                Text(title)
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x333333))
 
