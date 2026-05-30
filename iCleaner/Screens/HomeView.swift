@@ -98,12 +98,14 @@ struct HomeView: View {
                 }
             }
             Spacer()
-            // Dev affordance — flip empty/populated. Strip before ship.
+            #if DEBUG
+            // Dev affordance — flip empty/populated. DEBUG-only.
             Button(action: { showPopulated.toggle() }) {
                 Image(systemName: showPopulated ? "eye.slash" : "eye")
                     .font(.system(size: 16))
                     .foregroundStyle(AppColor.textMuted)
             }
+            #endif
         }
         .padding(16)
         .background(

@@ -3,6 +3,8 @@ import LibEarnMoneyIOS
 
 struct RootView: View {
     @State private var selection: AppTab = .home
+    @State private var showLaunchPaywall: Bool = false
+    @State private var didTriggerLaunchPaywall: Bool = false
 
     init() {
         UITabBar.appearance().isHidden = true
@@ -44,6 +46,21 @@ struct RootView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .fullScreenCover(isPresented: $showLaunchPaywall) {
+            PaywallView()
+        }
+        .task {
+            // Show paywall once after lib splash + cold-start ad finish routing here.
+            // `.task` can re-fire when UIKit modals (interstitials) come and go on top
+            // of the SwiftUI hosting controller; guard against re-trigger so we don't
+            // race a category fullScreenCover and accidentally show the paywall
+            // mid-session (playbook §4).
+            guard !didTriggerLaunchPaywall else { return }
+            didTriggerLaunchPaywall = true
+            guard !PermissionManager.shared.isPremium else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            showLaunchPaywall = true
+        }
     }
 
     private var bannerAdUnitID: String? {
