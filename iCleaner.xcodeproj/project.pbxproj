@@ -51,6 +51,7 @@
 		AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F2 /* CreatePasscodeView.swift */; };
 		AA0000000000000000000273 /* VaultGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F3 /* VaultGridView.swift */; };
 		AA0000000000000000000274 /* VaultPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F4 /* VaultPreviewView.swift */; };
+		AA0000000000000000000275 /* ChangePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F5 /* ChangePasscodeView.swift */; };
 		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
 		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
 		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
@@ -115,6 +116,7 @@
 		AA00000000000000000001F2 /* CreatePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePasscodeView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F3 /* VaultGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultGridView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F4 /* VaultPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultPreviewView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001F5 /* ChangePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePasscodeView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
@@ -250,6 +252,7 @@
 				AA00000000000000000001F2 /* CreatePasscodeView.swift */,
 				AA00000000000000000001F3 /* VaultGridView.swift */,
 				AA00000000000000000001F4 /* VaultPreviewView.swift */,
+				AA00000000000000000001F5 /* ChangePasscodeView.swift */,
 				AA0000000000000000000180 /* ContactsDashboardView.swift */,
 				AA0000000000000000000181 /* ContactsDuplicatesView.swift */,
 				AA0000000000000000000182 /* ContactsIncompleteView.swift */,
@@ -402,6 +405,7 @@
 				AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */,
 				AA0000000000000000000273 /* VaultGridView.swift in Sources */,
 				AA0000000000000000000274 /* VaultPreviewView.swift in Sources */,
+				AA0000000000000000000275 /* ChangePasscodeView.swift in Sources */,
 				AA0000000000000000000246 /* ContactsService.swift in Sources */,
 				AA0000000000000000000247 /* VideoCompressor.swift in Sources */,
 				AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */,

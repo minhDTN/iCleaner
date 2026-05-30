@@ -67,6 +67,23 @@ final class VaultService {
 
     func lock() { isUnlocked = false }
 
+    /// Wipes the passcode, encryption key, and every encrypted blob on disk.
+    /// Used by the Settings "Erase Vault" recovery flow (forgot passcode).
+    /// After erase, `hasPasscode` is false again so VaultView falls back to
+    /// CreatePasscodeView. The caller is responsible for clearing any SwiftData
+    /// VaultItem rows separately.
+    func eraseAll() {
+        Keychain.delete(forKey: KCKey.passcode)
+        Keychain.delete(forKey: KCKey.encryptionKey)
+        // Remove every encrypted blob — best-effort, ignore individual failures.
+        let urls = (try? FileManager.default.contentsOfDirectory(at: Self.vaultDirectory,
+                                                                  includingPropertiesForKeys: nil)) ?? []
+        for url in urls {
+            try? FileManager.default.removeItem(at: url)
+        }
+        isUnlocked = false
+    }
+
     // MARK: - Biometric unlock
 
     func unlockWithBiometry(reason: String = "Unlock your private vault") async throws {

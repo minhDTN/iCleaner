@@ -9,6 +9,7 @@ struct VaultLockView: View {
     @State private var passcodeEntry: String = ""
     @State private var passcodeError: Bool = false
     @State private var biometryError: String?
+    @State private var didAutoPromptBiometry: Bool = false
 
     var body: some View {
         ZStack {
@@ -58,7 +59,11 @@ struct VaultLockView: View {
             Text(biometryError ?? "")
         }
         .task {
-            // Auto-prompt Face ID on appear if available.
+            // Auto-prompt Face ID on appear, one-shot. `.task` can re-fire
+            // (system alerts or interstitials hopping on top) which would
+            // stack biometry prompts — guard with `didAutoPromptBiometry`.
+            guard !didAutoPromptBiometry else { return }
+            didAutoPromptBiometry = true
             if vault.canUseBiometry { await tryBiometry() }
         }
         .animation(.easeInOut(duration: 0.25), value: showPasscode)
