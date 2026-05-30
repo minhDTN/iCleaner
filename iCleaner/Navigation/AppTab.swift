@@ -17,13 +17,12 @@ enum AppTab: String, CaseIterable, Identifiable {
         }
     }
 
-    // SF Symbol fallback — swap to asset-catalog Figma icons (TabBar/ic_tab_*) when downloaded.
-    var systemImageName: String {
+    var iconAssetName: String {
         switch self {
-        case .home:     return "house.fill"
-        case .contacts: return "person.crop.circle"
-        case .vault:    return "lock.shield.fill"
-        case .compress: return "arrow.down.right.and.arrow.up.left"
+        case .home:     return "TabBar/tab_home"
+        case .contacts: return "TabBar/tab_contacts"
+        case .vault:    return "TabBar/tab_vault"
+        case .compress: return "TabBar/tab_compress"
         }
     }
 }

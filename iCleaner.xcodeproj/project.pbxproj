@@ -26,6 +26,7 @@
 		AA0000000000000000000211 /* CompressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000111 /* CompressView.swift */; };
 		AA0000000000000000000212 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000112 /* SettingsView.swift */; };
 		AA0000000000000000000213 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000113 /* PaywallView.swift */; };
+		AA0000000000000000000220 /* LanguageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000120 /* LanguageView.swift */; };
 		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
 		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
 		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
@@ -60,6 +61,7 @@
 		AA0000000000000000000111 /* CompressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompressView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000112 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000113 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000120 /* LanguageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
@@ -172,6 +174,7 @@
 				AA0000000000000000000111 /* CompressView.swift */,
 				AA0000000000000000000112 /* SettingsView.swift */,
 				AA0000000000000000000113 /* PaywallView.swift */,
+				AA0000000000000000000120 /* LanguageView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -286,6 +289,7 @@
 				AA0000000000000000000211 /* CompressView.swift in Sources */,
 				AA0000000000000000000212 /* SettingsView.swift in Sources */,
 				AA0000000000000000000213 /* PaywallView.swift in Sources */,
+				AA0000000000000000000220 /* LanguageView.swift in Sources */,
 				AA0000000000000000000214 /* BannerAdView.swift in Sources */,
 				AA0000000000000000000215 /* NativeAdView.swift in Sources */,
 				AA0000000000000000000216 /* AdHelpers.swift in Sources */,
