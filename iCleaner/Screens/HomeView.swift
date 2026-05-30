@@ -18,6 +18,7 @@ import SwiftUI
 //   • Video play badge: 42×42 white 20%, stroke white 30% 0.66px, blur 7.875.
 struct HomeView: View {
     @State private var showPopulated: Bool = true
+    @State private var openedCategory: HomeCategory?
 
     private var categories: [HomeCategory] {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
@@ -35,7 +36,10 @@ struct HomeView: View {
                 VStack(spacing: 15) {
                     storageHeader
                     ForEach(categories) { cat in
-                        HomeCategoryCard(category: cat)
+                        HomeCategoryCard(
+                            category: cat,
+                            onReviewTap: { openedCategory = cat }
+                        )
                     }
                     Spacer(minLength: 120)  // Room for the floating CTA.
                 }
@@ -44,6 +48,9 @@ struct HomeView: View {
             }
 
             quickCleanCTA
+        }
+        .fullScreenCover(item: $openedCategory) { cat in
+            SimilarFlowView(categoryTitle: cat.title)
         }
     }
 
@@ -124,6 +131,7 @@ struct HomeView: View {
 
 private struct HomeCategoryCard: View {
     let category: HomeCategory
+    var onReviewTap: () -> Void
 
     var body: some View {
         VStack(spacing: 10) {
@@ -290,7 +298,7 @@ private struct HomeCategoryCard: View {
     }
 
     private var reviewGroupButton: some View {
-        Button(action: {}) {
+        Button(action: onReviewTap) {
             HStack(spacing: 8) {
                 Text("Review Group")
                     .font(.custom("Inter-Medium", size: 14))

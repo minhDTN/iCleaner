@@ -27,6 +27,12 @@
 		AA0000000000000000000212 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000112 /* SettingsView.swift */; };
 		AA0000000000000000000213 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000113 /* PaywallView.swift */; };
 		AA0000000000000000000220 /* LanguageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000120 /* LanguageView.swift */; };
+		AA0000000000000000000230 /* SimilarFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000130 /* SimilarFlowView.swift */; };
+		AA0000000000000000000231 /* SimilarReviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000131 /* SimilarReviewScreen.swift */; };
+		AA0000000000000000000232 /* SimilarFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B2 /* SimilarFilterSheet.swift */; };
+		AA0000000000000000000233 /* SimilarDeleteConfirm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */; };
+		AA0000000000000000000234 /* SimilarCleaningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B4 /* SimilarCleaningView.swift */; };
+		AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001B5 /* SimilarSuccessView.swift */; };
 		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
 		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
 		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
@@ -62,6 +68,12 @@
 		AA0000000000000000000112 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000113 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000120 /* LanguageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000130 /* SimilarFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarFlowView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000131 /* SimilarReviewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarReviewScreen.swift; sourceTree = "<group>"; };
+		AA00000000000000000001B2 /* SimilarFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarFilterSheet.swift; sourceTree = "<group>"; };
+		AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarDeleteConfirm.swift; sourceTree = "<group>"; };
+		AA00000000000000000001B4 /* SimilarCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarCleaningView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001B5 /* SimilarSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarSuccessView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
@@ -175,6 +187,12 @@
 				AA0000000000000000000112 /* SettingsView.swift */,
 				AA0000000000000000000113 /* PaywallView.swift */,
 				AA0000000000000000000120 /* LanguageView.swift */,
+				AA0000000000000000000130 /* SimilarFlowView.swift */,
+				AA0000000000000000000131 /* SimilarReviewScreen.swift */,
+				AA00000000000000000001B2 /* SimilarFilterSheet.swift */,
+				AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */,
+				AA00000000000000000001B4 /* SimilarCleaningView.swift */,
+				AA00000000000000000001B5 /* SimilarSuccessView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -290,6 +308,12 @@
 				AA0000000000000000000212 /* SettingsView.swift in Sources */,
 				AA0000000000000000000213 /* PaywallView.swift in Sources */,
 				AA0000000000000000000220 /* LanguageView.swift in Sources */,
+				AA0000000000000000000230 /* SimilarFlowView.swift in Sources */,
+				AA0000000000000000000231 /* SimilarReviewScreen.swift in Sources */,
+				AA0000000000000000000232 /* SimilarFilterSheet.swift in Sources */,
+				AA0000000000000000000233 /* SimilarDeleteConfirm.swift in Sources */,
+				AA0000000000000000000234 /* SimilarCleaningView.swift in Sources */,
+				AA0000000000000000000235 /* SimilarSuccessView.swift in Sources */,
 				AA0000000000000000000214 /* BannerAdView.swift in Sources */,
 				AA0000000000000000000215 /* NativeAdView.swift in Sources */,
 				AA0000000000000000000216 /* AdHelpers.swift in Sources */,
