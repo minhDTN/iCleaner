@@ -40,6 +40,7 @@
 		AA0000000000000000000244 /* VaultItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C4 /* VaultItem.swift */; };
 		AA0000000000000000000245 /* VaultService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C5 /* VaultService.swift */; };
 		AA0000000000000000000246 /* ContactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C6 /* ContactsService.swift */; };
+		AA0000000000000000000247 /* VideoCompressor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C7 /* VideoCompressor.swift */; };
 		AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000180 /* ContactsDashboardView.swift */; };
 		AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000181 /* ContactsDuplicatesView.swift */; };
 		AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000182 /* ContactsIncompleteView.swift */; };
@@ -103,6 +104,7 @@
 		AA00000000000000000001C4 /* VaultItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultItem.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C5 /* VaultService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C6 /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C7 /* VideoCompressor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCompressor.swift; sourceTree = "<group>"; };
 		AA0000000000000000000180 /* ContactsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDashboardView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000181 /* ContactsDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDuplicatesView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000182 /* ContactsIncompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsIncompleteView.swift; sourceTree = "<group>"; };
@@ -277,6 +279,7 @@
 				AA00000000000000000001C4 /* VaultItem.swift */,
 				AA00000000000000000001C5 /* VaultService.swift */,
 				AA00000000000000000001C6 /* ContactsService.swift */,
+				AA00000000000000000001C7 /* VideoCompressor.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -400,6 +403,7 @@
 				AA0000000000000000000273 /* VaultGridView.swift in Sources */,
 				AA0000000000000000000274 /* VaultPreviewView.swift in Sources */,
 				AA0000000000000000000246 /* ContactsService.swift in Sources */,
+				AA0000000000000000000247 /* VideoCompressor.swift in Sources */,
 				AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */,
 				AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */,
 				AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */,
