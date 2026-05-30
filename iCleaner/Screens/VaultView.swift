@@ -1,16 +1,18 @@
 import SwiftUI
 import SwiftData
+import LibEarnMoneyIOS
 
 // Vault tab root. State machine:
 //   • No passcode set → CreatePasscodeView (onboarding)
 //   • Has passcode, not unlocked → VaultLockView (Face ID / passcode)
-//   • Unlocked → vault grid (Phase 6 Part B; placeholder shell for now)
+//   • Unlocked → NavigationStack with VaultGridView
 //
-// VaultService is @State here so unlock state persists for the lifetime of the
-// tab (i.e. until the app is cold-started or the user backgrounds the app).
-// Re-lock on background is a Part B concern.
+// Lifecycle: re-lock when the app enters background (security). Interstitial
+// fires once per unlock event (premium-gated, lib's 30s global cap applies).
 struct VaultView: View {
     @State private var vault = VaultService()
+    @State private var didShowUnlockAd: Bool = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -19,42 +21,38 @@ struct VaultView: View {
             } else if !vault.isUnlocked {
                 VaultLockView(vault: vault)
             } else {
-                vaultUnlockedShell
+                NavigationStack {
+                    VaultGridView(vault: vault)
+                }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: vault.hasPasscode)
         .animation(.easeInOut(duration: 0.25), value: vault.isUnlocked)
-    }
-
-    // Placeholder until Phase 6 Part B builds the real grid / add picker / preview.
-    private var vaultUnlockedShell: some View {
-        ZStack {
-            AppColor.surfaceBackground.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "lock.open.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(AppColor.success)
-                Text("Vault unlocked")
-                    .font(.custom("Inter-Bold", size: 20))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text("Grid + Add from Camera/Photos + preview coming in Phase 6 Part B.")
-                    .font(.custom("Inter-Regular", size: 14))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                Button(action: { vault.lock() }) {
-                    Text("Lock")
-                        .font(.custom("Inter-SemiBold", size: 14))
-                        .foregroundStyle(AppColor.brandPrimary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule().fill(AppColor.brandPrimary.opacity(0.1))
-                        )
-                }
-                .padding(.top, 8)
+        .onChange(of: vault.isUnlocked) { _, unlocked in
+            // Reset the per-unlock ad gate. Fire interstitial when transitioning
+            // to unlocked, not while locked.
+            if !unlocked { didShowUnlockAd = false; return }
+            guard !didShowUnlockAd else { return }
+            didShowUnlockAd = true
+            fireUnlockInterstitial()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                // Re-lock on background — vault stays secret if user app-switches
+                // and someone else picks up the phone.
+                vault.lock()
             }
         }
+    }
+
+    private func fireUnlockInterstitial() {
+        guard !PermissionManager.shared.isPremium,
+              let vc = AdHelpers.topViewController() else { return }
+        AdManager.shared.showInterstitialAd(
+            adUnitID: AdUnits.interVaultUnlock,
+            from: vc,
+            completion: nil
+        )
     }
 }
 

@@ -86,28 +86,32 @@ final class VaultService {
     }
 
     // MARK: - Encryption
+    // These are `nonisolated` so VaultGridView / VaultPreviewView can offload
+    // decrypt to a detached task without an actor hop. They don't touch
+    // `isUnlocked` or any other actor-isolated state — they only read from the
+    // Keychain (thread-safe) and the file system.
 
-    private func key() throws -> SymmetricKey {
+    nonisolated private func key() throws -> SymmetricKey {
         guard let data = Keychain.data(forKey: KCKey.encryptionKey) else {
-            throw AuthError.passcodeMismatch  // shouldn't happen if setPasscode ran
+            throw AuthError.passcodeMismatch
         }
         return SymmetricKey(data: data)
     }
 
-    func encrypt(_ plaintext: Data) throws -> Data {
+    nonisolated func encrypt(_ plaintext: Data) throws -> Data {
         let sealed = try AES.GCM.seal(plaintext, using: try key())
         guard let combined = sealed.combined else { throw AuthError.passcodeMismatch }
         return combined
     }
 
-    func decrypt(_ ciphertext: Data) throws -> Data {
+    nonisolated func decrypt(_ ciphertext: Data) throws -> Data {
         let box = try AES.GCM.SealedBox(combined: ciphertext)
         return try AES.GCM.open(box, using: try key())
     }
 
     // MARK: - File storage
 
-    static let vaultDirectory: URL = {
+    nonisolated static let vaultDirectory: URL = {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let dir = docs.appendingPathComponent("Vault", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
@@ -116,21 +120,21 @@ final class VaultService {
         return dir
     }()
 
-    func encryptedURL(for itemID: UUID) -> URL {
+    nonisolated func encryptedURL(for itemID: UUID) -> URL {
         Self.vaultDirectory.appendingPathComponent("\(itemID.uuidString).dat")
     }
 
-    func writeEncrypted(_ plaintext: Data, for itemID: UUID) throws {
+    nonisolated func writeEncrypted(_ plaintext: Data, for itemID: UUID) throws {
         let cipher = try encrypt(plaintext)
         try cipher.write(to: encryptedURL(for: itemID), options: .atomic)
     }
 
-    func readDecrypted(for itemID: UUID) throws -> Data {
+    nonisolated func readDecrypted(for itemID: UUID) throws -> Data {
         let cipher = try Data(contentsOf: encryptedURL(for: itemID))
         return try decrypt(cipher)
     }
 
-    func deleteFile(for itemID: UUID) {
+    nonisolated func deleteFile(for itemID: UUID) {
         try? FileManager.default.removeItem(at: encryptedURL(for: itemID))
     }
 }
