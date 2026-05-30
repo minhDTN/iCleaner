@@ -16,6 +16,20 @@ struct SimilarReviewScreen: View {
     var onFilter: () -> Void
     var onDeleteTap: () -> Void
 
+    // Compute once per body so SwiftUI's diffing tracks stable IDs. Inserts a
+    // native ad after every 2 groups except the last slot (so the ad never
+    // appears as the final item right above the delete CTA).
+    private var feed: [ReviewFeedItem] {
+        var items: [ReviewFeedItem] = []
+        for (idx, group) in groups.enumerated() {
+            items.append(.group(idx: idx, id: group.id))
+            if (idx + 1) % 2 == 0 && idx < groups.count - 1 {
+                items.append(.nativeAd(slot: idx / 2))
+            }
+        }
+        return items
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             AppColor.surfaceBackground.ignoresSafeArea()
@@ -23,9 +37,14 @@ struct SimilarReviewScreen: View {
             VStack(spacing: 0) {
                 navBar
                 ScrollView {
-                    VStack(spacing: 24) {
-                        ForEach($groups) { $group in
-                            SimilarGroupSection(group: $group)
+                    LazyVStack(spacing: 24) {
+                        ForEach(feed) { item in
+                            switch item {
+                            case .group(let idx, _):
+                                SimilarGroupSection(group: $groups[idx])
+                            case .nativeAd:
+                                NativeAdView(adUnitID: AdUnits.nativeSimilarList, height: 120)
+                            }
                         }
                         Spacer(minLength: 100)
                     }
@@ -112,6 +131,18 @@ struct SimilarReviewScreen: View {
         .disabled(isDisabled)
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
+    }
+}
+
+private enum ReviewFeedItem: Identifiable {
+    case group(idx: Int, id: UUID)
+    case nativeAd(slot: Int)
+
+    var id: String {
+        switch self {
+        case .group(_, let gid):  return "g_\(gid)"
+        case .nativeAd(let slot): return "ad_\(slot)"
+        }
     }
 }
 

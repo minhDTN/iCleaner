@@ -1,5 +1,6 @@
 import SwiftUI
 import Photos
+import LibEarnMoneyIOS
 
 // Owner of the Similar cleanup flow. Manages the state machine
 // (loading → review → deleting → success) and the modal overlays
@@ -68,7 +69,7 @@ struct SimilarFlowView: View {
                     onComplete: { step = .success }
                 )
             case .success:
-                SimilarSuccessView(deletedMB: deletedMB, onContinue: { dismiss() })
+                SimilarSuccessView(deletedMB: deletedMB, onContinue: showInterstitialThenDismiss)
             }
 
             if showDeleteConfirm {
@@ -148,12 +149,32 @@ struct SimilarFlowView: View {
         fetched.enumerateObjects { asset, _, _ in assets.append(asset) }
         do {
             try await photoLibrary.delete(assets: assets)
-            // Remove from local model so a refresh shows the right state.
-            for groupIdx in groups.indices {
-                groups[groupIdx].photos.removeAll { $0.isSelected }
+            // Prune selected photos AND drop any group that becomes empty so the
+            // post-success refresh doesn't render an empty card.
+            groups = groups.compactMap { g in
+                var trimmed = g
+                trimmed.photos.removeAll { $0.isSelected }
+                return trimmed.photos.isEmpty ? nil : trimmed
             }
         } catch {
             deleteError = (error as NSError).localizedDescription
+        }
+    }
+
+    // Lib gates premium internally + enforces 30s global frequency cap, so it's
+    // safe to call on every successful delete. Premium-gated by AdManager —
+    // completion still fires (immediately) if the ad is suppressed.
+    private func showInterstitialThenDismiss() {
+        guard !PermissionManager.shared.isPremium,
+              let vc = AdHelpers.topViewController() else {
+            dismiss()
+            return
+        }
+        AdManager.shared.showInterstitialAd(
+            adUnitID: AdUnits.interSimilarClean,
+            from: vc
+        ) {
+            Task { @MainActor in dismiss() }
         }
     }
 
