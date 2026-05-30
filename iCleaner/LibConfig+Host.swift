@@ -12,7 +12,7 @@ func makeLibConfig() -> LibConfig {
         products:    MyProduct.allCases,
         permissions: [MyPermission.premium],
         defaultProductId: MyProduct.weekly.id,
-        trialProductId:   MyProduct.yearlyTrial.id,
+        trialProductId:   MyProduct.weeklyTrial.id,
 
         appsFlyerDevKey: "PLACEHOLDER_APPSFLYER_DEV_KEY",
 

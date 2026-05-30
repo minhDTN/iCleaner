@@ -8,7 +8,7 @@ enum MyPermission: String, CaseIterable, BasePermission {
 
     var products: [any BaseProduct] {
         switch self {
-        case .premium: return [MyProduct.weekly, MyProduct.yearlyTrial]
+        case .premium: return [MyProduct.weekly, MyProduct.weeklyTrial, MyProduct.monthly]
         }
     }
 }
