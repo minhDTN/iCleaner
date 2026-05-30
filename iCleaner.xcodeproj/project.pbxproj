@@ -41,6 +41,10 @@
 		AA0000000000000000000245 /* VaultService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C5 /* VaultService.swift */; };
 		AA0000000000000000000246 /* ContactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C6 /* ContactsService.swift */; };
 		AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000180 /* ContactsDashboardView.swift */; };
+		AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000181 /* ContactsDuplicatesView.swift */; };
+		AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000182 /* ContactsIncompleteView.swift */; };
+		AA0000000000000000000283 /* ContactsAllView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000183 /* ContactsAllView.swift */; };
+		AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000184 /* ContactsBackupsView.swift */; };
 		AA0000000000000000000270 /* PasscodeKeypad.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F0 /* PasscodeKeypad.swift */; };
 		AA0000000000000000000271 /* VaultLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F1 /* VaultLockView.swift */; };
 		AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F2 /* CreatePasscodeView.swift */; };
@@ -100,6 +104,10 @@
 		AA00000000000000000001C5 /* VaultService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C6 /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
 		AA0000000000000000000180 /* ContactsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDashboardView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000181 /* ContactsDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDuplicatesView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000182 /* ContactsIncompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsIncompleteView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000183 /* ContactsAllView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsAllView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000184 /* ContactsBackupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsBackupsView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F0 /* PasscodeKeypad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasscodeKeypad.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F1 /* VaultLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultLockView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F2 /* CreatePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePasscodeView.swift; sourceTree = "<group>"; };
@@ -241,6 +249,10 @@
 				AA00000000000000000001F3 /* VaultGridView.swift */,
 				AA00000000000000000001F4 /* VaultPreviewView.swift */,
 				AA0000000000000000000180 /* ContactsDashboardView.swift */,
+				AA0000000000000000000181 /* ContactsDuplicatesView.swift */,
+				AA0000000000000000000182 /* ContactsIncompleteView.swift */,
+				AA0000000000000000000183 /* ContactsAllView.swift */,
+				AA0000000000000000000184 /* ContactsBackupsView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -389,6 +401,10 @@
 				AA0000000000000000000274 /* VaultPreviewView.swift in Sources */,
 				AA0000000000000000000246 /* ContactsService.swift in Sources */,
 				AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */,
+				AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */,
+				AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */,
+				AA0000000000000000000283 /* ContactsAllView.swift in Sources */,
+				AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */,
 				AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */,
 				AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */,
 				AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */,

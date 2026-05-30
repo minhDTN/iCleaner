@@ -41,15 +41,12 @@ struct ContactsDashboardView: View {
             }
         }
         .navigationDestination(for: ContactsCategory.self) { cat in
-            // Placeholder until Phase 7 Part B builds Duplicates / Incomplete /
-            // All / Backups screens. The dashboard cards already route to the
-            // right enum case so wiring stays trivial later.
-            PlaceholderScreen(
-                title: cat.title,
-                subtitle: "\(cat.title) detail screen — coming in Phase 7 Part B"
-            )
-            .navigationTitle(cat.title)
-            .navigationBarTitleDisplayMode(.inline)
+            switch cat {
+            case .duplicates: ContactsDuplicatesView(service: service)
+            case .incomplete: ContactsIncompleteView(service: service)
+            case .all:        ContactsAllView(service: service)
+            case .backups:    ContactsBackupsView(service: service)
+            }
         }
         .task {
             if service.lastRefreshed == nil { await service.refresh() }

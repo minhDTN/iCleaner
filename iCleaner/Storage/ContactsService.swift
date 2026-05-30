@@ -1,15 +1,18 @@
 import Foundation
 import Contacts
+import UIKit
 import Observation
 
-// Read-side wrapper around CNContactStore. Detects duplicate clusters
-// (by normalized phone number primary, fallback to lowercased full name) and
-// incomplete contacts (missing both name and phone). Counts feed the
-// ContactsDashboardView cards; full lists are pulled lazily by the detail
-// screens in Phase 7 Part B.
+// Read + write wrapper around CNContactStore.
 //
-// Backups are vCard files written to Documents/ContactBackups/*.vcf — listed
-// here so the dashboard can show a count without scanning on every refresh.
+// READ: dashboard counts (refresh), full lists for detail screens
+// (fetchDuplicateGroups / fetchIncompleteContacts / fetchAllContacts),
+// backup file enumeration (fetchBackups).
+// WRITE: merge a duplicate group into one contact, delete contacts,
+// create a vCard backup, restore from a backup file.
+//
+// All heavy work runs on Task.detached. Mutating methods refresh counts
+// after success so the dashboard cards update automatically.
 @MainActor
 @Observable
 final class ContactsService {
@@ -50,14 +53,13 @@ final class ContactsService {
         do {
             try await store.requestAccess(for: .contacts)
         } catch {
-            // Ignore — re-read the status below either way.
+            // ignore
         }
         let new = AuthStatus(CNContactStore.authorizationStatus(for: .contacts))
         authStatus = new
         return new
     }
 
-    // Walks every contact once, populates the dashboard counts. Off main thread.
     func refresh() async {
         guard authStatus.canRead, !isRefreshing else { return }
         isRefreshing = true
@@ -78,9 +80,106 @@ final class ContactsService {
         UIApplication.shared.open(url)
     }
 
-    // MARK: - Backups (vCard) dir helpers
+    // MARK: - Detail fetches
 
-    static let backupsDirectory: URL = {
+    func fetchDuplicateGroups() async -> [DuplicateGroup] {
+        guard authStatus.canRead else { return [] }
+        return await Task.detached(priority: .userInitiated) { [store] in
+            Self.scanForGroups(store: store)
+        }.value
+    }
+
+    func fetchIncompleteContacts() async -> [CNContact] {
+        guard authStatus.canRead else { return [] }
+        return await Task.detached(priority: .userInitiated) { [store] in
+            Self.fetchAll(store: store).filter { contact in
+                let hasName = !(contact.givenName + contact.familyName).trimmingCharacters(in: .whitespaces).isEmpty
+                    || !contact.organizationName.isEmpty
+                let hasPhone = !contact.phoneNumbers.isEmpty
+                return !hasName || !hasPhone
+            }
+        }.value
+    }
+
+    func fetchAllContacts() async -> [CNContact] {
+        guard authStatus.canRead else { return [] }
+        return await Task.detached(priority: .userInitiated) { [store] in
+            Self.fetchAll(store: store)
+                .sorted { Self.sortKey($0) < Self.sortKey($1) }
+        }.value
+    }
+
+    func fetchBackups() -> [BackupFile] {
+        let urls = (try? FileManager.default.contentsOfDirectory(at: Self.backupsDirectory, includingPropertiesForKeys: [.creationDateKey, .fileSizeKey])) ?? []
+        return urls.filter { $0.pathExtension.lowercased() == "vcf" }
+            .compactMap { url -> BackupFile? in
+                let values = try? url.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
+                guard let created = values?.creationDate else { return nil }
+                let bytes = values?.fileSize ?? 0
+                return BackupFile(url: url, createdAt: created, sizeBytes: bytes)
+            }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    // MARK: - Mutations
+
+    func merge(group: DuplicateGroup) async throws {
+        guard authStatus.canRead, group.contacts.count >= 2 else { return }
+        try await Task.detached(priority: .userInitiated) { [store] in
+            try Self.performMerge(group: group, store: store)
+        }.value
+        await refresh()
+    }
+
+    func delete(contacts: [CNContact]) async throws {
+        guard authStatus.canRead, !contacts.isEmpty else { return }
+        try await Task.detached(priority: .userInitiated) { [store] in
+            let req = CNSaveRequest()
+            for c in contacts {
+                if let mut = c.mutableCopy() as? CNMutableContact {
+                    req.delete(mut)
+                }
+            }
+            try store.execute(req)
+        }.value
+        await refresh()
+    }
+
+    // Writes every contact (vCard) into ContactBackups/<timestamp>.vcf.
+    @discardableResult
+    func createBackup() async throws -> BackupFile {
+        guard authStatus.canRead else { throw NSError(domain: "iCleaner", code: -2,
+            userInfo: [NSLocalizedDescriptionKey: "Contacts access required."]) }
+        let url = try await Task.detached(priority: .userInitiated) { [store] in
+            try Self.performBackup(store: store)
+        }.value
+        let values = try? url.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
+        await refresh()
+        return BackupFile(
+            url: url,
+            createdAt: values?.creationDate ?? Date(),
+            sizeBytes: values?.fileSize ?? 0
+        )
+    }
+
+    @discardableResult
+    func restore(from file: BackupFile) async throws -> Int {
+        guard authStatus.canRead else { return 0 }
+        let count = try await Task.detached(priority: .userInitiated) { [store] in
+            try Self.performRestore(file: file, store: store)
+        }.value
+        await refresh()
+        return count
+    }
+
+    func deleteBackup(_ file: BackupFile) {
+        try? FileManager.default.removeItem(at: file.url)
+        backupCount = Self.countBackups()
+    }
+
+    // MARK: - Backups dir
+
+    nonisolated static let backupsDirectory: URL = {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let dir = docs.appendingPathComponent("ContactBackups", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
@@ -94,7 +193,20 @@ final class ContactsService {
         return items.filter { $0.pathExtension.lowercased() == "vcf" }.count
     }
 
-    // MARK: - Scan implementation
+    // MARK: - Scan implementations (nonisolated, run on detached tasks)
+
+    nonisolated private static let detailKeys: [CNKeyDescriptor] = [
+        CNContactGivenNameKey,
+        CNContactFamilyNameKey,
+        CNContactMiddleNameKey,
+        CNContactOrganizationNameKey,
+        CNContactPhoneNumbersKey,
+        CNContactEmailAddressesKey,
+        CNContactPostalAddressesKey,
+        CNContactImageDataKey,
+        CNContactImageDataAvailableKey,
+        CNContactThumbnailImageDataKey,
+    ] as [CNKeyDescriptor]
 
     nonisolated private static func scan(store: CNContactStore) -> Snapshot {
         let keys = [
@@ -107,7 +219,6 @@ final class ContactsService {
 
         var total = 0
         var incomplete = 0
-        // group key → count (for dup detection)
         var phoneBuckets: [String: Int] = [:]
         var nameBuckets: [String: Int] = [:]
 
@@ -119,24 +230,17 @@ final class ContactsService {
                 let hasName = !name.isEmpty || !contact.organizationName.isEmpty
                 let hasPhone = !contact.phoneNumbers.isEmpty
                 if !hasName || !hasPhone { incomplete += 1 }
-
-                // bucket by normalized phone number (strip non-digits) primary
                 for ph in contact.phoneNumbers {
                     let digits = ph.value.stringValue.filter(\.isNumber)
                     guard digits.count >= 6 else { continue }
-                    // last 9 digits — collapses +1, +84, etc.
                     let key = String(digits.suffix(9))
                     phoneBuckets[key, default: 0] += 1
                 }
-                // fallback: bucket by lowercased name if no phones
                 if !hasPhone, !name.isEmpty {
-                    let key = name.lowercased()
-                    nameBuckets[key, default: 0] += 1
+                    nameBuckets[name.lowercased(), default: 0] += 1
                 }
             }
-        } catch {
-            // Permission revoked mid-scan or other failure — just return what we have.
-        }
+        } catch {}
 
         let duplicateGroups =
             phoneBuckets.values.filter { $0 >= 2 }.count +
@@ -145,7 +249,155 @@ final class ContactsService {
         return Snapshot(total: total, duplicateGroups: duplicateGroups, incomplete: incomplete)
     }
 
+    nonisolated private static func fetchAll(store: CNContactStore) -> [CNContact] {
+        let request = CNContactFetchRequest(keysToFetch: detailKeys)
+        var result: [CNContact] = []
+        do {
+            try store.enumerateContacts(with: request) { contact, _ in
+                result.append(contact)
+            }
+        } catch {}
+        return result
+    }
+
+    nonisolated private static func scanForGroups(store: CNContactStore) -> [DuplicateGroup] {
+        let all = fetchAll(store: store)
+        // phone-based bucketing primary
+        var byPhone: [String: [CNContact]] = [:]
+        for c in all {
+            for ph in c.phoneNumbers {
+                let digits = ph.value.stringValue.filter(\.isNumber)
+                guard digits.count >= 6 else { continue }
+                let key = String(digits.suffix(9))
+                byPhone[key, default: []].append(c)
+            }
+        }
+        // name-fallback bucketing for phone-less contacts
+        var seenIDs = Set<String>()
+        var groups: [DuplicateGroup] = []
+        for (_, list) in byPhone where list.count >= 2 {
+            // dedupe within bucket — a single contact may appear twice if it has the same phone twice
+            var unique: [CNContact] = []
+            var ids = Set<String>()
+            for c in list where !ids.contains(c.identifier) {
+                ids.insert(c.identifier); unique.append(c)
+            }
+            guard unique.count >= 2 else { continue }
+            unique.forEach { seenIDs.insert($0.identifier) }
+            groups.append(DuplicateGroup(title: bestTitle(for: unique), contacts: unique))
+        }
+        var byName: [String: [CNContact]] = [:]
+        for c in all where !seenIDs.contains(c.identifier) && c.phoneNumbers.isEmpty {
+            let name = (c.givenName + " " + c.familyName).trimmingCharacters(in: .whitespaces).lowercased()
+            guard !name.isEmpty else { continue }
+            byName[name, default: []].append(c)
+        }
+        for (_, list) in byName where list.count >= 2 {
+            groups.append(DuplicateGroup(title: bestTitle(for: list), contacts: list))
+        }
+        return groups.sorted { $0.contacts.count > $1.contacts.count }
+    }
+
+    nonisolated private static func bestTitle(for contacts: [CNContact]) -> String {
+        for c in contacts {
+            let n = (c.givenName + " " + c.familyName).trimmingCharacters(in: .whitespaces)
+            if !n.isEmpty { return n }
+            if !c.organizationName.isEmpty { return c.organizationName }
+        }
+        return contacts.first?.phoneNumbers.first?.value.stringValue ?? "Unknown"
+    }
+
+    nonisolated private static func sortKey(_ c: CNContact) -> String {
+        let raw = (c.familyName + c.givenName + c.organizationName)
+            .trimmingCharacters(in: .whitespaces)
+        return raw.isEmpty ? "~" : raw.lowercased()
+    }
+
+    // MARK: - Mutation implementations
+
+    nonisolated private static func performMerge(group: DuplicateGroup, store: CNContactStore) throws {
+        guard let firstID = group.contacts.first?.identifier else { return }
+        // Re-fetch with all keys (the snapshot lists fetched only basic keys).
+        let predicate = CNContact.predicateForContacts(withIdentifiers: group.contacts.map(\.identifier))
+        let fetched = (try? store.unifiedContacts(matching: predicate, keysToFetch: detailKeys)) ?? []
+        guard let primaryFetched = fetched.first(where: { $0.identifier == firstID }) else { return }
+        guard let primary = primaryFetched.mutableCopy() as? CNMutableContact else { return }
+
+        var seenPhones = Set<String>(primary.phoneNumbers.map { Self.phoneKey($0.value.stringValue) })
+        var seenEmails = Set<String>(primary.emailAddresses.map { String($0.value).lowercased() })
+
+        for c in fetched where c.identifier != firstID {
+            for ph in c.phoneNumbers {
+                let key = Self.phoneKey(ph.value.stringValue)
+                guard !key.isEmpty, !seenPhones.contains(key) else { continue }
+                seenPhones.insert(key)
+                primary.phoneNumbers.append(ph)
+            }
+            for em in c.emailAddresses {
+                let key = String(em.value).lowercased()
+                guard !seenEmails.contains(key) else { continue }
+                seenEmails.insert(key)
+                primary.emailAddresses.append(em)
+            }
+            // pick up name fields if primary lacks them
+            if primary.givenName.isEmpty   { primary.givenName   = c.givenName }
+            if primary.familyName.isEmpty  { primary.familyName  = c.familyName }
+            if primary.organizationName.isEmpty { primary.organizationName = c.organizationName }
+        }
+
+        let req = CNSaveRequest()
+        req.update(primary)
+        for c in fetched where c.identifier != firstID {
+            if let mut = c.mutableCopy() as? CNMutableContact {
+                req.delete(mut)
+            }
+        }
+        try store.execute(req)
+    }
+
+    nonisolated private static func phoneKey(_ raw: String) -> String {
+        let digits = raw.filter(\.isNumber)
+        guard digits.count >= 6 else { return "" }
+        return String(digits.suffix(9))
+    }
+
+    nonisolated private static func performBackup(store: CNContactStore) throws -> URL {
+        let all = fetchAll(store: store)
+        let data = try CNContactVCardSerialization.data(with: all)
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let url = backupsDirectory.appendingPathComponent("backup-\(stamp).vcf")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    nonisolated private static func performRestore(file: BackupFile, store: CNContactStore) throws -> Int {
+        let data = try Data(contentsOf: file.url)
+        let contacts = try CNContactVCardSerialization.contacts(with: data)
+        let req = CNSaveRequest()
+        for c in contacts {
+            if let mut = c.mutableCopy() as? CNMutableContact {
+                req.add(mut, toContainerWithIdentifier: nil)
+            }
+        }
+        try store.execute(req)
+        return contacts.count
+    }
+
     struct Snapshot { let total: Int; let duplicateGroups: Int; let incomplete: Int }
 }
 
-import UIKit  // openSettingsURLString
+// MARK: - Models
+
+struct DuplicateGroup: Identifiable {
+    let id = UUID()
+    let title: String
+    let contacts: [CNContact]
+    var phoneCount: Int { Set(contacts.flatMap { $0.phoneNumbers.map { $0.value.stringValue } }).count }
+}
+
+struct BackupFile: Identifiable {
+    let url: URL
+    let createdAt: Date
+    let sizeBytes: Int
+    var id: URL { url }
+}
