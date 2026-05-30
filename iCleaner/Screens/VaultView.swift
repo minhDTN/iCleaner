@@ -1,11 +1,60 @@
 import SwiftUI
+import SwiftData
 
-// Figma: lock `2008:31885`, create-pass `2010:2243`, change-pass `2010:2463`,
-// empty `2010:2568`, add `2010:2808`, preview `2010:2345` / `2009:32871`.
-// Stack: FaceID/passcode gate → encrypted vault grid (AES-256 badge).
+// Vault tab root. State machine:
+//   • No passcode set → CreatePasscodeView (onboarding)
+//   • Has passcode, not unlocked → VaultLockView (Face ID / passcode)
+//   • Unlocked → vault grid (Phase 6 Part B; placeholder shell for now)
+//
+// VaultService is @State here so unlock state persists for the lifetime of the
+// tab (i.e. until the app is cold-started or the user backgrounds the app).
+// Re-lock on background is a Part B concern.
 struct VaultView: View {
+    @State private var vault = VaultService()
+
     var body: some View {
-        PlaceholderScreen(title: "Private Vault", subtitle: "Face ID & passcode protected")
+        Group {
+            if !vault.hasPasscode {
+                CreatePasscodeView(vault: vault)
+            } else if !vault.isUnlocked {
+                VaultLockView(vault: vault)
+            } else {
+                vaultUnlockedShell
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: vault.hasPasscode)
+        .animation(.easeInOut(duration: 0.25), value: vault.isUnlocked)
+    }
+
+    // Placeholder until Phase 6 Part B builds the real grid / add picker / preview.
+    private var vaultUnlockedShell: some View {
+        ZStack {
+            AppColor.surfaceBackground.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "lock.open.fill")
+                    .font(.system(size: 56))
+                    .foregroundStyle(AppColor.success)
+                Text("Vault unlocked")
+                    .font(.custom("Inter-Bold", size: 20))
+                    .foregroundStyle(AppColor.textPrimary)
+                Text("Grid + Add from Camera/Photos + preview coming in Phase 6 Part B.")
+                    .font(.custom("Inter-Regular", size: 14))
+                    .foregroundStyle(AppColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                Button(action: { vault.lock() }) {
+                    Text("Lock")
+                        .font(.custom("Inter-SemiBold", size: 14))
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(AppColor.brandPrimary.opacity(0.1))
+                        )
+                }
+                .padding(.top, 8)
+            }
+        }
     }
 }
 

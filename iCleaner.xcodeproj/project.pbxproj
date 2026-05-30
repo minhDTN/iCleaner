@@ -36,6 +36,12 @@
 		AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C0 /* PhotoLibraryService.swift */; };
 		AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C1 /* PHAssetThumbnail.swift */; };
 		AA0000000000000000000242 /* DeviceStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C2 /* DeviceStorage.swift */; };
+		AA0000000000000000000243 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C3 /* Keychain.swift */; };
+		AA0000000000000000000244 /* VaultItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C4 /* VaultItem.swift */; };
+		AA0000000000000000000245 /* VaultService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C5 /* VaultService.swift */; };
+		AA0000000000000000000270 /* PasscodeKeypad.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F0 /* PasscodeKeypad.swift */; };
+		AA0000000000000000000271 /* VaultLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F1 /* VaultLockView.swift */; };
+		AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F2 /* CreatePasscodeView.swift */; };
 		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
 		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
 		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
@@ -85,6 +91,12 @@
 		AA00000000000000000001C0 /* PhotoLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C1 /* PHAssetThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHAssetThumbnail.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C2 /* DeviceStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceStorage.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C3 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C4 /* VaultItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultItem.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C5 /* VaultService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultService.swift; sourceTree = "<group>"; };
+		AA00000000000000000001F0 /* PasscodeKeypad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasscodeKeypad.swift; sourceTree = "<group>"; };
+		AA00000000000000000001F1 /* VaultLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultLockView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001F2 /* CreatePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePasscodeView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
@@ -215,6 +227,9 @@
 				AA00000000000000000001D2 /* QuickCleanSuccessView.swift */,
 				AA00000000000000000001E0 /* FAQView.swift */,
 				AA00000000000000000001E1 /* ContactView.swift */,
+				AA00000000000000000001F0 /* PasscodeKeypad.swift */,
+				AA00000000000000000001F1 /* VaultLockView.swift */,
+				AA00000000000000000001F2 /* CreatePasscodeView.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -235,6 +250,9 @@
 				AA00000000000000000001C0 /* PhotoLibraryService.swift */,
 				AA00000000000000000001C1 /* PHAssetThumbnail.swift */,
 				AA00000000000000000001C2 /* DeviceStorage.swift */,
+				AA00000000000000000001C3 /* Keychain.swift */,
+				AA00000000000000000001C4 /* VaultItem.swift */,
+				AA00000000000000000001C5 /* VaultService.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -349,6 +367,12 @@
 				AA0000000000000000000240 /* PhotoLibraryService.swift in Sources */,
 				AA0000000000000000000241 /* PHAssetThumbnail.swift in Sources */,
 				AA0000000000000000000242 /* DeviceStorage.swift in Sources */,
+				AA0000000000000000000243 /* Keychain.swift in Sources */,
+				AA0000000000000000000244 /* VaultItem.swift in Sources */,
+				AA0000000000000000000245 /* VaultService.swift in Sources */,
+				AA0000000000000000000270 /* PasscodeKeypad.swift in Sources */,
+				AA0000000000000000000271 /* VaultLockView.swift in Sources */,
+				AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */,
 				AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */,
 				AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */,
 				AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */,

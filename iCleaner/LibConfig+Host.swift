@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import SwiftUI
+import SwiftData
 import LibEarnMoneyIOS
 
 func makeLibConfig() -> LibConfig {
@@ -39,7 +40,7 @@ func makeLibConfig() -> LibConfig {
         paywallTheme: PaywallTheme(),
 
         homeFactory: {
-            UIHostingController(rootView: RootView())
+            UIHostingController(rootView: RootView().modelContainer(for: VaultItem.self))
         }
     )
 }
