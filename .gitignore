@@ -43,3 +43,6 @@ Icon?
 *.log
 *.tmp
 *.bak
+
+# Override global gitignore: this project's Info.plist must be tracked
+!iCleaner/Info.plist
