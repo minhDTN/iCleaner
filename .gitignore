@@ -46,3 +46,6 @@ Icon?
 
 # Override global gitignore: this project's Info.plist must be tracked
 !iCleaner/Info.plist
+
+# Merge/edit backup files
+*.orig
