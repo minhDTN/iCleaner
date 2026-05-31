@@ -102,13 +102,13 @@ struct PaywallView: View {
 
     private var sourcePills: some View {
         HStack(spacing: 48) {
-            sourcePill(label: "Photos", systemIcon: "photo.fill")
-            sourcePill(label: "Drive",  systemIcon: "externaldrive.fill")
+            sourcePill(label: "Photos", assetIcon: "Paywall/ic_source_photos")
+            sourcePill(label: "Drive",  assetIcon: "Paywall/ic_source_drive")
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func sourcePill(label: String, systemIcon: String) -> some View {
+    private func sourcePill(label: String, assetIcon: String) -> some View {
         VStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -119,9 +119,10 @@ struct PaywallView: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(Color(hex: 0xF8FAFC), lineWidth: 1)
                     )
-                Image(systemName: systemIcon)
-                    .font(.system(size: 28))
-                    .foregroundStyle(AppColor.brandPrimary)
+                Image(assetIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
             }
             Text(label)
                 .font(.custom("Inter-SemiBold", size: 14))

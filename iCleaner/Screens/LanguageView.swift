@@ -63,8 +63,10 @@ struct LanguageView: View {
     private var navBar: some View {
         HStack(spacing: 16) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
+                Image("Common/ic_arrow_left")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
                     .foregroundStyle(AppColor.textPrimary)
                     .frame(width: 24, height: 24)
             }
@@ -80,8 +82,10 @@ struct LanguageView: View {
 
     private var searchField: some View {
         HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 16))
+            Image("Common/ic_search")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
                 .foregroundStyle(AppColor.brandPrimary)
                 .frame(width: 20, height: 20)
             TextField("Enter name of Language...", text: $query)
@@ -170,18 +174,34 @@ struct Language: Identifiable {
     let flagAssetName: String
     var id: String { code }
 
-    // Subset of design's full list. Expand when localization ships.
+    // Full 25-language list matching Figma design. Flags @3x downloaded into
+    // Assets.xcassets/Flags/ from the Figma component-set (300:993 family).
     static let mock: [Language] = [
-        .init(code: "en-gb", englishName: "English",     nativeName: "English – UK / System Default", flagAssetName: "Flags/flag_gb"),
-        .init(code: "en-us", englishName: "English (US)", nativeName: "English – United States",      flagAssetName: "Flags/flag_us"),
-        .init(code: "vi",    englishName: "Vietnamese",   nativeName: "Tiếng Việt",                   flagAssetName: "Flags/flag_vn"),
-        .init(code: "es",    englishName: "Spanish",      nativeName: "Español",                       flagAssetName: "Flags/flag_es"),
-        .init(code: "fr",    englishName: "French",       nativeName: "Français",                      flagAssetName: "Flags/flag_fr"),
-        .init(code: "de",    englishName: "German",       nativeName: "Deutsch",                       flagAssetName: "Flags/flag_de"),
-        .init(code: "ja",    englishName: "Japanese",     nativeName: "日本語",                         flagAssetName: "Flags/flag_jp"),
-        .init(code: "ko",    englishName: "Korean",       nativeName: "한국어",                         flagAssetName: "Flags/flag_kr"),
-        .init(code: "zh",    englishName: "Chinese",      nativeName: "中文",                           flagAssetName: "Flags/flag_cn"),
-        .init(code: "id",    englishName: "Indonesian",   nativeName: "Bahasa Indonesia",              flagAssetName: "Flags/flag_id"),
+        .init(code: "en-gb",  englishName: "English",       nativeName: "English – UK / System Default", flagAssetName: "Flags/flag_gb"),
+        .init(code: "en-us",  englishName: "English (US)",  nativeName: "English – United States",       flagAssetName: "Flags/flag_us"),
+        .init(code: "en-au",  englishName: "English (AU)",  nativeName: "English – Australia",           flagAssetName: "Flags/flag_au"),
+        .init(code: "en-ca",  englishName: "English (CA)",  nativeName: "English – Canada",              flagAssetName: "Flags/flag_ca"),
+        .init(code: "en-in",  englishName: "English (IN)",  nativeName: "English – India",               flagAssetName: "Flags/flag_in"),
+        .init(code: "es",     englishName: "Spanish",       nativeName: "Español",                        flagAssetName: "Flags/flag_es"),
+        .init(code: "es-mx",  englishName: "Spanish (MX)",  nativeName: "Español – México",               flagAssetName: "Flags/flag_mx"),
+        .init(code: "pt",     englishName: "Portuguese",    nativeName: "Português",                      flagAssetName: "Flags/flag_pt"),
+        .init(code: "pt-br",  englishName: "Portuguese (BR)", nativeName: "Português – Brasil",          flagAssetName: "Flags/flag_br"),
+        .init(code: "fr",     englishName: "French",        nativeName: "Français",                       flagAssetName: "Flags/flag_fr"),
+        .init(code: "de",     englishName: "German",        nativeName: "Deutsch",                        flagAssetName: "Flags/flag_de"),
+        .init(code: "it",     englishName: "Italian",       nativeName: "Italiano",                       flagAssetName: "Flags/flag_it"),
+        .init(code: "nl",     englishName: "Dutch",         nativeName: "Nederlands",                     flagAssetName: "Flags/flag_nl"),
+        .init(code: "tr",     englishName: "Turkish",       nativeName: "Türkçe",                         flagAssetName: "Flags/flag_tr"),
+        .init(code: "uk",     englishName: "Ukrainian",     nativeName: "Українська",                     flagAssetName: "Flags/flag_ua"),
+        .init(code: "ru",     englishName: "Russian",       nativeName: "Русский",                        flagAssetName: "Flags/flag_ru"),
+        .init(code: "he",     englishName: "Hebrew",        nativeName: "עברית",                          flagAssetName: "Flags/flag_il"),
+        .init(code: "ar",     englishName: "Arabic",        nativeName: "العربية",                        flagAssetName: "Flags/flag_sa"),
+        .init(code: "fa",     englishName: "Persian",       nativeName: "فارسی",                          flagAssetName: "Flags/flag_ir"),
+        .init(code: "id",     englishName: "Indonesian",    nativeName: "Bahasa Indonesia",               flagAssetName: "Flags/flag_id"),
+        .init(code: "vi",     englishName: "Vietnamese",    nativeName: "Tiếng Việt",                    flagAssetName: "Flags/flag_vn"),
+        .init(code: "ja",     englishName: "Japanese",      nativeName: "日本語",                          flagAssetName: "Flags/flag_jp"),
+        .init(code: "ko",     englishName: "Korean",        nativeName: "한국어",                          flagAssetName: "Flags/flag_kr"),
+        .init(code: "zh-cn",  englishName: "Chinese",       nativeName: "简体中文",                         flagAssetName: "Flags/flag_cn"),
+        .init(code: "zh-tw",  englishName: "Chinese (TW)",  nativeName: "繁體中文",                         flagAssetName: "Flags/flag_tw"),
     ]
 }
 

@@ -76,17 +76,12 @@ struct VaultLockView: View {
                 .frame(width: 160, height: 160)
                 .blur(radius: 24)
 
-            Circle()
-                .fill(Color.white.opacity(0.6))
-                .frame(width: 144, height: 144)
-                .overlay(
-                    Circle().stroke(Color.white.opacity(0.8), lineWidth: 2)
-                )
+            // Figma central glass illustration `2008:31953`.
+            Image("Vault/lock_illustration")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 160, height: 160)
                 .shadow(color: Color(hex: 0x004AC6).opacity(0.15), radius: 24, x: 0, y: 12)
-
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(AppColor.brandPrimary)
         }
         .frame(width: 160, height: 192)
     }

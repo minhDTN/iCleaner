@@ -187,21 +187,21 @@ struct SettingsView: View {
 
     private var stayInTouchSection: some View {
         SettingsSection(title: "Stay in Touch") {
-            SettingsRow(icon: "square.and.arrow.up", title: "Share Cleanup", action: { showShareSheet = true })
+            SettingsRow(assetIcon: "Settings/ic_share", title: "Share Cleanup", action: { showShareSheet = true })
             divider
-            SettingsRow(icon: "globe", title: "Language", trailing: "English", action: { showLanguage = true })
+            SettingsRow(assetIcon: "Settings/ic_language", title: "Language", trailing: "English", action: { showLanguage = true })
         }
     }
 
     private var supportSection: some View {
         SettingsSection(title: "Support") {
             NavigationLink(destination: FAQView()) {
-                SettingsRowChrome(icon: "questionmark.circle", title: "FAQ")
+                SettingsRowChrome(assetIcon: "Settings/ic_faq", title: "FAQ")
             }
             divider
-            SettingsRow(icon: "arrow.clockwise", title: "Restore Purchase", action: restorePurchases)
+            SettingsRow(assetIcon: "Settings/ic_restore", title: "Restore Purchase", action: restorePurchases)
             divider
-            SettingsRow(icon: "lock.shield", title: "Privacy Policy", action: { UIApplication.shared.open(AppInfo.privacyURL) })
+            SettingsRow(assetIcon: "Settings/ic_privacy", title: "Privacy Policy", action: { UIApplication.shared.open(AppInfo.privacyURL) })
             divider
             NavigationLink(destination: ContactView()) {
                 SettingsRowChrome(icon: "envelope", title: "Contact Us")
@@ -257,7 +257,8 @@ private struct SettingsSection<Content: View>: View {
 }
 
 private struct SettingsRow: View {
-    let icon: String
+    var icon: String? = nil          // SF Symbol fallback
+    var assetIcon: String? = nil     // Figma SVG/PNG from Assets.xcassets
     let title: String
     var trailing: String? = nil
     var tint: Color? = nil
@@ -265,22 +266,35 @@ private struct SettingsRow: View {
 
     var body: some View {
         Button(action: action) {
-            SettingsRowChrome(icon: icon, title: title, trailing: trailing, tint: tint)
+            SettingsRowChrome(icon: icon, assetIcon: assetIcon, title: title, trailing: trailing, tint: tint)
         }
         .buttonStyle(.plain)
     }
 }
 
 private struct SettingsRowChrome: View {
-    let icon: String
+    var icon: String? = nil
+    var assetIcon: String? = nil
     let title: String
     var trailing: String? = nil
     var tint: Color? = nil
 
+    @ViewBuilder
+    private var iconView: some View {
+        if let assetIcon {
+            // Template-render so the SVG fills the row tint (matches design).
+            Image(assetIcon)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+        } else if let icon {
+            Image(systemName: icon).font(.system(size: 18))
+        }
+    }
+
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
+            iconView
                 .foregroundStyle(tint ?? Color(hex: 0x64748B))
                 .frame(width: 24, height: 24)
             Text(title)
