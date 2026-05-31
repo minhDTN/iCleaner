@@ -138,10 +138,13 @@ struct PaywallView: View {
         let usedStr  = String(format: "%.0f GB", used)
         let totalStr = String(format: "%.0f GB", total)
 
+        // Figma text style: '{used red} of {total blue} used' — the total volume
+        // uses brand-blue-500 (#3B82F6), not muted grey.
         return HStack {
             (Text(usedStr).foregroundStyle(Color(hex: 0xF63B3B))
              + Text(" of ").foregroundStyle(Color(hex: 0x64748B))
-             + Text("\(totalStr) used").foregroundStyle(Color(hex: 0x64748B)).fontWeight(.medium))
+             + Text(totalStr).foregroundStyle(Color(hex: 0x3B82F6))
+             + Text(" used").foregroundStyle(Color(hex: 0x64748B)).fontWeight(.medium))
                 .font(.custom("Inter-Bold", size: 18))
                 .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -220,9 +223,10 @@ struct PaywallView: View {
 
     private var trialToggleRow: some View {
         HStack(spacing: 12) {
-            Image(systemName: "gift.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(Color(hex: 0x3B82F6))
+            Image("Paywall/ic_gift")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
             Text("Enable Free Trial")
                 .font(.custom("Inter-SemiBold", size: 16))
                 .foregroundStyle(Color(hex: 0x334155))
