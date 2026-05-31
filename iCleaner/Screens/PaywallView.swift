@@ -135,31 +135,44 @@ struct PaywallView: View {
 
     // MARK: - Storage usage bar
 
+    // Figma `2005:22774`: a progress bar (NOT a text capsule). Track #F1F5F9 +
+    // #E2E8F0 1px stroke, pill, 32h; red used-fill #F63B3B (30h, 1px inset, pill)
+    // sized to used/total with a blue glow; text below in plain (no border):
+    // used=red, total=blue, rest grey, Inter Bold 18/20 centered. 12pt gap.
     private var storageBar: some View {
         let total = storage?.total ?? 64
         let used  = storage?.used  ?? 0
+        let fraction = total > 0 ? min(1, max(0, used / total)) : 0
         let usedStr  = String(format: "%.0f GB", used)
         let totalStr = String(format: "%.0f GB", total)
 
-        // Figma text style: '{used red} of {total blue} used' — the total volume
-        // uses brand-blue-500 (#3B82F6), not muted grey.
-        return HStack {
+        return VStack(spacing: 12) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous)
+                        .fill(Color(hex: 0xF1F5F9))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
+                        )
+                    Capsule(style: .continuous)
+                        .fill(Color(hex: 0xF63B3B))
+                        .frame(width: max(0, (geo.size.width - 2) * fraction), height: 30)
+                        // Figma effect_RY2C1I — 0 0 15 rgba(59,130,246,0.4) blue glow.
+                        .shadow(color: Color(hex: 0x3B82F6).opacity(0.4), radius: 7.5)
+                        .padding(.leading, 1)
+                }
+            }
+            .frame(height: 32)
+
             (Text(usedStr).foregroundStyle(Color(hex: 0xF63B3B))
              + Text(" of ").foregroundStyle(Color(hex: 0x64748B))
              + Text(totalStr).foregroundStyle(Color(hex: 0x3B82F6))
-             + Text(" used").foregroundStyle(Color(hex: 0x64748B)).fontWeight(.medium))
+             + Text(" used").foregroundStyle(Color(hex: 0x64748B)))
                 .font(.custom("Inter-Bold", size: 18))
                 .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 16)
-        .frame(height: 32)
-        .background(
-            Capsule().fill(AppColor.surfaceBackground)
-        )
-        .overlay(
-            Capsule().stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
-        )
+        .padding(.horizontal, 8)
     }
 
     // MARK: - Pricing
