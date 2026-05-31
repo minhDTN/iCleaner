@@ -102,13 +102,16 @@ struct PaywallView: View {
 
     private var sourcePills: some View {
         HStack(spacing: 48) {
-            sourcePill(label: "Photos", assetIcon: "Paywall/ic_source_photos")
-            sourcePill(label: "Drive",  assetIcon: "Paywall/ic_source_drive")
+            // Figma icon frames differ in size on purpose: Photos glyph fills its
+            // canvas edge-to-edge (48pt) while the Drive logo has built-in
+            // whitespace, so it's drawn at 68pt to look visually balanced.
+            sourcePill(label: "Photos", assetIcon: "Paywall/ic_source_photos", iconSize: 48)
+            sourcePill(label: "Drive",  assetIcon: "Paywall/ic_source_drive",  iconSize: 68)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func sourcePill(label: String, assetIcon: String) -> some View {
+    private func sourcePill(label: String, assetIcon: String, iconSize: CGFloat) -> some View {
         VStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -122,7 +125,7 @@ struct PaywallView: View {
                 Image(assetIcon)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 48, height: 48)
+                    .frame(width: iconSize, height: iconSize)
             }
             Text(label)
                 .font(.custom("Inter-SemiBold", size: 14))
