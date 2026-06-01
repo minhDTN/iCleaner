@@ -74,7 +74,7 @@ struct SimilarFlowView: View {
                     }
                 )
             case .success:
-                SimilarSuccessView(deletedMB: deletedMB, onContinue: showInterstitialThenDismiss)
+                SimilarSuccessView(deletedMB: deletedMB, onContinue: continueAfterSuccess)
             }
 
             if showDeleteConfirm {
@@ -207,20 +207,29 @@ struct SimilarFlowView: View {
         }
     }
 
-    // Lib gates premium internally + enforces 30s global frequency cap, so it's
-    // safe to call on every successful delete. Premium-gated by AdManager —
-    // completion still fires (immediately) if the ad is suppressed.
-    private func showInterstitialThenDismiss() {
+    // After tapping Perfect!: show the interstitial, then route back to the
+    // review screen if there are still groups left to clean (so the user can keep
+    // deleting), or dismiss to Home when everything's been cleaned up.
+    // `performRealDelete` already pruned deleted photos + emptied groups, so a
+    // non-empty `groups` means there's more to do.
+    private func continueAfterSuccess() {
+        let next: () -> Void = {
+            if groups.isEmpty {
+                dismiss()
+            } else {
+                step = .review
+            }
+        }
         guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else {
-            dismiss()
+            next()
             return
         }
         AdManager.shared.showInterstitialAd(
             adUnitID: AdUnits.interSimilarClean,
             from: vc
         ) {
-            Task { @MainActor in dismiss() }
+            Task { @MainActor in next() }
         }
     }
 

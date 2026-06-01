@@ -92,22 +92,12 @@ struct SimilarReviewScreen: View {
 
             Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
-                    // Keep the Figma "select multiple" glyph; overlay a small check
-                    // badge bottom-right when active so it reads as "all selected".
-                    Image("Clean/ic_select_multiple")
+                    // Figma 2005:21843 "select all" glyph (2 frames + checkmark).
+                    Image("Clean/ic_select_check")
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .overlay(alignment: .bottomTrailing) {
-                            if allSelected {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.white, AppColor.brandPrimary)
-                                    .background(Circle().fill(.white).frame(width: 9, height: 9))
-                                    .offset(x: 3, y: 3)
-                            }
-                        }
                     Text("Select All")
                         .font(.custom("Inter-Regular", size: 16))
                 }
