@@ -264,6 +264,12 @@ struct SimilarGroup: Identifiable {
     var photos: [SimilarPhoto]
     let bestMatchIndex: Int    // index in photos that wears the Best Match pill
 
+    // Total size of this group's photos, formatted (e.g. "12 MB").
+    var sizeLabel: String {
+        let mb = photos.reduce(0) { $0 + $1.sizeKB } / 1024
+        return mb >= 1024 ? String(format: "%.1f GB", Double(mb) / 1024) : "\(mb) MB"
+    }
+
     // Mock kept for SwiftUI previews + design QA. Real groups come from
     // PhotoLibraryService.detectSimilarGroups().
     static let mock: [SimilarGroup] = [

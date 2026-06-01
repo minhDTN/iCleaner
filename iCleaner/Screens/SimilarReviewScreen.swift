@@ -1,10 +1,10 @@
 import SwiftUI
 
 // Figma `2005:21828` (similar review).
-// Top: nav row (back + "15 Photos · 48MB" centered + filter pill 126×32 rounded
-// 20, stroke + bg #E4F1FF), then 3+ sections each with "N Similar" header +
-// 2-column grid (Best Match large + duplicates square). Bottom: 337×56 red
-// destructive CTA "Delete N Selected (X MB)" with brand-red shadow.
+// Nav bar: back + "{category}" title (left) + "Select All" pill (right, bg
+// #E4F1FF, stroke #0D7FF2, radius 20, icon + text). Sub-header row below:
+// "15 Photos · 48MB" (left) + filter icon 24×24 bare (right). Then sections,
+// each "N Similar" + "X MB" + grey "Select All" text. Bottom: red delete CTA.
 struct SimilarReviewScreen: View {
     let categoryTitle: String
     @Binding var groups: [SimilarGroup]
@@ -15,6 +15,22 @@ struct SimilarReviewScreen: View {
     var onBack: () -> Void
     var onFilter: () -> Void
     var onDeleteTap: () -> Void
+
+    // Whether every non-best photo across all groups is selected.
+    private var allSelected: Bool {
+        groups.allSatisfy { g in
+            g.photos.enumerated().allSatisfy { idx, p in idx == g.bestMatchIndex || p.isSelected }
+        }
+    }
+
+    private func toggleSelectAll() {
+        let target = !allSelected
+        for gi in groups.indices {
+            for pi in groups[gi].photos.indices where pi != groups[gi].bestMatchIndex {
+                groups[gi].photos[pi].isSelected = target
+            }
+        }
+    }
 
     // Compute once per body so SwiftUI's diffing tracks stable IDs. Inserts a
     // native ad after every 2 groups except the last slot (so the ad never
@@ -36,6 +52,7 @@ struct SimilarReviewScreen: View {
 
             VStack(spacing: 0) {
                 navBar
+                subHeader
                 ScrollView {
                     LazyVStack(spacing: 24) {
                         ForEach(feed) { item in
@@ -57,43 +74,37 @@ struct SimilarReviewScreen: View {
         }
     }
 
+    // Figma 2005:21832: back + "{category}" title (left) + Select All pill (right).
     private var navBar: some View {
         HStack(spacing: 10) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(AppColor.textPrimary)
+                    .foregroundStyle(AppColor.textBlack)
                     .frame(width: 24, height: 24)
             }
 
-            Spacer()
-
-            HStack(spacing: 8) {
-                Text("\(headerPhotoCount) Photos")
-                    .font(.custom("Inter-Medium", size: 14))
-                    .foregroundStyle(Color(hex: 0x00091D))
-                Text("·")
-                    .foregroundStyle(AppColor.textMuted)
-                Text("\(headerSizeMB) MB")
-                    .font(.custom("Inter-Medium", size: 14))
-                    .foregroundStyle(AppColor.brandPrimary)
-            }
+            Text(categoryTitle)
+                .font(.custom("Inter-SemiBold", size: 18))
+                .foregroundStyle(AppColor.textBlack)
 
             Spacer()
 
-            Button(action: onFilter) {
+            Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("Filter")
-                        .font(.custom("Inter-SemiBold", size: 13))
+                    Image("Clean/ic_select_all")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                    Text(allSelected ? "Deselect All" : "Select All")
+                        .font(.custom("Inter-Regular", size: 16))
                 }
                 .foregroundStyle(AppColor.brandPrimary)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule().fill(Color(hex: 0xE4F1FF))
-                )
+                .padding(.vertical, 4)
+                .frame(height: 32)
+                .background(Capsule().fill(Color(hex: 0xE4F1FF)))
                 .overlay(Capsule().stroke(AppColor.brandPrimary, lineWidth: 1))
             }
         }
@@ -103,6 +114,34 @@ struct SimilarReviewScreen: View {
             AppColor.surfaceBackground
                 .overlay(Rectangle().fill(Color(hex: 0xB2B2B2).opacity(0.4)).frame(height: 1), alignment: .bottom)
         )
+    }
+
+    // Figma 2005:21851: "{N} Photos · {X}MB" (left) + bare filter icon (right).
+    private var subHeader: some View {
+        HStack(spacing: 8) {
+            Text("\(headerPhotoCount) Photos")
+                .font(.custom("Inter-Medium", size: 14))
+                .foregroundStyle(Color(hex: 0x00091D))
+            Text("·")
+                .font(.custom("Inter-Medium", size: 14))
+                .foregroundStyle(AppColor.textMuted)
+            Text("\(headerSizeMB)MB")
+                .font(.custom("Inter-Medium", size: 14))
+                .foregroundStyle(AppColor.brandPrimary)
+
+            Spacer()
+
+            Button(action: onFilter) {
+                Image("Clean/ic_filter")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(AppColor.brandPrimary)
+                    .frame(width: 24, height: 24)
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 48)
     }
 
     private var deleteCTA: some View {
@@ -151,18 +190,20 @@ private struct SimilarGroupSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Figma 2005:21866: "N Similar" Bold 16 + "X MB" Medium 12 brand-blue
+            // (baseline-aligned) on the left; grey "Select All" text on the right.
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "rectangle.stack.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColor.brandPrimary)
                 Text(group.title)
-                    .font(.custom("Inter-SemiBold", size: 16))
-                    .foregroundStyle(AppColor.textPrimary)
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(Color(hex: 0x0F172A))
+                Text(group.sizeLabel)
+                    .font(.custom("Inter-Medium", size: 12))
+                    .foregroundStyle(AppColor.brandPrimary)
                 Spacer()
                 Button(action: toggleAllExceptBest) {
-                    Text(allExceptBestSelected ? "Deselect" : "Select all")
-                        .font(.custom("Inter-Medium", size: 13))
-                        .foregroundStyle(AppColor.brandPrimary)
+                    Text(allExceptBestSelected ? "Deselect" : "Select All")
+                        .font(.custom("Inter-SemiBold", size: 12))
+                        .foregroundStyle(Color(hex: 0x64748B))
                 }
             }
 
