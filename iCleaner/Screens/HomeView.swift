@@ -89,32 +89,25 @@ struct HomeView: View {
 
             Spacer()
 
-            #if DEBUG
-            // Dev affordance — flip empty/populated. DEBUG-only.
-            Button(action: { showPopulated.toggle() }) {
-                Image(systemName: showPopulated ? "eye.slash" : "eye")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppColor.textMuted)
-            }
-            .padding(.trailing, 4)
-            #endif
-
-            if !isPremium {
-                Button(action: { showPaywall = true }) {
-                    Image("Home/ic_premium_diamond")
+            // Figma order: settings first, then premium diamond (gap 20).
+            HStack(spacing: 20) {
+                Button(action: { showSettings = true }) {
+                    Image("Home/ic_settings")
+                        .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
+                        .foregroundStyle(Color(hex: 0x292D32))
                         .frame(width: 24, height: 24)
                 }
-            }
 
-            Button(action: { showSettings = true }) {
-                Image("Home/ic_settings")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Color(hex: 0x292D32))
-                    .frame(width: 24, height: 24)
+                if !isPremium {
+                    Button(action: { showPaywall = true }) {
+                        Image("Home/ic_premium_diamond")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                    }
+                }
             }
         }
         .frame(height: 48)
