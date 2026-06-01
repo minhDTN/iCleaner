@@ -87,9 +87,14 @@ struct SimilarFlowView: View {
             }
         }
         .sheet(isPresented: $showFilter) {
-            SimilarFilterSheet(filter: $filter, onApply: { showFilter = false }, onClear: {
-                filter = .default
-            })
+            SimilarFilterSheet(
+                filter: $filter,
+                onApply: {
+                    showFilter = false
+                    Task { await applyFilter() }
+                },
+                onClear: { filter = .default }
+            )
             .presentationDetents([.height(510)])
         }
         .alert("Couldn't delete", isPresented: Binding(
@@ -119,24 +124,51 @@ struct SimilarFlowView: View {
         await reloadGroups()
     }
 
+    // Re-fetch after a filter change. Stays on .review even if 0 groups match
+    // (so the user can open the filter again), unlike the initial bootstrap
+    // which routes to .empty.
+    private func applyFilter() async {
+        let sinceDays = filterSinceDays
+        let assetGroups = await photoLibrary.detectSimilarGroups(
+            sinceDays: sinceDays,
+            largestFirst: filter.sortBySize == .largeFirst
+        )
+        groups = mapGroups(assetGroups)
+        step = .review
+    }
+
+    private var filterSinceDays: Int? {
+        switch filter.dateRange {
+        case .sevenDays:  return 7
+        case .thirtyDays: return 30
+        case .allTime:    return nil
+        }
+    }
+
+    private func mapGroups(_ assetGroups: [PHAssetGroup]) -> [SimilarGroup] {
+        assetGroups.map { g in
+            let photos = g.assets.enumerated().map { (idx, asset) in
+                SimilarPhoto(
+                    assetID: asset.localIdentifier,
+                    seed: idx,
+                    sizeKB: Int(asset.estimatedSizeKB),
+                    isSelected: idx != g.bestMatchIndex
+                )
+            }
+            return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex)
+        }
+    }
+
     private func reloadGroups() async {
-        let assetGroups = await photoLibrary.detectSimilarGroups()
+        let assetGroups = await photoLibrary.detectSimilarGroups(
+            sinceDays: filterSinceDays,
+            largestFirst: filter.sortBySize == .largeFirst
+        )
         if assetGroups.isEmpty {
             step = .empty
         } else {
-            // Convert PHAssetGroup → SimilarGroup. Selection defaults: select all
-            // except the Best Match (so the user can one-tap to clean up duplicates).
-            groups = assetGroups.map { g in
-                let photos = g.assets.enumerated().map { (idx, asset) in
-                    SimilarPhoto(
-                        assetID: asset.localIdentifier,
-                        seed: idx,
-                        sizeKB: Int(asset.estimatedSizeKB),
-                        isSelected: idx != g.bestMatchIndex
-                    )
-                }
-                return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex)
-            }
+            // Selection default: all except Best Match (one-tap dedup cleanup).
+            groups = mapGroups(assetGroups)
             step = .review
         }
     }

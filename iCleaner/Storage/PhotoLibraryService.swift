@@ -45,13 +45,24 @@ final class PhotoLibraryService {
         return new
     }
 
-    func detectSimilarGroups(clusteringWindow: TimeInterval = 60) async -> [PHAssetGroup] {
+    // `sinceDays`: only cluster photos created within the last N days (nil = all).
+    // `largestFirst`: sort the resulting groups by total byte size descending
+    //   (true) or ascending (false).
+    func detectSimilarGroups(
+        clusteringWindow: TimeInterval = 60,
+        sinceDays: Int? = nil,
+        largestFirst: Bool = true
+    ) async -> [PHAssetGroup] {
         guard authStatus.canRead else { return [] }
 
         return await Task.detached(priority: .userInitiated) {
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-            options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
+            var predicates = [NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)]
+            if let sinceDays, let cutoff = Calendar.current.date(byAdding: .day, value: -sinceDays, to: Date()) {
+                predicates.append(NSPredicate(format: "creationDate >= %@", cutoff as NSDate))
+            }
+            options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
             let fetch = PHAsset.fetchAssets(with: options)
 
             // Time-window cluster: same pixel orientation AND creationDate within window.
@@ -80,10 +91,16 @@ final class PhotoLibraryService {
             }
             if currentCluster.count >= 2 { clusters.append(currentCluster) }
 
-            return clusters.enumerated().map { (idx, cluster) in
+            // Sort groups by estimated total size per the filter.
+            let sized = clusters.map { cluster -> (cluster: [PHAsset], bytes: Int) in
+                (cluster, cluster.reduce(0) { $0 + Int($1.estimatedSizeKB) })
+            }
+            let ordered = sized.sorted { largestFirst ? $0.bytes > $1.bytes : $0.bytes < $1.bytes }
+
+            return ordered.map { item in
                 PHAssetGroup(
-                    title: "\(cluster.count) Similar",
-                    assets: cluster,
+                    title: "\(item.cluster.count) Similar",
+                    assets: item.cluster,
                     bestMatchIndex: 0  // first asset (oldest in window) wins as MVP
                 )
             }

@@ -92,19 +92,18 @@ struct SimilarReviewScreen: View {
 
             Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
-                    Image("Clean/ic_select_all")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20)
-                    Text(allSelected ? "Deselect All" : "Select All")
+                    Image(systemName: allSelected ? "checkmark.circle.fill" : "checkmark.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Select All")
                         .font(.custom("Inter-Regular", size: 16))
                 }
-                .foregroundStyle(AppColor.brandPrimary)
+                // Active (all selected) → solid brand-blue fill + white content.
+                // Inactive → light tint #E4F1FF + brand-blue content.
+                .foregroundStyle(allSelected ? .white : AppColor.brandPrimary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
                 .frame(height: 32)
-                .background(Capsule().fill(Color(hex: 0xE4F1FF)))
+                .background(Capsule().fill(allSelected ? AppColor.brandPrimary : Color(hex: 0xE4F1FF)))
                 .overlay(Capsule().stroke(AppColor.brandPrimary, lineWidth: 1))
             }
         }
