@@ -1,4 +1,5 @@
 import SwiftUI
+import LibEarnMoneyIOS
 
 // Figma `2005:22671` (empty state) / `2005:21769` (populated).
 // IMPORTANT: the Figma populated home is mostly placeholder — section titles,
@@ -21,6 +22,17 @@ struct HomeView: View {
     @State private var openedCategory: HomeCategory?
     @State private var showQuickClean: Bool = false
     @State private var showSettings: Bool = false
+    @State private var showPaywall: Bool = false
+    @State private var observedPremium = PermissionManager.shared.isPremium
+    @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
+
+    private var isPremium: Bool {
+        #if DEBUG
+        return observedPremium || forcePremium
+        #else
+        return observedPremium
+        #endif
+    }
 
     private var categories: [HomeCategory] {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
@@ -36,8 +48,7 @@ struct HomeView: View {
 
             ScrollView {
                 VStack(spacing: 15) {
-                    topNav
-                    storageHeader
+                    header
                     ForEach(categories) { cat in
                         HomeCategoryCard(
                             category: cat,
@@ -61,73 +72,52 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
-    }
-
-    private var topNav: some View {
-        HStack {
-            Spacer()
-            Button(action: { showSettings = true }) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(AppColor.brandPrimary)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle().fill(AppColor.brandPrimary.opacity(0.10))
-                    )
-            }
+        .fullScreenCover(isPresented: $showPaywall) {
+            PaywallView()
         }
+        .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
     }
 
-    private var storageHeader: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "internaldrive.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(AppColor.brandPrimary)
-                .frame(width: 48, height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(AppColor.brandPrimary.opacity(0.10))
-                )
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Your Storage")
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(AppColor.textPrimary)
-                HStack(spacing: 16) {
-                    statTile(label: "Used", value: showPopulated ? "1.2 GB" : "0 MB")
-                    statTile(label: "Photos", value: showPopulated ? "248" : "0")
-                }
-            }
+    // Figma `2005:22684`: title "Your Storage" left (Inter SemiBold 18) +
+    // settings + premium diamond right (gap 20, 24×24 each, no circle bg).
+    // Diamond only shows when NOT premium → tapping opens the paywall.
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text("Your Storage")
+                .font(.custom("Inter-SemiBold", size: 18))
+                .foregroundStyle(AppColor.textBlack)
+
             Spacer()
+
             #if DEBUG
             // Dev affordance — flip empty/populated. DEBUG-only.
             Button(action: { showPopulated.toggle() }) {
                 Image(systemName: showPopulated ? "eye.slash" : "eye")
-                    .font(.system(size: 16))
+                    .font(.system(size: 14))
                     .foregroundStyle(AppColor.textMuted)
             }
+            .padding(.trailing, 4)
             #endif
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppColor.surfaceBackground)
-                .shadow(color: AppColor.brandPrimary.opacity(0.15), radius: 10, x: 0, y: 4)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
-        )
-    }
 
-    private func statTile(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(.custom("Inter-Bold", size: 16))
-                .foregroundStyle(AppColor.textPrimary)
-            Text(label)
-                .font(.custom("Inter-Regular", size: 11))
-                .foregroundStyle(AppColor.textSecondary)
+            if !isPremium {
+                Button(action: { showPaywall = true }) {
+                    Image("Home/ic_premium_diamond")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+            }
+
+            Button(action: { showSettings = true }) {
+                Image("Home/ic_settings")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color(hex: 0x292D32))
+                    .frame(width: 24, height: 24)
+            }
         }
+        .frame(height: 48)
     }
 
     private var quickCleanCTA: some View {

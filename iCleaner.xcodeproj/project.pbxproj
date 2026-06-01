@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -26,6 +26,9 @@
 		AA0000000000000000000211 /* CompressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000111 /* CompressView.swift */; };
 		AA0000000000000000000212 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000112 /* SettingsView.swift */; };
 		AA0000000000000000000213 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000113 /* PaywallView.swift */; };
+		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
+		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
+		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
 		AA0000000000000000000220 /* LanguageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000120 /* LanguageView.swift */; };
 		AA0000000000000000000230 /* SimilarFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000130 /* SimilarFlowView.swift */; };
 		AA0000000000000000000231 /* SimilarReviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000131 /* SimilarReviewScreen.swift */; };
@@ -42,25 +45,22 @@
 		AA0000000000000000000246 /* ContactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C6 /* ContactsService.swift */; };
 		AA0000000000000000000247 /* VideoCompressor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C7 /* VideoCompressor.swift */; };
 		AA0000000000000000000248 /* PremiumGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C8 /* PremiumGate.swift */; };
-		AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000180 /* ContactsDashboardView.swift */; };
-		AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000181 /* ContactsDuplicatesView.swift */; };
-		AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000182 /* ContactsIncompleteView.swift */; };
-		AA0000000000000000000283 /* ContactsAllView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000183 /* ContactsAllView.swift */; };
-		AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000184 /* ContactsBackupsView.swift */; };
+		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
+		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
+		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
+		AA0000000000000000000260 /* FAQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E0 /* FAQView.swift */; };
+		AA0000000000000000000261 /* ContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E1 /* ContactView.swift */; };
 		AA0000000000000000000270 /* PasscodeKeypad.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F0 /* PasscodeKeypad.swift */; };
 		AA0000000000000000000271 /* VaultLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F1 /* VaultLockView.swift */; };
 		AA0000000000000000000272 /* CreatePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F2 /* CreatePasscodeView.swift */; };
 		AA0000000000000000000273 /* VaultGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F3 /* VaultGridView.swift */; };
 		AA0000000000000000000274 /* VaultPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F4 /* VaultPreviewView.swift */; };
 		AA0000000000000000000275 /* ChangePasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001F5 /* ChangePasscodeView.swift */; };
-		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
-		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
-		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
-		AA0000000000000000000260 /* FAQView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E0 /* FAQView.swift */; };
-		AA0000000000000000000261 /* ContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001E1 /* ContactView.swift */; };
-		AA0000000000000000000214 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000114 /* BannerAdView.swift */; };
-		AA0000000000000000000215 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000115 /* NativeAdView.swift */; };
-		AA0000000000000000000216 /* AdHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000116 /* AdHelpers.swift */; };
+		AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000180 /* ContactsDashboardView.swift */; };
+		AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000181 /* ContactsDuplicatesView.swift */; };
+		AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000182 /* ContactsIncompleteView.swift */; };
+		AA0000000000000000000283 /* ContactsAllView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000183 /* ContactsAllView.swift */; };
+		AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000184 /* ContactsBackupsView.swift */; };
 		AA0000000000000000000301 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000132 /* Assets.xcassets */; };
 		AA0000000000000000000302 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000133 /* Preview Assets.xcassets */; };
 		AA0000000000000000000303 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000134 /* GoogleService-Info.plist */; };
@@ -92,9 +92,25 @@
 		AA0000000000000000000111 /* CompressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompressView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000112 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000113 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
 		AA0000000000000000000120 /* LanguageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000130 /* SimilarFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarFlowView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000131 /* SimilarReviewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarReviewScreen.swift; sourceTree = "<group>"; };
+		AA0000000000000000000132 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA0000000000000000000133 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		AA0000000000000000000134 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		AA0000000000000000000135 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA0000000000000000000140 /* Inter-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Regular.ttf"; sourceTree = "<group>"; };
+		AA0000000000000000000141 /* Inter-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Medium.ttf"; sourceTree = "<group>"; };
+		AA0000000000000000000142 /* Inter-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-SemiBold.ttf"; sourceTree = "<group>"; };
+		AA0000000000000000000143 /* Inter-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Bold.ttf"; sourceTree = "<group>"; };
+		AA0000000000000000000180 /* ContactsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDashboardView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000181 /* ContactsDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDuplicatesView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000182 /* ContactsIncompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsIncompleteView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000183 /* ContactsAllView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsAllView.swift; sourceTree = "<group>"; };
+		AA0000000000000000000184 /* ContactsBackupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsBackupsView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B2 /* SimilarFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarFilterSheet.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarDeleteConfirm.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B4 /* SimilarCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarCleaningView.swift; sourceTree = "<group>"; };
@@ -108,33 +124,17 @@
 		AA00000000000000000001C6 /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C7 /* VideoCompressor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCompressor.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C8 /* PremiumGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumGate.swift; sourceTree = "<group>"; };
-		AA0000000000000000000180 /* ContactsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDashboardView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000181 /* ContactsDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsDuplicatesView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000182 /* ContactsIncompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsIncompleteView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000183 /* ContactsAllView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsAllView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000184 /* ContactsBackupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsBackupsView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
+		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001E0 /* FAQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FAQView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001E1 /* ContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F0 /* PasscodeKeypad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasscodeKeypad.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F1 /* VaultLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultLockView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F2 /* CreatePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePasscodeView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F3 /* VaultGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultGridView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F4 /* VaultPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultPreviewView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001F5 /* ChangePasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePasscodeView.swift; sourceTree = "<group>"; };
-		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
-		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
-		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
-		AA00000000000000000001E0 /* FAQView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FAQView.swift; sourceTree = "<group>"; };
-		AA00000000000000000001E1 /* ContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000114 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000115 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
-		AA0000000000000000000116 /* AdHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdHelpers.swift; sourceTree = "<group>"; };
-		AA0000000000000000000132 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AA0000000000000000000133 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		AA0000000000000000000134 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		AA0000000000000000000135 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AA0000000000000000000140 /* Inter-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Regular.ttf"; sourceTree = "<group>"; };
-		AA0000000000000000000141 /* Inter-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Medium.ttf"; sourceTree = "<group>"; };
-		AA0000000000000000000142 /* Inter-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-SemiBold.ttf"; sourceTree = "<group>"; };
-		AA0000000000000000000143 /* Inter-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -338,7 +338,7 @@
 			);
 			mainGroup = AA0000000000000000000002;
 			packageReferences = (
-				AA0000000000000000000501 /* XCLocalSwiftPackageReference "lib_earn_money_ios_template" */,
+				AA0000000000000000000501 /* XCLocalSwiftPackageReference "../Lib_Ads_IAP/lib_earn_money_ios_template" */,
 			);
 			productRefGroup = AA0000000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -555,6 +555,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"iCleaner/Preview Content\"";
@@ -572,6 +573,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minhdtn.iCleaner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -583,6 +585,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"iCleaner/Preview Content\"";
@@ -600,6 +603,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minhdtn.iCleaner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -630,7 +634,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		AA0000000000000000000501 /* XCLocalSwiftPackageReference "lib_earn_money_ios_template" */ = {
+		AA0000000000000000000501 /* XCLocalSwiftPackageReference "../Lib_Ads_IAP/lib_earn_money_ios_template" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../Lib_Ads_IAP/lib_earn_money_ios_template;
 		};
@@ -639,7 +643,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		AA0000000000000000000500 /* LibEarnMoneyIOS */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = AA0000000000000000000501 /* XCLocalSwiftPackageReference "lib_earn_money_ios_template" */;
+			package = AA0000000000000000000501 /* XCLocalSwiftPackageReference "../Lib_Ads_IAP/lib_earn_money_ios_template" */;
 			productName = LibEarnMoneyIOS;
 		};
 /* End XCSwiftPackageProductDependency section */
