@@ -160,35 +160,33 @@ private struct HomeCategoryCard: View {
         .shadow(color: AppColor.brandPrimary.opacity(0.15), radius: 10, x: 0, y: 4)
     }
 
+    // Figma title row (2005:21772 / 18:16): left column = title + subtitle (NO
+    // icon next to title). Right column = row1 [icon 24 + "X MB" Bold 16 brand-
+    // blue, gap 5], row2 "N Photos" Regular 12 #94A3B8.
     private var titleRow: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 10) {
-                    Image(systemName: category.systemIcon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppColor.brandPrimary)
-                        .frame(width: 28, height: 28)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(AppColor.brandPrimary.opacity(0.10))
-                        )
-                    Text(category.title)
-                        .font(AppFont.headline)
-                        .foregroundStyle(AppColor.textPrimary)
-                }
+                Text(category.title)
+                    .font(.custom("Inter-SemiBold", size: 16))
+                    .foregroundStyle(Color(hex: 0x0F172A))
                 Text(category.subtitle)
                     .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .padding(.leading, 38)  // align under title text, past icon
+                    .foregroundStyle(Color(hex: 0x64748B))
             }
             Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: -0.5) {
+                HStack(spacing: 5) {
+                    Image(category.iconAsset)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                    Text(category.sizeLabel)
+                        .font(.custom("Inter-Bold", size: 16))
+                        .foregroundStyle(AppColor.brandPrimary)
+                }
                 Text(category.metric)
-                    .font(.custom("Inter-SemiBold", size: 13))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text(category.sizeLabel)
                     .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textMuted)
+                    .foregroundStyle(Color(hex: 0x94A3B8))
             }
         }
         .padding(.horizontal, 16)
@@ -226,21 +224,27 @@ private struct HomeCategoryCard: View {
         }
     }
 
+    // Figma 15:1034: ⭐ star (Material Icons 10) + "Best Match" Bold 10 brand-
+    // blue, gap 4, padding 2×8, white 90% bg + brand-blue stroke 20% + blur.
     private var bestMatchPill: some View {
-        Text("Best Match")
-            .font(.custom("Inter-Bold", size: 10))
-            .foregroundStyle(AppColor.brandPrimary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color.white.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
-            )
+        HStack(spacing: 4) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 9))
+            Text("Best Match")
+                .font(.custom("Inter-Bold", size: 10))
+        }
+        .foregroundStyle(AppColor.brandPrimary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.white.opacity(0.9))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        )
     }
 
     private var videoPlayBadge: some View {
@@ -257,27 +261,28 @@ private struct HomeCategoryCard: View {
             )
     }
 
+    // Figma 15:1038: top = a duplicate photo (80% opacity, border #F1F5F9);
+    // bottom = "+N" box with grey #F1F5F9 background (NOT a dark overlay capsule),
+    // "+N" text Inter Medium 12 #64748B centered.
     private var duplicateStack: some View {
         VStack(spacing: 8) {
-            ZStack(alignment: .center) {
-                placeholderImage(seed: category.title.count + 1)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                if category.photoCount > 3 {
-                    Text("+\(category.photoCount - 3)")
-                        .font(.custom("Inter-Bold", size: 18))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule().fill(Color.black.opacity(0.5))
-                        )
-                }
+            placeholderImage(seed: category.title.count + 1)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .opacity(0.8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color(hex: 0xF1F5F9), lineWidth: 1)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(hex: 0xF1F5F9))
+                Text("+\(max(1, category.photoCount - 3))")
+                    .font(.custom("Inter-Medium", size: 12))
+                    .foregroundStyle(Color(hex: 0x64748B))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            placeholderImage(seed: category.title.count + 2)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -308,11 +313,11 @@ private struct HomeCategoryCard: View {
 
     private var reviewGroupButton: some View {
         Button(action: onReviewTap) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Text("Review Group")
-                    .font(.custom("Inter-Medium", size: 14))
+                    .font(.custom("Inter-SemiBold", size: 15))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(AppColor.brandPrimary)
             .frame(maxWidth: .infinity)
@@ -332,7 +337,7 @@ struct HomeCategory: Identifiable {
     let key: String
     let title: String
     let subtitle: String
-    let systemIcon: String
+    let iconAsset: String   // Figma category icon in Assets/Home/
     let photoCount: Int
     let sizeMB: Int
     let isVideo: Bool
@@ -342,18 +347,18 @@ struct HomeCategory: Identifiable {
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
 
     static let populatedMock: [HomeCategory] = [
-        .init(key: "similar",             title: "Similar",              subtitle: "Yesterday • Seattle, WA", systemIcon: "rectangle.stack.fill",            photoCount: 15, sizeMB: 48,  isVideo: false),
-        .init(key: "duplicates",          title: "Duplicates",           subtitle: "Last week • iPhone",      systemIcon: "doc.on.doc.fill",                 photoCount: 8,  sizeMB: 22,  isVideo: false),
-        .init(key: "similar_screenshots", title: "Similar Screenshots",  subtitle: "Today • Screenshots",     systemIcon: "camera.viewfinder",               photoCount: 24, sizeMB: 36,  isVideo: false),
-        .init(key: "similar_videos",      title: "Similar Videos",       subtitle: "Last month • iPhone",     systemIcon: "video.fill",                      photoCount: 5,  sizeMB: 124, isVideo: true),
-        .init(key: "other_screenshots",   title: "Other Screenshots",    subtitle: "All time • Screenshots",  systemIcon: "viewfinder",                      photoCount: 42, sizeMB: 58,  isVideo: false),
-        .init(key: "chat_photos",         title: "Chat Photos",          subtitle: "WhatsApp · Messages",     systemIcon: "bubble.left.and.bubble.right.fill", photoCount: 31, sizeMB: 18,  isVideo: false),
-        .init(key: "videos_organizer",    title: "Videos Organizer",     subtitle: "All time • iPhone",       systemIcon: "play.rectangle.fill",             photoCount: 12, sizeMB: 380, isVideo: true),
-        .init(key: "other",               title: "Other",                subtitle: "Misc photos",             systemIcon: "photo.fill",                      photoCount: 7,  sizeMB: 16,  isVideo: false),
+        .init(key: "similar",             title: "Similar",              subtitle: "Yesterday • Seattle, WA", iconAsset: "Home/ic_cat_similar",           photoCount: 15, sizeMB: 48,  isVideo: false),
+        .init(key: "duplicates",          title: "Duplicates",           subtitle: "Last week • iPhone",      iconAsset: "Home/ic_cat_duplicates",        photoCount: 8,  sizeMB: 22,  isVideo: false),
+        .init(key: "similar_screenshots", title: "Similar Screenshots",  subtitle: "Today • Screenshots",     iconAsset: "Home/ic_cat_screenshots",       photoCount: 24, sizeMB: 36,  isVideo: false),
+        .init(key: "similar_videos",      title: "Similar Videos",       subtitle: "Last month • iPhone",     iconAsset: "Home/ic_cat_similar_videos",    photoCount: 5,  sizeMB: 124, isVideo: true),
+        .init(key: "other_screenshots",   title: "Other Screenshots",    subtitle: "All time • Screenshots",  iconAsset: "Home/ic_cat_other_screenshots", photoCount: 42, sizeMB: 58,  isVideo: false),
+        .init(key: "chat_photos",         title: "Chat Photos",          subtitle: "WhatsApp · Messages",     iconAsset: "Home/ic_cat_chat_photos",       photoCount: 31, sizeMB: 18,  isVideo: false),
+        .init(key: "videos_organizer",    title: "Videos Organizer",     subtitle: "All time • iPhone",       iconAsset: "Home/ic_cat_videos_organizer",  photoCount: 12, sizeMB: 380, isVideo: true),
+        .init(key: "other",               title: "Other",                subtitle: "Misc photos",             iconAsset: "Home/ic_cat_other",             photoCount: 7,  sizeMB: 16,  isVideo: false),
     ]
 
     static let emptyMock: [HomeCategory] = populatedMock.map {
-        .init(key: $0.key, title: $0.title, subtitle: "Tap to scan", systemIcon: $0.systemIcon, photoCount: 0, sizeMB: 0, isVideo: $0.isVideo)
+        .init(key: $0.key, title: $0.title, subtitle: "Tap to scan", iconAsset: $0.iconAsset, photoCount: 0, sizeMB: 0, isVideo: $0.isVideo)
     }
 }
 
