@@ -142,6 +142,10 @@ private struct HomeCategoryCard: View {
     let category: HomeCategory
     var onReviewTap: () -> Void
 
+    // Shared horizontal inset for photo stack + Review Group so both align to
+    // the same left/right margin inside the card.
+    private let cardInset: CGFloat = 16
+
     var body: some View {
         VStack(spacing: 10) {
             titleRow
@@ -199,14 +203,22 @@ private struct HomeCategoryCard: View {
         )
     }
 
+    // Flexible widths (not fixed 198.67/105.33) so the stack stretches to the
+    // card's real width and its left/right inset matches the Review Group button
+    // exactly. Figma ratio Best:Dup = 198.67 : 105.33 of the 316 inner width.
     private var photoStack: some View {
-        HStack(alignment: .top, spacing: 12) {
-            bestPhoto
-                .frame(width: 198.67, height: 128)
-            duplicateStack
-                .frame(width: 105.33, height: 128)
+        GeometryReader { geo in
+            let gap: CGFloat = 12
+            let avail = geo.size.width - gap
+            HStack(spacing: gap) {
+                bestPhoto
+                    .frame(width: avail * (198.67 / 316))
+                duplicateStack
+                    .frame(width: avail * (105.33 / 316))
+            }
         }
-        .padding(.horizontal, (335 - 316) / 2)  // center 316 in 335-wide card
+        .frame(height: 128)
+        .padding(.horizontal, cardInset)
     }
 
     private var bestPhoto: some View {
@@ -327,7 +339,7 @@ private struct HomeCategoryCard: View {
                     .stroke(AppColor.brandPrimary.opacity(0.3), lineWidth: 1)
             )
         }
-        .padding(.horizontal, (335 - 316) / 2)
+        .padding(.horizontal, cardInset)
     }
 }
 
