@@ -16,6 +16,7 @@ import LibEarnMoneyIOS
 // between groups (premium-gated).
 struct SimilarFlowView: View {
     let categoryTitle: String
+    var detectionConfig: PhotoLibraryService.DetectionConfig = .init()
 
     @Environment(\.dismiss) private var dismiss
     @State private var photoLibrary = PhotoLibraryService()
@@ -133,9 +134,9 @@ struct SimilarFlowView: View {
     // (so the user can open the filter again), unlike the initial bootstrap
     // which routes to .empty.
     private func applyFilter() async {
-        let sinceDays = filterSinceDays
         let assetGroups = await photoLibrary.detectSimilarGroups(
-            sinceDays: sinceDays,
+            config: detectionConfig,
+            sinceDays: filterSinceDays,
             largestFirst: filter.sortBySize == .largeFirst
         )
         groups = mapGroups(assetGroups)
@@ -166,6 +167,7 @@ struct SimilarFlowView: View {
 
     private func reloadGroups() async {
         let assetGroups = await photoLibrary.detectSimilarGroups(
+            config: detectionConfig,
             sinceDays: filterSinceDays,
             largestFirst: filter.sortBySize == .largeFirst
         )

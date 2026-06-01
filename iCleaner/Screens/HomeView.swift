@@ -89,7 +89,7 @@ struct HomeView: View {
         }
         .task { await reloadThumbnails() }
         .fullScreenCover(item: $openedCategory, onDismiss: { Task { await reloadThumbnails() } }) { cat in
-            SimilarFlowView(categoryTitle: cat.title)
+            SimilarFlowView(categoryTitle: cat.title, detectionConfig: cat.detectionConfig)
         }
         .fullScreenCover(isPresented: $showQuickClean) {
             QuickCleanFlowView()
@@ -396,6 +396,29 @@ struct HomeCategory: Identifiable {
     var id: String { key }
     var metric: String { isVideo ? "\(photoCount) Videos" : "\(photoCount) Photos" }
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
+
+    // Detection rules per category so each card scans the right subset of the
+    // library instead of every card showing the same pool.
+    var detectionConfig: PhotoLibraryService.DetectionConfig {
+        switch key {
+        case "similar":
+            // Similar photos: image bursts, screenshots excluded.
+            return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar")
+        case "duplicates":
+            // Exact duplicates: same dimensions + size.
+            return .init(mediaType: .image, exactDuplicates: true, groupNoun: "Duplicates")
+        case "similar_screenshots", "other_screenshots":
+            // Screenshot-only clustering.
+            return .init(mediaType: .image, screenshotsOnly: true, groupNoun: "Screenshots")
+        case "similar_videos", "videos_organizer":
+            // Video clustering.
+            return .init(mediaType: .video, groupNoun: "Videos")
+        case "chat_photos", "other":
+            return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar")
+        default:
+            return .init()
+        }
+    }
 
     static let populatedMock: [HomeCategory] = [
         .init(key: "similar",             title: "Similar",              subtitle: "Yesterday • Seattle, WA", iconAsset: "Home/ic_cat_similar",           photoCount: 15, sizeMB: 48,  isVideo: false),

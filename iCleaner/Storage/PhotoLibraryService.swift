@@ -45,10 +45,20 @@ final class PhotoLibraryService {
         return new
     }
 
-    // `sinceDays`: only cluster photos created within the last N days (nil = all).
-    // `largestFirst`: sort the resulting groups by total byte size descending
-    //   (true) or ascending (false).
+    // Per-category detection rules so each Home card surfaces the right assets
+    // (not every card showing the same pool). See CleanKind for the mapping.
+    struct DetectionConfig {
+        var mediaType: PHAssetMediaType = .image
+        var screenshotsOnly: Bool = false   // only PHAssetMediaSubtype.photoScreenshot
+        var excludeScreenshots: Bool = false // skip screenshots (for "Similar" photos)
+        var exactDuplicates: Bool = false    // group identical (same dims + ~size), not time-window
+        var groupNoun: String = "Similar"    // group title noun, e.g. "4 Similar" / "3 Duplicates"
+    }
+
+    // `sinceDays`: only include assets created within the last N days (nil = all).
+    // `largestFirst`: sort the resulting groups by total byte size desc/asc.
     func detectSimilarGroups(
+        config: DetectionConfig = DetectionConfig(),
         clusteringWindow: TimeInterval = 60,
         sinceDays: Int? = nil,
         largestFirst: Bool = true
@@ -58,38 +68,28 @@ final class PhotoLibraryService {
         return await Task.detached(priority: .userInitiated) {
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-            var predicates = [NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)]
+            var predicates = [NSPredicate(format: "mediaType = %d", config.mediaType.rawValue)]
+            if config.screenshotsOnly {
+                predicates.append(NSPredicate(format: "(mediaSubtypes & %d) != 0",
+                                              PHAssetMediaSubtype.photoScreenshot.rawValue))
+            }
             if let sinceDays, let cutoff = Calendar.current.date(byAdding: .day, value: -sinceDays, to: Date()) {
                 predicates.append(NSPredicate(format: "creationDate >= %@", cutoff as NSDate))
             }
             options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
             let fetch = PHAsset.fetchAssets(with: options)
 
-            // Time-window cluster: same pixel orientation AND creationDate within window.
-            var clusters: [[PHAsset]] = []
-            var currentCluster: [PHAsset] = []
-            var lastDate: Date?
-            var lastOrientation: (Int, Int)?
-
+            var assets: [PHAsset] = []
             fetch.enumerateObjects { asset, _, _ in
-                let orientation = (asset.pixelWidth, asset.pixelHeight)
-                let date = asset.creationDate ?? Date.distantPast
-                let fitsCluster: Bool = {
-                    guard let lastDate, let lastOrientation else { return true }
-                    return abs(date.timeIntervalSince(lastDate)) <= clusteringWindow
-                        && lastOrientation == orientation
-                }()
-
-                if fitsCluster {
-                    currentCluster.append(asset)
-                } else {
-                    if currentCluster.count >= 2 { clusters.append(currentCluster) }
-                    currentCluster = [asset]
-                }
-                lastDate = date
-                lastOrientation = orientation
+                // For "Similar" photos, screenshots would pollute clusters — drop them.
+                if config.excludeScreenshots,
+                   asset.mediaSubtypes.contains(.photoScreenshot) { return }
+                assets.append(asset)
             }
-            if currentCluster.count >= 2 { clusters.append(currentCluster) }
+
+            let clusters: [[PHAsset]] = config.exactDuplicates
+                ? Self.exactDuplicateClusters(assets)
+                : Self.timeWindowClusters(assets, window: clusteringWindow)
 
             // Sort groups by estimated total size per the filter.
             let sized = clusters.map { cluster -> (cluster: [PHAsset], bytes: Int) in
@@ -99,12 +99,49 @@ final class PhotoLibraryService {
 
             return ordered.map { item in
                 PHAssetGroup(
-                    title: "\(item.cluster.count) Similar",
+                    title: "\(item.cluster.count) \(config.groupNoun)",
                     assets: item.cluster,
-                    bestMatchIndex: 0  // first asset (oldest in window) wins as MVP
+                    bestMatchIndex: 0  // first asset (oldest) wins as MVP
                 )
             }
         }.value
+    }
+
+    // Groups consecutive assets shot within `window` seconds at the same
+    // orientation — bursts / retakes of the same scene.
+    nonisolated private static func timeWindowClusters(_ assets: [PHAsset], window: TimeInterval) -> [[PHAsset]] {
+        var clusters: [[PHAsset]] = []
+        var current: [PHAsset] = []
+        var lastDate: Date?
+        var lastOrientation: (Int, Int)?
+
+        for asset in assets {
+            let orientation = (asset.pixelWidth, asset.pixelHeight)
+            let date = asset.creationDate ?? .distantPast
+            let fits: Bool = {
+                guard let lastDate, let lastOrientation else { return true }
+                return abs(date.timeIntervalSince(lastDate)) <= window && lastOrientation == orientation
+            }()
+            if fits { current.append(asset) }
+            else { if current.count >= 2 { clusters.append(current) }; current = [asset] }
+            lastDate = date
+            lastOrientation = orientation
+        }
+        if current.count >= 2 { clusters.append(current) }
+        return clusters
+    }
+
+    // Groups assets that are likely exact duplicates: identical pixel dimensions
+    // AND near-identical estimated size (within a small tolerance bucket).
+    nonisolated private static func exactDuplicateClusters(_ assets: [PHAsset]) -> [[PHAsset]] {
+        var buckets: [String: [PHAsset]] = [:]
+        for asset in assets {
+            // Round size to nearest 64 KB so re-encodes of the same shot still match.
+            let sizeBucket = Int(asset.estimatedSizeKB) / 64
+            let key = "\(asset.pixelWidth)x\(asset.pixelHeight)_\(sizeBucket)"
+            buckets[key, default: []].append(asset)
+        }
+        return buckets.values.filter { $0.count >= 2 }
     }
 
     // Async wrapper around PHPhotoLibrary.shared().performChanges.
