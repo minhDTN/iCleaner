@@ -92,8 +92,9 @@ struct SimilarReviewScreen: View {
 
             Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
-                    // Figma 2005:21843 "select all" glyph (2 frames + checkmark).
-                    Image("Clean/ic_select_check")
+                    // Figma: unselected = 2 frames only; all-selected = frames +
+                    // checkmark inside.
+                    Image(allSelected ? "Clean/ic_select_check" : "Clean/ic_select")
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
