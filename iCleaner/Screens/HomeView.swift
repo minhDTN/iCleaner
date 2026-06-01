@@ -26,6 +26,9 @@ struct HomeView: View {
     @State private var observedPremium = PermissionManager.shared.isPremium
     @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
 
+    @State private var photoLibrary = PhotoLibraryService()
+    @State private var recentIDs: [String] = []
+
     private var isPremium: Bool {
         #if DEBUG
         return observedPremium || forcePremium
@@ -36,6 +39,26 @@ struct HomeView: View {
 
     private var categories: [HomeCategory] {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
+    }
+
+    // Slice 3 consecutive real photo IDs per card (best + 2 duplicates) from the
+    // recent-images pool. Returns nil when no photos are available yet → the
+    // card falls back to its placeholder gradient.
+    private func assetIDs(for index: Int) -> CardAssets? {
+        guard !recentIDs.isEmpty else { return nil }
+        let base = (index * 3) % recentIDs.count
+        func at(_ offset: Int) -> String? {
+            recentIDs.isEmpty ? nil : recentIDs[(base + offset) % recentIDs.count]
+        }
+        return CardAssets(best: at(0), dup1: at(1), dup2: at(2))
+    }
+
+    // Re-fetches recent photo IDs. Called on appear and after the SimilarFlow
+    // dismisses — that's where the Photos permission is first granted, so the
+    // cards need to refresh once the user comes back with access.
+    private func reloadThumbnails() async {
+        guard photoLibrary.authStatus.canRead else { return }
+        recentIDs = await photoLibrary.recentImageIDs()
     }
 
     private var quickCleanTotalMB: Int {
@@ -49,9 +72,10 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 15) {
                     header
-                    ForEach(categories) { cat in
+                    ForEach(Array(categories.enumerated()), id: \.element.id) { index, cat in
                         HomeCategoryCard(
                             category: cat,
+                            assets: assetIDs(for: index),
                             onReviewTap: { openedCategory = cat }
                         )
                     }
@@ -63,7 +87,8 @@ struct HomeView: View {
 
             quickCleanCTA
         }
-        .fullScreenCover(item: $openedCategory) { cat in
+        .task { await reloadThumbnails() }
+        .fullScreenCover(item: $openedCategory, onDismiss: { Task { await reloadThumbnails() } }) { cat in
             SimilarFlowView(categoryTitle: cat.title)
         }
         .fullScreenCover(isPresented: $showQuickClean) {
@@ -140,6 +165,7 @@ struct HomeView: View {
 
 private struct HomeCategoryCard: View {
     let category: HomeCategory
+    var assets: CardAssets? = nil   // real PHAsset IDs; nil → placeholder gradient
     var onReviewTap: () -> Void
 
     // Shared horizontal inset for photo stack + Review Group so both align to
@@ -223,7 +249,7 @@ private struct HomeCategoryCard: View {
 
     private var bestPhoto: some View {
         ZStack(alignment: .topLeading) {
-            placeholderImage
+            thumbnail(assetID: assets?.best, seed: category.title.count)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             if category.isVideo {
@@ -233,6 +259,16 @@ private struct HomeCategoryCard: View {
 
             bestMatchPill
                 .padding(8)
+        }
+    }
+
+    // Real PHAsset thumbnail when an ID is available, else placeholder gradient.
+    @ViewBuilder
+    private func thumbnail(assetID: String?, seed: Int) -> some View {
+        if let assetID {
+            PHAssetThumbnail(localIdentifier: assetID, targetSize: CGSize(width: 400, height: 400))
+        } else {
+            placeholderImage(seed: seed)
         }
     }
 
@@ -278,7 +314,7 @@ private struct HomeCategoryCard: View {
     // "+N" text Inter Medium 12 #64748B centered.
     private var duplicateStack: some View {
         VStack(spacing: 8) {
-            placeholderImage(seed: category.title.count + 1)
+            thumbnail(assetID: assets?.dup1, seed: category.title.count + 1)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .opacity(0.8)
                 .overlay(
@@ -298,12 +334,8 @@ private struct HomeCategoryCard: View {
         }
     }
 
-    private var placeholderImage: some View {
-        placeholderImage(seed: category.title.count)
-    }
-
-    // Deterministic colored gradient placeholder — swap to real photo thumbs when
-    // Photos permission flow + PHAsset fetching land in Phase 3.
+    // Deterministic colored gradient placeholder — shown only until real
+    // PHAsset thumbnails load (or when Photos access hasn't been granted yet).
     private func placeholderImage(seed: Int) -> some View {
         let palettes: [[Color]] = [
             [Color(hex: 0xDBEAFE), Color(hex: 0xBFDBFE)],
@@ -344,6 +376,13 @@ private struct HomeCategoryCard: View {
 }
 
 // MARK: - Mock model
+
+// Real PHAsset localIdentifiers a card shows: 1 best-match + 2 duplicates.
+struct CardAssets {
+    let best: String?
+    let dup1: String?
+    let dup2: String?
+}
 
 struct HomeCategory: Identifiable {
     let key: String

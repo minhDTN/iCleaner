@@ -104,6 +104,23 @@ final class PhotoLibraryService {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
+
+    /// Fetches the most-recent N image asset localIdentifiers — used by the Home
+    /// category cards to show real thumbnails instead of placeholder gradients.
+    /// Returns [] when not authorized so callers fall back to the placeholder.
+    func recentImageIDs(limit: Int = 24) async -> [String] {
+        guard authStatus.canRead else { return [] }
+        return await Task.detached(priority: .userInitiated) {
+            let options = PHFetchOptions()
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.image.rawValue)
+            options.fetchLimit = limit
+            let fetch = PHAsset.fetchAssets(with: options)
+            var ids: [String] = []
+            fetch.enumerateObjects { asset, _, _ in ids.append(asset.localIdentifier) }
+            return ids
+        }.value
+    }
 }
 
 struct PHAssetGroup: Identifiable {
