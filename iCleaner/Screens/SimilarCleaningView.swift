@@ -10,11 +10,12 @@ import SwiftUI
 // Part B swaps to real PHPhotoLibrary delete progress.
 struct SimilarCleaningView: View {
     var title: String = "Deleting Selected photos..."
-    // Real delete invoked in parallel with the visual progress. Even if the
-    // PHPhotoLibrary call returns instantly, we hold the UI for the animation
-    // so the user gets visual feedback. Pass `{ }` for visual-only demos.
-    var performDelete: () async -> Void = {}
-    var onComplete: () -> Void
+    // Real delete invoked in parallel with the visual progress. Returns whether
+    // the delete actually succeeded — if the user denies the system delete
+    // confirmation, it returns false and we must NOT advance to success.
+    // Pass `{ true }` for visual-only demos.
+    var performDelete: () async -> Bool = { true }
+    var onComplete: (_ success: Bool) -> Void
 
     @State private var progress: Double = 0
     @State private var logIndex: Int = 0
@@ -56,10 +57,10 @@ struct SimilarCleaningView: View {
             // Run the real PHPhotoLibrary delete in parallel with the visual
             // animation. The animation always plays for the full 2.4s so the
             // user sees consistent feedback (the delete itself is usually <1s).
-            async let deletion: Void = performDelete()
+            async let deletion: Bool = performDelete()
             async let animation: Void = runAnimation()
-            _ = await (deletion, animation)
-            onComplete()
+            let (success, _) = await (deletion, animation)
+            onComplete(success)
         }
     }
 
@@ -171,5 +172,5 @@ struct SimilarCleaningView: View {
 }
 
 #Preview {
-    SimilarCleaningView(onComplete: {})
+    SimilarCleaningView(onComplete: { _ in })
 }

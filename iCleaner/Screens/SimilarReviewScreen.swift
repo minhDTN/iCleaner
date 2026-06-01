@@ -92,11 +92,22 @@ struct SimilarReviewScreen: View {
 
             Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
+                    // Keep the Figma "select multiple" glyph; overlay a small check
+                    // badge bottom-right when active so it reads as "all selected".
                     Image("Clean/ic_select_multiple")
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
+                        .overlay(alignment: .bottomTrailing) {
+                            if allSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white, AppColor.brandPrimary)
+                                    .background(Circle().fill(.white).frame(width: 9, height: 9))
+                                    .offset(x: 3, y: 3)
+                            }
+                        }
                     Text("Select All")
                         .font(.custom("Inter-Regular", size: 16))
                 }
@@ -313,13 +324,13 @@ private struct SimilarPhotoCell: View {
     }
 
     // Figma 2005:21879: unselected = 23×23 circle, fill rgba(0,0,0,0.1) +
-    // stroke rgba(255,255,255,0.8) 1.9px + blur (a subtle glass dot, NO check).
-    // Selected = solid brand-blue + white checkmark.
+    // stroke rgba(255,255,255,0.8) 1.9px (subtle dim dot, NO check). Use a solid
+    // translucent black — NOT .ultraThinMaterial, which leaves a grey diagonal
+    // blur artifact over static photos. Selected = solid brand-blue + white check.
     private var selectionToggle: some View {
         ZStack {
             Circle()
-                .fill(photo.isSelected ? AnyShapeStyle(AppColor.brandPrimary)
-                                       : AnyShapeStyle(.ultraThinMaterial))
+                .fill(photo.isSelected ? AppColor.brandPrimary : Color.black.opacity(0.1))
                 .frame(width: 23, height: 23)
                 .overlay(
                     Circle().stroke(Color.white.opacity(0.8), lineWidth: 1.9)

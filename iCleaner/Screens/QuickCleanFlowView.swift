@@ -44,7 +44,11 @@ struct QuickCleanFlowView: View {
                 SimilarCleaningView(
                     title: "Cleaning your phone...",
                     performDelete: performQuickClean,
-                    onComplete: { step = .success }
+                    onComplete: { success in
+                        // Only show success if the OS actually deleted. Denying the
+                        // system prompt → back to confirm.
+                        step = success ? .success : .confirm
+                    }
                 )
             case .success:
                 QuickCleanSuccessView(
@@ -96,12 +100,18 @@ struct QuickCleanFlowView: View {
         step = .confirm
     }
 
-    private func performQuickClean() async {
-        guard !deletableAssets.isEmpty else { return }
+    // Returns true only when the OS confirmed the deletion (false if the user
+    // denied the system delete prompt) — caller stays on confirm otherwise.
+    private func performQuickClean() async -> Bool {
+        guard !deletableAssets.isEmpty else { return false }
         do {
             try await photoLibrary.delete(assets: deletableAssets)
+            return true
+        } catch let error as PHPhotosError where error.code == .userCancelled {
+            return false
         } catch {
             deleteError = (error as NSError).localizedDescription
+            return false
         }
     }
 

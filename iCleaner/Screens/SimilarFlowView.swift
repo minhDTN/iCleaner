@@ -66,7 +66,12 @@ struct SimilarFlowView: View {
             case .deleting:
                 SimilarCleaningView(
                     performDelete: performRealDelete,
-                    onComplete: { step = .success }
+                    onComplete: { success in
+                        // Only celebrate if the OS actually deleted the assets.
+                        // If the user denied the system delete prompt, go back to
+                        // review and surface the reason.
+                        step = success ? .success : .review
+                    }
                 )
             case .success:
                 SimilarSuccessView(deletedMB: deletedMB, onContinue: showInterstitialThenDismiss)
@@ -173,9 +178,12 @@ struct SimilarFlowView: View {
         }
     }
 
-    private func performRealDelete() async {
+    // Returns true only when the OS confirmed the deletion. Returns false if the
+    // user denied the system delete prompt (PHPhotosError.userCancelled) or any
+    // other failure — the caller then stays on review instead of showing success.
+    private func performRealDelete() async -> Bool {
         let toDelete = selectedPhotos.compactMap(\.assetID)
-        guard !toDelete.isEmpty else { return }
+        guard !toDelete.isEmpty else { return false }
         let fetched = PHAsset.fetchAssets(withLocalIdentifiers: toDelete, options: nil)
         var assets: [PHAsset] = []
         fetched.enumerateObjects { asset, _, _ in assets.append(asset) }
@@ -188,8 +196,14 @@ struct SimilarFlowView: View {
                 trimmed.photos.removeAll { $0.isSelected }
                 return trimmed.photos.isEmpty ? nil : trimmed
             }
+            return true
+        } catch let error as PHPhotosError where error.code == .userCancelled {
+            // User tapped "Don't Allow" on the system delete sheet — silent, no
+            // error alert (it's a deliberate choice, not a failure).
+            return false
         } catch {
             deleteError = (error as NSError).localizedDescription
+            return false
         }
     }
 
