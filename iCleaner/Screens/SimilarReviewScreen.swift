@@ -92,8 +92,11 @@ struct SimilarReviewScreen: View {
 
             Button(action: toggleSelectAll) {
                 HStack(spacing: 5) {
-                    Image(systemName: allSelected ? "checkmark.circle.fill" : "checkmark.circle")
-                        .font(.system(size: 16, weight: .semibold))
+                    Image("Clean/ic_select_multiple")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
                     Text("Select All")
                         .font(.custom("Inter-Regular", size: 16))
                 }
@@ -135,7 +138,7 @@ struct SimilarReviewScreen: View {
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(AppColor.brandPrimary)
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
                     .frame(width: 24, height: 24)
             }
         }
@@ -147,8 +150,11 @@ struct SimilarReviewScreen: View {
         let isDisabled = selectedCount == 0
         return Button(action: onDeleteTap) {
             HStack(spacing: 8) {
-                Image(systemName: "trash")
-                    .font(.system(size: 18, weight: .semibold))
+                Image("Clean/ic_delete")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
                 Text(isDisabled
                      ? "Delete Selected"
                      : "Delete \(selectedCount) Selected (\(selectedMB) MB)")
@@ -306,13 +312,18 @@ private struct SimilarPhotoCell: View {
         )
     }
 
+    // Figma 2005:21879: unselected = 23×23 circle, fill rgba(0,0,0,0.1) +
+    // stroke rgba(255,255,255,0.8) 1.9px + blur (a subtle glass dot, NO check).
+    // Selected = solid brand-blue + white checkmark.
     private var selectionToggle: some View {
         ZStack {
             Circle()
-                .fill(photo.isSelected ? AppColor.brandPrimary : Color.white.opacity(0.8))
-                .frame(width: 24, height: 24)
-                .overlay(Circle().stroke(.white, lineWidth: 1.5))
-                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                .fill(photo.isSelected ? AnyShapeStyle(AppColor.brandPrimary)
+                                       : AnyShapeStyle(.ultraThinMaterial))
+                .frame(width: 23, height: 23)
+                .overlay(
+                    Circle().stroke(Color.white.opacity(0.8), lineWidth: 1.9)
+                )
             if photo.isSelected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .bold))
