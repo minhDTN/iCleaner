@@ -9,6 +9,7 @@ import SwiftUI
 // Reached from Settings → Vault → Change Passcode (Phase 9 polish).
 struct ChangePasscodeView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(TabChrome.self) private var chrome: TabChrome?
     @Bindable var vault: VaultService
 
     @State private var step: Step = .verify
@@ -61,6 +62,10 @@ struct ChangePasscodeView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        // Full-screen gate while pushed → hide the tab bar + banner so the keypad
+        // isn't covered. Push/pop fire onAppear/onDisappear reliably.
+        .onAppear { if let chrome { chrome.vaultDepth += 1 } }
+        .onDisappear { if let chrome { chrome.vaultDepth = max(0, chrome.vaultDepth - 1) } }
         .alert("Couldn't save", isPresented: Binding(
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }

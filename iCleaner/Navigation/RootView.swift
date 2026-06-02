@@ -10,6 +10,7 @@ import LibEarnMoneyIOS
 final class TabChrome {
     var contactsDepth = 0
     var vaultGated = false
+    var vaultDepth = 0        // pushed full-screen vault detail (e.g. Change Passcode)
     var height: CGFloat = 0   // measured tab bar + banner height
 }
 
@@ -87,7 +88,7 @@ struct RootView: View {
     private var chromeHidden: Bool {
         switch selection {
         case .contacts: return chrome.contactsDepth > 0
-        case .vault:    return chrome.vaultGated
+        case .vault:    return chrome.vaultGated || chrome.vaultDepth > 0
         default:        return false
         }
     }
