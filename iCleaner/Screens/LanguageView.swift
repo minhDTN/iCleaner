@@ -11,7 +11,8 @@ import SwiftUI
 struct LanguageView: View {
     @State private var selectedCode: String = "en-gb"
     @State private var query: String = ""
-    var onStart: () -> Void = {}
+    var showBack: Bool = true          // hidden on the first-launch onboarding
+    var onStart: (String) -> Void = { _ in }
     var onBack: () -> Void = {}
 
     private var filteredAll: [Language] {
@@ -62,13 +63,15 @@ struct LanguageView: View {
 
     private var navBar: some View {
         HStack(spacing: 16) {
-            Button(action: onBack) {
-                Image("Common/ic_arrow_left")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(AppColor.textPrimary)
-                    .frame(width: 24, height: 24)
+            if showBack {
+                Button(action: onBack) {
+                    Image("Common/ic_arrow_left")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(AppColor.textPrimary)
+                        .frame(width: 24, height: 24)
+                }
             }
             Text("Language")
                 .font(AppFont.headline)
@@ -149,7 +152,7 @@ struct LanguageView: View {
 
     private var letsStartButton: some View {
         VStack(spacing: 0) {
-            Button(action: onStart) {
+            Button(action: { onStart(selectedCode) }) {
                 Text("Let’s Start")
                     .font(.custom("Inter-Bold", size: 14))
                     .foregroundStyle(Color(hex: 0xEAF4FC))

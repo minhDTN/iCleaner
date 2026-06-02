@@ -40,9 +40,27 @@ func makeLibConfig() -> LibConfig {
         paywallTheme: PaywallTheme(),
 
         homeFactory: {
-            UIHostingController(rootView: RootView().modelContainer(for: VaultItem.self))
+            UIHostingController(rootView: AppRootView().modelContainer(for: VaultItem.self))
         }
     )
+}
+
+// First-launch gate: show the Language picker once, then the main app. The
+// chosen language is persisted for when localization wiring lands.
+struct AppRootView: View {
+    @AppStorage("app.didSelectLanguage") private var didSelectLanguage = false
+    @AppStorage("app.languageCode") private var languageCode = "en-gb"
+
+    var body: some View {
+        if didSelectLanguage {
+            RootView()
+        } else {
+            LanguageView(showBack: false, onStart: { code in
+                languageCode = code
+                withAnimation { didSelectLanguage = true }
+            })
+        }
+    }
 }
 
 enum AppInfo {

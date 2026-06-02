@@ -70,7 +70,7 @@ struct SettingsView: View {
         }
         .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
-        .fullScreenCover(isPresented: $showLanguage) { LanguageView(onStart: { showLanguage = false }, onBack: { showLanguage = false }) }
+        .fullScreenCover(isPresented: $showLanguage) { LanguageView(onStart: { _ in showLanguage = false }, onBack: { showLanguage = false }) }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: ["Cleaner — keep your photo library tidy. https://apps.apple.com/app/id\(AppInfo.bundleID)"])
         }
