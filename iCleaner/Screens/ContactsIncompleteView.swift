@@ -3,9 +3,11 @@ import Contacts
 import ContactsUI
 import LibEarnMoneyIOS
 
-// Figma `2012:4274` (Incomplete Contacts). List with per-row badges
-// ("Missing contact name" / "Missing phone number"). Tap → CNContactViewController
-// (system editor) so user can fix in place. Multi-select + Delete selected.
+// Figma `2012:4274` (Incomplete Contacts). Header = back + centered title +
+// "N contacts" subtitle + "Select all". Each contact is a white card (blue 1px
+// stroke, radius 12): name (SemiBold 17) + a red warning-icon badge
+// ("Missing contact name" / "Missing phone number", slate text) + checkbox.
+// Bottom bar: "Edit contacts" (blue) + "Delete selected" (#FFDAD6 / #BA1A1A).
 struct ContactsIncompleteView: View {
     @Bindable var service: ContactsService
 
@@ -16,6 +18,7 @@ struct ContactsIncompleteView: View {
     @State private var actionError: String?
     @State private var deleting: Bool = false
 
+    private var isAllSelected: Bool { !contacts.isEmpty && selection.count == contacts.count }
     private var selectedContacts: [CNContact] {
         contacts.filter { selection.contains($0.identifier) }
     }
@@ -29,34 +32,21 @@ struct ContactsIncompleteView: View {
             } else if contacts.isEmpty {
                 emptyView
             } else {
-                List {
-                    Section {
-                        ForEach(contacts, id: \.identifier) { contact in
-                            row(contact)
-                                .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                .padding(.bottom, selection.isEmpty ? 0 : 88)
-            }
-
-            if !selection.isEmpty {
-                deleteBar
+                list
+                actionBar
             }
         }
-        .navigationTitle("Incomplete")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                ContactsNavTitle(title: "Incomplete Contacts", subtitle: "\(contacts.count) contacts")
+            }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: toggleSelectAll) {
-                    Text(selection.count == contacts.count ? "Deselect" : "Select all")
-                        .font(.custom("Inter-SemiBold", size: 14))
-                        .foregroundStyle(AppColor.brandPrimary)
+                if !contacts.isEmpty {
+                    ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
+                        toggleSelectAll()
+                    }
                 }
-                .disabled(contacts.isEmpty)
             }
         }
         .task {
@@ -83,62 +73,67 @@ struct ContactsIncompleteView: View {
         } message: { Text(actionError ?? "") }
     }
 
+    // MARK: - List
+
+    private var list: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                ForEach(contacts, id: \.identifier) { contact in
+                    row(contact)
+                }
+                Spacer(minLength: 12)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 110)  // room for the action bar
+        }
+    }
+
     private func row(_ contact: CNContact) -> some View {
-        let isSelected = selection.contains(contact.identifier)
-        let name = ContactsService.displayName(for: contact)
+        let selected = selection.contains(contact.identifier)
+        let hasName = !ContactsService.isNameMissing(contact)
+        let title = hasName ? ContactsService.displayName(for: contact) : "No name"
         return HStack(spacing: 12) {
-            Button(action: { toggle(contact) }) {
-                ZStack {
-                    Circle().strokeBorder(isSelected ? AppColor.brandPrimary : Color(hex: 0xCBD5E1), lineWidth: 2)
-                        .frame(width: 22, height: 22)
-                    if isSelected {
-                        Circle().fill(AppColor.brandPrimary).frame(width: 14, height: 14)
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.custom("Inter-SemiBold", size: 17))
+                    .foregroundStyle(Color(hex: 0x131B2E))
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image("Contacts/ic_warning")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(Color(hex: 0xBA1A1A))
+                    Text(missingText(for: contact))
+                        .font(.custom("Inter-Regular", size: 15))
+                        .foregroundStyle(Color(hex: 0x505F76))
+                        .lineLimit(1)
                 }
             }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .font(.custom("Inter-SemiBold", size: 15))
-                    .foregroundStyle(AppColor.textPrimary)
-                badges(for: contact)
-            }
-
-            Spacer()
-
-            Button(action: { editingID = contact.identifier }) {
-                Text("Edit")
-                    .font(.custom("Inter-SemiBold", size: 13))
-                    .foregroundStyle(AppColor.brandPrimary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule().fill(AppColor.brandPrimary.opacity(0.10))
-                    )
-            }
-            .buttonStyle(.plain)
+            Spacer(minLength: 8)
+            ContactSelectRadio(isSelected: selected)
         }
-        .padding(.vertical, 4)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppColor.surfaceBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppColor.brandPrimary, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { toggle(contact) }
     }
 
-    @ViewBuilder
-    private func badges(for contact: CNContact) -> some View {
+    private func missingText(for contact: CNContact) -> String {
         let nameMissing = ContactsService.isNameMissing(contact)
         let phoneMissing = contact.phoneNumbers.isEmpty
-        HStack(spacing: 6) {
-            if nameMissing  { badge("Missing contact name") }
-            if phoneMissing { badge("Missing phone number") }
-        }
-    }
-
-    private func badge(_ text: String) -> some View {
-        Text(text)
-            .font(.custom("Inter-Medium", size: 11))
-            .foregroundStyle(AppColor.danger)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(AppColor.danger.opacity(0.10)))
+        if nameMissing && phoneMissing { return "Missing name & phone number" }
+        if nameMissing { return "Missing contact name" }
+        return "Missing phone number"
     }
 
     private var emptyView: some View {
@@ -150,46 +145,42 @@ struct ContactsIncompleteView: View {
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var deleteBar: some View {
-        Button(action: { Task { await performDelete() } }) {
-            HStack(spacing: 8) {
-                if deleting { ProgressView().tint(.white) }
-                Image(systemName: "trash")
-                Text("Delete \(selection.count) selected")
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            ContactActionButton(title: "Edit contacts", iconAsset: "Contacts/ic_edit",
+                                 iconSize: CGSize(width: 17, height: 17),
+                                 style: .primary, enabled: !selection.isEmpty && !deleting) {
+                editingID = selectedContacts.first?.identifier
             }
-            .font(.custom("Inter-Bold", size: 15))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(AppColor.danger)
-                    .shadow(color: AppColor.danger.opacity(0.2), radius: 10, x: 0, y: 6)
-            )
+            ContactActionButton(title: "Delete selected", iconAsset: "Contacts/ic_trash",
+                                 iconSize: CGSize(width: 14, height: 15),
+                                 style: .destructive, enabled: !selection.isEmpty && !deleting) {
+                Task { await performDelete() }
+            }
         }
-        .disabled(deleting)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(16)
+        .background(
+            AppColor.surfaceBackground
+                .ignoresSafeArea(edges: .bottom)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color(hex: 0xC3C6D7)).frame(height: 1)
+                }
+        )
     }
 
     // MARK: - Actions
 
     private func toggle(_ contact: CNContact) {
-        if selection.contains(contact.identifier) {
-            selection.remove(contact.identifier)
-        } else {
-            selection.insert(contact.identifier)
-        }
+        if selection.contains(contact.identifier) { selection.remove(contact.identifier) }
+        else { selection.insert(contact.identifier) }
     }
 
     private func toggleSelectAll() {
-        if selection.count == contacts.count {
-            selection.removeAll()
-        } else {
-            selection = Set(contacts.map(\.identifier))
-        }
+        if isAllSelected { selection.removeAll() }
+        else { selection = Set(contacts.map(\.identifier)) }
     }
 
     private func performDelete() async {

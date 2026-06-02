@@ -1,15 +1,18 @@
 import SwiftUI
 import LibEarnMoneyIOS
 
-// Figma `2012:4599` (Backups). History list of vCard files + "Create backup"
-// CTA. Per-row swipe Delete + tap "Restore" to re-import all contacts in that
-// backup. Interstitial fires after Create / Restore (premium-gated).
+// Figma `2012:4599` (Backups). Header = back + "Backups" + "N Backups" subtitle.
+// During a backup an "Active Progress State" card shows. Each saved backup is a
+// clean info card: lavender icon bucket + date (Medium 17) + "N contacts"
+// (Regular 15) + time on the right. Tap a row to Restore / Delete. Bottom CTA
+// "Create backup" (blue, radius 12).
 struct ContactsBackupsView: View {
     @Bindable var service: ContactsService
 
     @State private var backups: [BackupFile] = []
     @State private var creating: Bool = false
     @State private var restoring: BackupFile?
+    @State private var selectedBackup: BackupFile?
     @State private var actionError: String?
     @State private var lastResult: String?
 
@@ -18,36 +21,47 @@ struct ContactsBackupsView: View {
             AppColor.surfaceBackground.ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 16) {
-                    if creating { backupInProgressCard }
+                VStack(spacing: 24) {
+                    if creating { progressCard }
                     if backups.isEmpty && !creating {
                         emptyView
                     } else {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 16) {
                             ForEach(backups) { backup in
-                                BackupRow(
-                                    backup: backup,
-                                    busy: restoring?.id == backup.id,
-                                    onRestore: { Task { await performRestore(backup) } },
-                                    onDelete: {
-                                        service.deleteBackup(backup)
-                                        backups.removeAll { $0.id == backup.id }
-                                    }
-                                )
+                                backupRow(backup)
                             }
                         }
                     }
-                    Spacer(minLength: 100)
+                    Spacer(minLength: 12)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 16)
+                .padding(.top, 24)
+                .padding(.bottom, 120)  // room for the CTA
             }
 
             createButton
         }
-        .navigationTitle("Backup")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                ContactsNavTitle(title: "Backups", subtitle: "\(backups.count) Backups")
+            }
+        }
         .task { backups = service.fetchBackups() }
+        .confirmationDialog(
+            selectedBackup.map { "Backup • \($0.contactCount) contacts" } ?? "Backup",
+            isPresented: Binding(get: { selectedBackup != nil }, set: { if !$0 { selectedBackup = nil } }),
+            titleVisibility: .visible
+        ) {
+            if let backup = selectedBackup {
+                Button("Restore \(backup.contactCount) contacts") { Task { await performRestore(backup) } }
+                Button("Delete backup", role: .destructive) {
+                    service.deleteBackup(backup)
+                    backups.removeAll { $0.id == backup.id }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
         .alert("Backup error", isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
@@ -62,7 +76,80 @@ struct ContactsBackupsView: View {
         } message: { Text(lastResult ?? "") }
     }
 
-    // MARK: - Subviews
+    // MARK: - Rows
+
+    private func backupRow(_ backup: BackupFile) -> some View {
+        let busy = restoring?.id == backup.id
+        return HStack(spacing: 16) {
+            ZStack {
+                Circle().fill(Color(hex: 0xF2F3FF)).frame(width: 48, height: 48)
+                Image("Contacts/ic_backup_doc")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 19, height: 21)
+                    .foregroundStyle(AppColor.brandPrimary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(Self.dateString(backup.createdAt))
+                    .font(.custom("Inter-Medium", size: 17))
+                    .foregroundStyle(Color(hex: 0x131B2E))
+                Text("\(backup.contactCount) contacts")
+                    .font(.custom("Inter-Regular", size: 15))
+                    .foregroundStyle(Color(hex: 0x434655))
+            }
+            Spacer(minLength: 8)
+            if busy {
+                ProgressView().tint(AppColor.brandPrimary)
+            } else {
+                Text(Self.timeString(backup.createdAt))
+                    .font(.custom("Inter-Regular", size: 15))
+                    .foregroundStyle(Color(hex: 0x434655))
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppColor.surfaceBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppColor.brandPrimary, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { if !busy { selectedBackup = backup } }
+    }
+
+    private var progressCard: some View {
+        VStack(spacing: 8) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image("Contacts/ic_backup_cloud")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 16)
+                        .foregroundStyle(AppColor.brandPrimary)
+                    Text("Backing up contacts…")
+                        .font(.custom("Inter-SemiBold", size: 15))
+                        .foregroundStyle(Color(hex: 0x131B2E))
+                }
+                Spacer()
+            }
+            IndeterminateBar()
+                .frame(height: 8)
+                .padding(.top, 4)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(hex: 0x004AC6, alpha: 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(hex: 0xC3C6D7), lineWidth: 1)
+        )
+    }
 
     private var emptyView: some View {
         VStack(spacing: 16) {
@@ -81,46 +168,53 @@ struct ContactsBackupsView: View {
         .padding(.top, 64)
     }
 
-    private var backupInProgressCard: some View {
-        HStack(spacing: 16) {
-            ProgressView().tint(AppColor.brandPrimary).scaleEffect(1.2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Backing up contacts…")
-                    .font(.custom("Inter-SemiBold", size: 14))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text("Writing vCard to local storage.")
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(hex: 0xDBE1FF).opacity(0.6))
-        )
-    }
-
     private var createButton: some View {
         Button(action: { Task { await performCreate() } }) {
             HStack(spacing: 8) {
-                if creating { ProgressView().tint(.white).scaleEffect(0.9) }
-                Image(systemName: "plus")
+                if creating {
+                    ProgressView().tint(.white).scaleEffect(0.9)
+                } else {
+                    Image("Contacts/ic_backup_add")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                }
                 Text("Create backup")
+                    .font(.custom("Inter-SemiBold", size: 13))
+                    .tracking(13 * 0.05)
             }
-            .font(.custom("Inter-Bold", size: 16))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(AppColor.brandPrimary)
-                    .shadow(color: AppColor.brandPrimary.opacity(0.3), radius: 10, x: 0, y: 6)
-            )
+            .frame(height: 56)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary))
         }
+        .buttonStyle(.plain)
         .disabled(creating)
         .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 28)
+        .background(
+            AppColor.surfaceBackground
+                .ignoresSafeArea(edges: .bottom)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color(hex: 0xC3C6D7)).frame(height: 1)
+                }
+        )
+    }
+
+    // MARK: - Format
+
+    private static func dateString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, yyyy"
+        return f.string(from: date)
+    }
+
+    private static func timeString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
     }
 
     // MARK: - Actions
@@ -160,56 +254,28 @@ struct ContactsBackupsView: View {
     }
 }
 
-private struct BackupRow: View {
-    let backup: BackupFile
-    let busy: Bool
-    var onRestore: () -> Void
-    var onDelete: () -> Void
+// Looping shimmer bar (track #DAE2FD + sliding brand-blue segment) shown while a
+// backup is being written — honest indeterminate progress (the vCard write isn't
+// incrementally measurable).
+private struct IndeterminateBar: View {
+    @State private var phase: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "doc.text.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(AppColor.brandPrimary)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(AppColor.brandPrimary.opacity(0.10)))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(backup.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.custom("Inter-SemiBold", size: 14))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text(ByteCountFormatter.string(fromByteCount: Int64(backup.sizeBytes), countStyle: .file))
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
+        GeometryReader { geo in
+            let w = geo.size.width
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color(hex: 0xDAE2FD))
+                Capsule()
+                    .fill(AppColor.brandPrimary)
+                    .frame(width: w * 0.4)
+                    .offset(x: phase * w * 1.4 - w * 0.4)
             }
-
-            Spacer()
-
-            Button(action: onRestore) {
-                if busy { ProgressView().scaleEffect(0.7).tint(AppColor.brandPrimary) }
-                else    { Text("Restore").font(.custom("Inter-SemiBold", size: 13)).foregroundStyle(AppColor.brandPrimary) }
+            .clipShape(Capsule())
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(AppColor.brandPrimary.opacity(0.10)))
-            .disabled(busy)
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppColor.danger)
-                    .frame(width: 32, height: 32)
-            }
-            .disabled(busy)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(AppColor.surfaceBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
-        )
     }
 }

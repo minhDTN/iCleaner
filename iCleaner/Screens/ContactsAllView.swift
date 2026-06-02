@@ -1,8 +1,14 @@
 import SwiftUI
 import Contacts
+import ContactsUI
+import LibEarnMoneyIOS
 
-// Figma `2012:4832` (All Contacts). A-Z sectioned list with search bar at top
-// and avatar circle per row. Tap → CNContactViewController.
+// Figma `2012:4832` (All Contacts). Header = back + "All Contacts" + "N contacts"
+// + "Select all". Custom search field (#F2F3FF), then A-Z section cards (each a
+// white rounded card with hairline-divided rows). Row = colourful avatar + name
+// (Regular 17) + phone/email (Regular 15) + chevron. Tap a row → contact detail.
+// "Select all" enters a selection mode (checkboxes + Delete bar), matching the
+// other contact screens.
 struct ContactsAllView: View {
     @Bindable var service: ContactsService
 
@@ -10,18 +16,23 @@ struct ContactsAllView: View {
     @State private var query: String = ""
     @State private var loading: Bool = true
     @State private var editingID: String?
+    @State private var selection: Set<String> = []
+    @State private var deleting: Bool = false
+    @State private var actionError: String?
+
+    private var selectionMode: Bool { !selection.isEmpty }
+
+    private var filtered: [CNContact] {
+        guard !query.isEmpty else { return contacts }
+        let q = query.lowercased()
+        return contacts.filter { c in
+            ContactsService.displayName(for: c).lowercased().contains(q)
+            || c.phoneNumbers.contains { $0.value.stringValue.contains(query) }
+            || c.emailAddresses.contains { String($0.value).lowercased().contains(q) }
+        }
+    }
 
     private var grouped: [(letter: String, items: [CNContact])] {
-        let filtered: [CNContact]
-        if query.isEmpty {
-            filtered = contacts
-        } else {
-            let q = query.lowercased()
-            filtered = contacts.filter { c in
-                ContactsService.displayName(for: c).lowercased().contains(q)
-                || c.phoneNumbers.contains(where: { $0.value.stringValue.contains(query) })
-            }
-        }
         var buckets: [String: [CNContact]] = [:]
         for c in filtered {
             let name = ContactsService.displayName(for: c)
@@ -32,29 +43,44 @@ struct ContactsAllView: View {
         return buckets.keys.sorted().map { ($0, buckets[$0] ?? []) }
     }
 
+    private var isAllSelected: Bool { !contacts.isEmpty && selection.count == contacts.count }
+
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             AppColor.surfaceBackground.ignoresSafeArea()
+
             if loading {
                 ProgressView().tint(AppColor.brandPrimary)
             } else {
-                List {
-                    ForEach(grouped, id: \.letter) { section in
-                        Section(header: sectionHeader(section.letter)) {
-                            ForEach(section.items, id: \.identifier) { contact in
-                                row(contact)
-                                    .listRowBackground(AppColor.surfaceBackground)
-                            }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 16, pinnedViews: []) {
+                        searchBar
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                        ForEach(grouped, id: \.letter) { section in
+                            sectionView(section)
+                                .padding(.horizontal, 20)
                         }
                     }
+                    .padding(.bottom, selectionMode ? 110 : 24)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search contacts")
+            }
+
+            if selectionMode { deleteBar }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                ContactsNavTitle(title: "All Contacts", subtitle: "\(contacts.count) contacts")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if !contacts.isEmpty {
+                    ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
+                        toggleSelectAll()
+                    }
+                }
             }
         }
-        .navigationTitle("All contacts")
-        .navigationBarTitleDisplayMode(.inline)
         .task {
             contacts = await service.fetchAllContacts()
             loading = false
@@ -65,35 +91,127 @@ struct ContactsAllView: View {
         )) { box in
             ContactReadOnly(contact: box.c) { editingID = nil }
         }
+        .alert("Couldn't delete", isPresented: Binding(
+            get: { actionError != nil },
+            set: { if !$0 { actionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: { Text(actionError ?? "") }
     }
 
-    private func sectionHeader(_ letter: String) -> some View {
-        Text(letter)
-            .font(.custom("Inter-Bold", size: 13))
-            .foregroundStyle(AppColor.textMuted)
-    }
+    // MARK: - Search
 
-    private func row(_ contact: CNContact) -> some View {
-        let name = ContactsService.displayName(for: contact)
-        let phone = contact.phoneNumbers.first?.value.stringValue ?? "—"
-        return Button(action: { editingID = contact.identifier }) {
-            HStack(spacing: 12) {
-                avatar(for: contact, name: name)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.custom("Inter-SemiBold", size: 15))
-                        .foregroundStyle(AppColor.textPrimary)
-                    Text(phone)
-                        .font(.custom("Inter-Regular", size: 13))
-                        .foregroundStyle(AppColor.textSecondary)
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Color(hex: 0x737686))
+            TextField("", text: $query, prompt: Text("Search contacts")
+                .foregroundColor(Color(hex: 0xC3C6D7)))
+                .font(.custom("Inter-Regular", size: 16))
+                .foregroundStyle(Color(hex: 0x131B2E))
+                .autocorrectionDisabled()
+            if !query.isEmpty {
+                Button { query = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color(hex: 0xC3C6D7))
                 }
-                Spacer()
+                .buttonStyle(.plain)
             }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(hex: 0xF2F3FF))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color(hex: 0xC3C6D7), lineWidth: 1)
+        )
     }
+
+    // MARK: - Section
+
+    private func sectionView(_ section: (letter: String, items: [CNContact])) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(section.letter)
+                .font(.custom("Inter-SemiBold", size: 13))
+                .tracking(13 * 0.05)
+                .foregroundStyle(Color(hex: 0x434655))
+                .padding(.vertical, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(section.items.enumerated()), id: \.element.identifier) { idx, contact in
+                    row(contact, isLast: idx == section.items.count - 1)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(AppColor.surfaceBackground)
+                    .shadow(color: Color(hex: 0x0F172A, alpha: 0.02), radius: 2, x: 0, y: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color(hex: 0xC3C6D7), lineWidth: 1)
+            )
+        }
+    }
+
+    private func row(_ contact: CNContact, isLast: Bool) -> some View {
+        let name = ContactsService.displayName(for: contact)
+        let sub = contact.phoneNumbers.first?.value.stringValue
+            ?? contact.emailAddresses.first.map { String($0.value) }
+            ?? "—"
+        let selected = selection.contains(contact.identifier)
+        return HStack(spacing: 16) {
+            avatar(for: contact, name: name)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(name)
+                            .font(.custom("Inter-Regular", size: 17))
+                            .foregroundStyle(Color(hex: 0x131B2E))
+                            .lineLimit(1)
+                        Text(sub)
+                            .font(.custom("Inter-Regular", size: 15))
+                            .foregroundStyle(Color(hex: 0x434655))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    if selectionMode {
+                        ContactSelectRadio(isSelected: selected)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color(hex: 0xC3C6D7))
+                    }
+                }
+                .padding(.vertical, 12)
+                .overlay(alignment: .bottom) {
+                    if !isLast {
+                        Rectangle().fill(Color(hex: 0xC3C6D7)).frame(height: 1)
+                    }
+                }
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 16)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if selectionMode { toggle(contact) }
+            else { editingID = contact.identifier }
+        }
+    }
+
+    // Colourful avatar palette cycled deterministically per contact (Figma).
+    private static let avatarPalette: [(bg: UInt32, fg: UInt32)] = [
+        (0xD0E1FB, 0x54647A),
+        (0x0D7FF2, 0xFFFFFF),
+        (0xCF2C30, 0xFFECEA),
+        (0xDAE2FD, 0x434655),
+        (0xD3E4FE, 0x0B1C30),
+    ]
 
     private func avatar(for contact: CNContact, name: String) -> some View {
         let initials = name.split(separator: " ")
@@ -101,20 +219,72 @@ struct ContactsAllView: View {
             .compactMap { $0.first.map(String.init) }
             .joined()
             .uppercased()
+        let hash = contact.identifier.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        let pal = Self.avatarPalette[hash % Self.avatarPalette.count]
         return Group {
             if contact.imageDataAvailable, let data = contact.thumbnailImageData, let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
                 ZStack {
-                    Circle().fill(AppColor.brandPrimary.opacity(0.15))
-                    Text(initials.isEmpty ? "?" : initials)
-                        .font(.custom("Inter-SemiBold", size: 13))
-                        .foregroundStyle(AppColor.brandPrimary)
+                    Circle().fill(Color(hex: pal.bg))
+                    Text(initials.isEmpty ? "#" : initials)
+                        .font(.custom("Inter-SemiBold", size: 18))
+                        .foregroundStyle(Color(hex: pal.fg))
                 }
             }
         }
         .frame(width: 40, height: 40)
         .clipShape(Circle())
+    }
+
+    // MARK: - Delete bar
+
+    private var deleteBar: some View {
+        ContactActionButton(title: "Delete \(selection.count) selected", iconAsset: "Contacts/ic_trash",
+                             iconSize: CGSize(width: 14, height: 15),
+                             style: .destructive, enabled: !deleting) {
+            Task { await performDelete() }
+        }
+        .padding(16)
+        .background(
+            AppColor.surfaceBackground
+                .ignoresSafeArea(edges: .bottom)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color(hex: 0xC3C6D7)).frame(height: 1)
+                }
+        )
+    }
+
+    // MARK: - Actions
+
+    private func toggle(_ contact: CNContact) {
+        if selection.contains(contact.identifier) { selection.remove(contact.identifier) }
+        else { selection.insert(contact.identifier) }
+    }
+
+    private func toggleSelectAll() {
+        if isAllSelected { selection.removeAll() }
+        else { selection = Set(contacts.map(\.identifier)) }
+    }
+
+    private func performDelete() async {
+        deleting = true
+        defer { deleting = false }
+        let toDelete = contacts.filter { selection.contains($0.identifier) }
+        do {
+            try await service.delete(contacts: toDelete)
+            contacts.removeAll { selection.contains($0.identifier) }
+            selection.removeAll()
+            if !PremiumGate.isPremium, let vc = AdHelpers.topViewController() {
+                AdManager.shared.showInterstitialAd(
+                    adUnitID: AdUnits.interContactsAction,
+                    from: vc,
+                    completion: nil
+                )
+            }
+        } catch {
+            actionError = (error as NSError).localizedDescription
+        }
     }
 }
 
@@ -123,9 +293,7 @@ private struct Box: Identifiable {
     var id: String { c.identifier }
 }
 
-// Read-only contact view (no edit). Used when tapping in All — keeps the
-// destructive editor reserved for the Incomplete flow.
-import ContactsUI
+// Read-only contact view (no edit) shown when tapping a row in All.
 private struct ContactReadOnly: UIViewControllerRepresentable {
     let contact: CNContact
     var onDismiss: () -> Void

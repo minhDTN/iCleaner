@@ -1,20 +1,22 @@
 import SwiftUI
 
-// Figma `2012:3559` (Contacts dashboard). White bg. Header "362 contacts"
-// total. 4 stacked cards (gap 16, padding 20):
-//   • Duplicates  — pastel red bucket bg
-//   • Incomplete  — pastel indigo bucket bg
-//   • Backup      — light indigo bucket bg
-//   • All contacts — light blue bucket bg
-// Each card: 48×48 icon-bucket (capsule) + title + subtitle + chevron-right
-// (#C3C6D7). Card chrome: white bg + brand-blue 1px stroke + radius 16.
+// Figma `2012:3559` (Contacts dashboard). White bg. Left-aligned title "Contacts"
+// (Inter SemiBold 20 #111827) in the top bar — NO total counter, NO reload button.
+// Just 4 stacked cards (gap 16, padding 20):
+//   • Duplicates   — pastel red bucket, red count
+//   • Incomplete   — pastel indigo bucket, slate count
+//   • Backup       — light indigo bucket, brand-blue count
+//   • All contacts — light blue bucket, dark count
+// Each card: 48×48 icon-bucket (circle) + title (SemiBold 20 #131B2E) +
+// count line (SemiBold 13, 5% tracking, colour per card) + static description
+// (Regular 15 #434655) + chevron-right (#C3C6D7). Card chrome: white bg +
+// brand-blue 1px stroke + radius 16.
 struct ContactsDashboardView: View {
     @Bindable var service: ContactsService
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header
                 ForEach(ContactsCategory.allCases) { cat in
                     NavigationLink(value: cat) {
                         DashboardCard(category: cat, count: count(for: cat))
@@ -27,17 +29,12 @@ struct ContactsDashboardView: View {
             .padding(.top, 16)
         }
         .background(AppColor.surfaceBackground)
-        .navigationTitle("Contacts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await service.refresh() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(AppColor.brandPrimary)
-                }
-                .disabled(service.isRefreshing)
+            ToolbarItem(placement: .topBarLeading) {
+                Text("Contacts")
+                    .font(.custom("Inter-SemiBold", size: 20))
+                    .foregroundStyle(Color(hex: 0x111827))
             }
         }
         .navigationDestination(for: ContactsCategory.self) { cat in
@@ -53,38 +50,6 @@ struct ContactsDashboardView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "person.2.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(AppColor.brandPrimary)
-                .frame(width: 48, height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(AppColor.brandPrimary.opacity(0.10))
-                )
-            VStack(alignment: .leading, spacing: 4) {
-                if service.isRefreshing {
-                    HStack(spacing: 8) {
-                        ProgressView().scaleEffect(0.7)
-                        Text("Scanning contacts…")
-                            .font(.custom("Inter-Regular", size: 14))
-                            .foregroundStyle(AppColor.textSecondary)
-                    }
-                } else {
-                    Text("\(service.totalCount) contacts")
-                        .font(.custom("Inter-Bold", size: 20))
-                        .foregroundStyle(AppColor.textPrimary)
-                    Text("Last scanned " + (service.lastRefreshed.map(formatRelative) ?? "—"))
-                        .font(.custom("Inter-Regular", size: 12))
-                        .foregroundStyle(AppColor.textSecondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(.bottom, 4)
-    }
-
     private func count(for cat: ContactsCategory) -> Int {
         switch cat {
         case .duplicates: return service.duplicateGroupCount
@@ -92,12 +57,6 @@ struct ContactsDashboardView: View {
         case .backups:    return service.backupCount
         case .all:        return service.totalCount
         }
-    }
-
-    private func formatRelative(_ date: Date) -> String {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
-        return f.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -117,47 +76,69 @@ enum ContactsCategory: String, Identifiable, CaseIterable, Hashable {
         }
     }
 
-    var systemIcon: String {
+    // Template-rendered SVGs downloaded from Figma (node 2012:3559 buckets).
+    var iconAsset: String {
         switch self {
-        case .duplicates: return "person.2.crop.square.stack.fill"
-        case .incomplete: return "person.crop.circle.badge.questionmark"
-        case .backups:    return "externaldrive.fill"
-        case .all:        return "person.crop.rectangle.stack.fill"
+        case .duplicates: return "Contacts/ic_duplicates"
+        case .incomplete: return "Contacts/ic_incomplete"
+        case .backups:    return "Contacts/ic_backup"
+        case .all:        return "Contacts/ic_all"
+        }
+    }
+
+    var iconSize: CGSize {
+        switch self {
+        case .duplicates: return CGSize(width: 18, height: 21)
+        case .incomplete: return CGSize(width: 19, height: 19)
+        case .backups:    return CGSize(width: 21, height: 15)
+        case .all:        return CGSize(width: 21, height: 15)
         }
     }
 
     var bucketTint: Color {
         switch self {
-        case .duplicates: return Color(hex: 0xFFDAD6).opacity(0.5)  // pastel red
-        case .incomplete: return Color(hex: 0xDAE2FD).opacity(0.5)  // pastel indigo
-        case .backups:    return Color(hex: 0xDBE1FF)               // light indigo
-        case .all:        return Color(hex: 0xD3E4FE)               // light blue
+        case .duplicates: return Color(hex: 0xFFDAD6, alpha: 0.5)  // pastel red
+        case .incomplete: return Color(hex: 0xDAE2FD, alpha: 0.5)  // pastel indigo
+        case .backups:    return Color(hex: 0xDBE1FF)              // light indigo
+        case .all:        return Color(hex: 0xD3E4FE)              // light blue
         }
     }
 
     var iconTint: Color {
         switch self {
-        case .duplicates: return Color(hex: 0xEF4444)
-        case .incomplete: return Color(hex: 0x4361EE)
-        case .backups:    return Color(hex: 0x4361EE)
-        case .all:        return AppColor.brandPrimary
+        case .duplicates: return Color(hex: 0xBA1A1A)
+        case .incomplete: return Color(hex: 0x434655)
+        case .backups:    return Color(hex: 0x0D7FF2)
+        case .all:        return Color(hex: 0x505F76)
         }
     }
 
-    func subtitle(count: Int) -> String {
+    // Colour of the dynamic count line (matches Figma per card).
+    var countTint: Color {
         switch self {
-        case .duplicates:
-            return count == 0 ? "No duplicates found"
-                              : "\(count) duplicate \(count == 1 ? "group" : "groups") — Merge or delete duplicates"
-        case .incomplete:
-            return count == 0 ? "All contacts look complete"
-                              : "\(count) contact\(count == 1 ? "" : "s") to check — Missing name, phone or both"
-        case .backups:
-            return count == 0 ? "No backups yet"
-                              : "\(count) backup\(count == 1 ? "" : "s") — Save and restore contacts when you need to"
-        case .all:
-            return count == 0 ? "No contacts on device"
-                              : "View all \(count) contacts on device"
+        case .duplicates: return Color(hex: 0xBA1A1A)
+        case .incomplete: return Color(hex: 0x505F76)
+        case .backups:    return Color(hex: 0x0D7FF2)
+        case .all:        return Color(hex: 0x131B2E)
+        }
+    }
+
+    func countLine(_ count: Int) -> String {
+        switch self {
+        case .duplicates: return "\(count) duplicate \(count == 1 ? "group" : "groups")"
+        case .incomplete: return "\(count) contact\(count == 1 ? "" : "s") to check"
+        case .backups:    return "\(count) backup\(count == 1 ? "" : "s")"
+        case .all:        return "\(count) contacts"
+        }
+    }
+
+    // Static description (the dynamic number lives in `countLine`).
+    var descriptionLine: String {
+        switch self {
+        case .duplicates: return "Merge or delete duplicate…"
+        case .incomplete: return "Contacts missing name, phone…"
+        case .backups:    return "Save and restore contacts when…"
+        case .all:        return "View all contacts on device."
         }
     }
 }
@@ -170,26 +151,36 @@ private struct DashboardCard: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            Image(systemName: category.systemIcon)
-                .font(.system(size: 20))
+            Image(category.iconAsset)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: category.iconSize.width, height: category.iconSize.height)
                 .foregroundStyle(category.iconTint)
                 .frame(width: 48, height: 48)
                 .background(Circle().fill(category.bucketTint))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(category.title)
-                    .font(.custom("Inter-SemiBold", size: 16))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text(category.subtitle(count: count))
-                    .font(.custom("Inter-Regular", size: 13))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .lineLimit(2)
+                    .font(.custom("Inter-SemiBold", size: 20))
+                    .foregroundStyle(Color(hex: 0x131B2E))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(category.countLine(count))
+                        .font(.custom("Inter-SemiBold", size: 13))
+                        .tracking(13 * 0.05)
+                        .foregroundStyle(category.countTint)
+                    Text(category.descriptionLine)
+                        .font(.custom("Inter-Regular", size: 15))
+                        .foregroundStyle(Color(hex: 0x434655))
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 0)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color(hex: 0xC3C6D7))
         }
         .padding(20)

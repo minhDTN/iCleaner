@@ -116,7 +116,8 @@ final class ContactsService {
                 let values = try? url.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
                 guard let created = values?.creationDate else { return nil }
                 let bytes = values?.fileSize ?? 0
-                return BackupFile(url: url, createdAt: created, sizeBytes: bytes)
+                return BackupFile(url: url, createdAt: created, sizeBytes: bytes,
+                                  contactCount: Self.countContacts(in: url))
             }
             .sorted { $0.createdAt > $1.createdAt }
     }
@@ -124,9 +125,14 @@ final class ContactsService {
     // MARK: - Mutations
 
     func merge(group: DuplicateGroup) async throws {
-        guard authStatus.canRead, group.contacts.count >= 2 else { return }
+        try await mergeContacts(group.contacts)
+    }
+
+    // Union-merge an arbitrary set of contacts into the first, delete the rest.
+    func mergeContacts(_ contacts: [CNContact]) async throws {
+        guard authStatus.canRead, contacts.count >= 2 else { return }
         try await Task.detached(priority: .userInitiated) { [store] in
-            try Self.performMerge(group: group, store: store)
+            try Self.performMerge(contacts: contacts, store: store)
         }.value
         await refresh()
     }
@@ -158,8 +164,15 @@ final class ContactsService {
         return BackupFile(
             url: url,
             createdAt: values?.creationDate ?? Date(),
-            sizeBytes: values?.fileSize ?? 0
+            sizeBytes: values?.fileSize ?? 0,
+            contactCount: Self.countContacts(in: url)
         )
+    }
+
+    // Count vCard entries cheaply by scanning for BEGIN:VCARD markers.
+    nonisolated private static func countContacts(in url: URL) -> Int {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+        return text.components(separatedBy: "BEGIN:VCARD").count - 1
     }
 
     @discardableResult
@@ -315,10 +328,10 @@ final class ContactsService {
 
     // MARK: - Mutation implementations
 
-    nonisolated private static func performMerge(group: DuplicateGroup, store: CNContactStore) throws {
-        guard let firstID = group.contacts.first?.identifier else { return }
+    nonisolated private static func performMerge(contacts: [CNContact], store: CNContactStore) throws {
+        guard let firstID = contacts.first?.identifier else { return }
         // Re-fetch with all keys (the snapshot lists fetched only basic keys).
-        let predicate = CNContact.predicateForContacts(withIdentifiers: group.contacts.map(\.identifier))
+        let predicate = CNContact.predicateForContacts(withIdentifiers: contacts.map(\.identifier))
         let fetched = (try? store.unifiedContacts(matching: predicate, keysToFetch: detailKeys)) ?? []
         guard let primaryFetched = fetched.first(where: { $0.identifier == firstID }) else { return }
         guard let primary = primaryFetched.mutableCopy() as? CNMutableContact else { return }
@@ -399,5 +412,6 @@ struct BackupFile: Identifiable {
     let url: URL
     let createdAt: Date
     let sizeBytes: Int
+    let contactCount: Int
     var id: URL { url }
 }
