@@ -2,41 +2,45 @@ import SwiftUI
 import Photos
 import AVKit
 
-// Figma `2008:31427` (preview image). Single-item full-screen preview opened by
-// tapping any photo/video in a review group. Shows just that one item (no
-// swiping through the whole section). Delete (X, red) and Keep (heart, green)
-// float at the vertical centre over the left/right edges of the media, matching
-// the design. A Vault button sits centred at the bottom.
+// Figma `2008:31427` (preview image) — extended to a browsable gallery: the
+// tapped photo shows large with Delete (left) / Keep (right) / Vault (bottom)
+// actions + swipe, and a filmstrip of EVERY photo in the group sits at the
+// bottom (tap to jump, current ringed). Acting on a photo advances to the next
+// one so the whole group can be reviewed without leaving the preview.
 //
 // Delete marks the item selected (the review screen's Delete CTA executes the
-// real PHPhotoLibrary delete); Keep clears the selection. Either dismisses.
+// real PHPhotoLibrary delete); Keep clears the selection.
 struct PhotoPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var group: SimilarGroup
-    let index: Int
-
+    @State private var index: Int
     @State private var dragOffset: CGSize = .zero
 
-    private var photo: SimilarPhoto? {
+    init(group: Binding<SimilarGroup>, index: Int) {
+        self._group = group
+        self._index = State(initialValue: index)
+    }
+
+    private var current: SimilarPhoto? {
         guard index >= 0, index < group.photos.count else { return nil }
         return group.photos[index]
     }
 
     var body: some View {
-        ZStack {
-            Color.white.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                topBar
-                Spacer(minLength: 0)
-            }
-
-            if let photo {
+        VStack(spacing: 0) {
+            topBar
+            if let photo = current {
                 mediaCard(for: photo)
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 100)
+                    .frame(maxHeight: .infinity)
+            } else {
+                Spacer()
             }
+            filmstrip
+                .padding(.top, 8)
+                .padding(.bottom, 8)
         }
+        .background(Color.white.ignoresSafeArea())
         // Scenario: similar preview → bottom-anchored banner (banner_preview_similar).
         .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerPreviewSimilar) }
     }
@@ -52,6 +56,10 @@ struct PhotoPreviewView: View {
                     .frame(width: 24, height: 24)
             }
             Spacer()
+            Text("\(index + 1) / \(group.photos.count)")
+                .font(.custom("Inter-SemiBold", size: 15))
+                .foregroundStyle(Color(hex: 0x0F0F0F))
+            Spacer()
             Color.clear.frame(width: 24, height: 24)
         }
         .padding(.horizontal, 20)
@@ -62,8 +70,6 @@ struct PhotoPreviewView: View {
     // MARK: - Media card with side action buttons
 
     private func mediaCard(for photo: SimilarPhoto) -> some View {
-        // No filler background — the media fits its own aspect ratio. Swipe left
-        // → Delete, right → Keep, with a tint + indicator following the drag.
         mediaContent(for: photo)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay { dragIndicator }
@@ -85,7 +91,6 @@ struct PhotoPreviewView: View {
                         }
                     }
             )
-            // Delete + Keep float at vertical centre, inset from the media edges.
             .overlay(alignment: .leading) {
                 actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A)) {
                     decide(keep: false)
@@ -102,8 +107,9 @@ struct PhotoPreviewView: View {
                 actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6)) {
                     sendToVault()
                 }
-                .offset(y: 32)
+                .padding(.bottom, 12)
             }
+            .id(index)  // reset drag transform when the photo changes
     }
 
     // DELETE / KEEP badge that fades in as the user drags.
@@ -161,19 +167,75 @@ struct PhotoPreviewView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Filmstrip
+
+    private var filmstrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(group.photos.enumerated()), id: \.element.id) { i, p in
+                        thumb(p, isCurrent: i == index)
+                            .id(i)
+                            .onTapGesture { withAnimation { index = i } }
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .frame(height: 60)
+            .onChange(of: index) { _, i in withAnimation { proxy.scrollTo(i, anchor: .center) } }
+        }
+    }
+
+    private func thumb(_ p: SimilarPhoto, isCurrent: Bool) -> some View {
+        Group {
+            if let id = p.assetID {
+                PHAssetThumbnail(localIdentifier: id, targetSize: CGSize(width: 160, height: 160))
+            } else {
+                LinearGradient(colors: [Color(hex: 0xDBEAFE), Color(hex: 0xBFDBFE)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(isCurrent ? AppColor.brandPrimary : Color.clear, lineWidth: 2)
+        )
+        .overlay(alignment: .topTrailing) {
+            if p.isSelected {
+                Image(systemName: "trash.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color(hex: 0xBA1A1A), .white)
+                    .padding(2)
+            }
+        }
+        .opacity(isCurrent ? 1 : 0.65)
+    }
+
     // MARK: - Decisions
 
     private func decide(keep: Bool) {
         if index < group.photos.count {
             group.photos[index].isSelected = (!keep && index != group.bestMatchIndex)
         }
-        dismiss()
+        advance()
+    }
+
+    // Move to the next photo so the group can be reviewed sequentially; dismiss
+    // once the last one has been acted on.
+    private func advance() {
+        dragOffset = .zero
+        if index + 1 < group.photos.count {
+            withAnimation { index += 1 }
+        } else {
+            dismiss()
+        }
     }
 
     private func sendToVault() {
-        // Vault move is a Phase 6 integration point — for now just dismiss.
+        // Vault move is a Phase 6 integration point — for now just advance.
         // TODO: wire VaultService import.
-        dismiss()
+        advance()
     }
 }
 
