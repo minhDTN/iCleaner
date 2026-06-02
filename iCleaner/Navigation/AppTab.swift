@@ -1,9 +1,10 @@
 import Foundation
 
+// Order here drives the tab bar order: Home / Vault / Contacts / Compress.
 enum AppTab: String, CaseIterable, Identifiable {
     case home
-    case contacts
     case vault
+    case contacts
     case compress
 
     var id: String { rawValue }

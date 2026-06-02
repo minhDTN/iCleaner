@@ -25,12 +25,12 @@ struct RootView: View {
                     .tag(AppTab.home)
                     .toolbar(.hidden, for: .tabBar)
 
-                ContactsView()
-                    .tag(AppTab.contacts)
-                    .toolbar(.hidden, for: .tabBar)
-
                 VaultView()
                     .tag(AppTab.vault)
+                    .toolbar(.hidden, for: .tabBar)
+
+                ContactsView()
+                    .tag(AppTab.contacts)
                     .toolbar(.hidden, for: .tabBar)
 
                 CompressView()
