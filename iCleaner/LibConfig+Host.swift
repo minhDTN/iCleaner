@@ -76,7 +76,9 @@ enum AppInfo {
     // Both pulled verbatim from Figma annotation nodes 2005:23750 (FAQ) /
     // 2005:23752 (Policy).
     static let privacyURL = URL(string: "https://sites.google.com/view/daliti-global/policy")!
-    static let faqURL     = URL(string: "https://docs.google.com/document/d/12O9-91SlfRKRZbl_Hmq65njdvKzFA_AkvZLp5Lp4iYo/edit?usp=sharing")!
+    // `/preview` renders a clean, read-only page in the in-app WebView (no Google
+    // editor chrome / sign-in prompt that the `/edit` link triggers).
+    static let faqURL     = URL(string: "https://docs.google.com/document/d/12O9-91SlfRKRZbl_Hmq65njdvKzFA_AkvZLp5Lp4iYo/preview")!
 
     static func fetchAppStoreURL() async -> URL? {
         guard let endpoint = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)") else { return nil }

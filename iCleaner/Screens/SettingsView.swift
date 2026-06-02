@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 import LibEarnMoneyIOS
 
 // Figma `2005:24603` (Setting). Sections:
@@ -11,6 +12,7 @@ import LibEarnMoneyIOS
 // NavigationStack — FAQ/Contact push, Paywall/Language present as cover.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.requestReview) private var requestReview
     @State private var vault = VaultService()
     @State private var observedPremium = PermissionManager.shared.isPremium
     @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
@@ -159,6 +161,16 @@ struct SettingsView: View {
             .buttonStyle(.plain)
         }
         .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Decorative cleaning illustration behind the text (Figma, 50% opacity).
+        .background(alignment: .topTrailing) {
+            Image("Settings/banner_clean")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 140)
+                .opacity(0.5)
+                .allowsHitTesting(false)
+        }
         .background(
             LinearGradient(
                 colors: [Color(hex: 0x216FFC), Color(hex: 0x11C195)],
@@ -190,22 +202,32 @@ struct SettingsView: View {
         SettingsSection(title: "Stay in Touch") {
             SettingsRow(assetIcon: "Settings/ic_share", title: "Share Cleanup", action: { showShareSheet = true })
             divider
+            SettingsRow(assetIcon: "Settings/ic_rate", title: "Rate Us", action: { requestReview() })
+            divider
             SettingsRow(assetIcon: "Settings/ic_language", title: "Language", trailing: "English", action: { showLanguage = true })
         }
     }
 
     private var supportSection: some View {
+        // FAQ / Terms / Privacy open their web pages IN-APP (WebViewScreen pushed
+        // here), not in Safari. Order matches Figma 336:4696.
         SettingsSection(title: "Support") {
-            // Figma routes FAQ to a Google Doc (node 2005:23750), not an in-app
-            // accordion — open the link in Safari.
-            SettingsRow(assetIcon: "Settings/ic_faq", title: "FAQ", action: { UIApplication.shared.open(AppInfo.faqURL) })
+            NavigationLink(destination: WebViewScreen(title: "FAQ", url: AppInfo.faqURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_faq", title: "FAQ")
+            }
+            divider
+            NavigationLink(destination: ContactView()) {
+                SettingsRowChrome(assetIcon: "Settings/ic_contact", title: "Contact Us")
+            }
             divider
             SettingsRow(assetIcon: "Settings/ic_restore", title: "Restore Purchase", action: restorePurchases)
             divider
-            SettingsRow(assetIcon: "Settings/ic_privacy", title: "Privacy Policy", action: { UIApplication.shared.open(AppInfo.privacyURL) })
+            NavigationLink(destination: WebViewScreen(title: "Terms of Service", url: AppInfo.termsURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_terms", title: "Terms of Service")
+            }
             divider
-            NavigationLink(destination: ContactView()) {
-                SettingsRowChrome(icon: "envelope", title: "Contact Us")
+            NavigationLink(destination: WebViewScreen(title: "Privacy Policy", url: AppInfo.privacyURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_privacy", title: "Privacy Policy")
             }
         }
     }

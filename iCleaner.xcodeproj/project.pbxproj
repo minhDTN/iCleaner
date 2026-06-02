@@ -64,6 +64,7 @@
 		AA0000000000000000000283 /* ContactsAllView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000183 /* ContactsAllView.swift */; };
 		AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000184 /* ContactsBackupsView.swift */; };
 		AA0000000000000000000290 /* ContactsRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000190 /* ContactsRowComponents.swift */; };
+		AA0000000000000000000291 /* WebViewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000191 /* WebViewScreen.swift */; };
 		AA0000000000000000000301 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000132 /* Assets.xcassets */; };
 		AA0000000000000000000302 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000133 /* Preview Assets.xcassets */; };
 		AA0000000000000000000303 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000134 /* GoogleService-Info.plist */; };
@@ -115,6 +116,7 @@
 		AA0000000000000000000183 /* ContactsAllView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsAllView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000184 /* ContactsBackupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsBackupsView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000190 /* ContactsRowComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsRowComponents.swift; sourceTree = "<group>"; };
+		AA0000000000000000000191 /* WebViewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewScreen.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B2 /* SimilarFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarFilterSheet.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B3 /* SimilarDeleteConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarDeleteConfirm.swift; sourceTree = "<group>"; };
 		AA00000000000000000001B4 /* SimilarCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarCleaningView.swift; sourceTree = "<group>"; };
@@ -268,6 +270,7 @@
 				AA0000000000000000000183 /* ContactsAllView.swift */,
 				AA0000000000000000000184 /* ContactsBackupsView.swift */,
 				AA0000000000000000000190 /* ContactsRowComponents.swift */,
+				AA0000000000000000000191 /* WebViewScreen.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -429,6 +432,7 @@
 				AA0000000000000000000283 /* ContactsAllView.swift in Sources */,
 				AA0000000000000000000284 /* ContactsBackupsView.swift in Sources */,
 				AA0000000000000000000290 /* ContactsRowComponents.swift in Sources */,
+				AA0000000000000000000291 /* WebViewScreen.swift in Sources */,
 				AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */,
 				AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */,
 				AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */,
