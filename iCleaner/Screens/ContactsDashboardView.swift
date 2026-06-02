@@ -17,6 +17,12 @@ struct ContactsDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                Text("Contacts")
+                    .font(.custom("Inter-SemiBold", size: 20))
+                    .foregroundStyle(Color(hex: 0x111827))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 4)
+
                 ForEach(ContactsCategory.allCases) { cat in
                     NavigationLink(value: cat) {
                         DashboardCard(category: cat, count: count(for: cat))
@@ -26,17 +32,10 @@ struct ContactsDashboardView: View {
                 Spacer(minLength: 24)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 16)
+            .padding(.top, 8)
         }
         .background(AppColor.surfaceBackground)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Text("Contacts")
-                    .font(.custom("Inter-SemiBold", size: 20))
-                    .foregroundStyle(Color(hex: 0x111827))
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: ContactsCategory.self) { cat in
             switch cat {
             case .duplicates: ContactsDuplicatesView(service: service)
