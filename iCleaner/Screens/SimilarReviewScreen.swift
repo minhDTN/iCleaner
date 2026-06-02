@@ -15,6 +15,7 @@ struct SimilarReviewScreen: View {
     var onBack: () -> Void
     var onFilter: () -> Void
     var onDeleteTap: () -> Void
+    var onOpenPreview: (_ groupIndex: Int, _ photoIndex: Int) -> Void = { _, _ in }
 
     // Whether every non-best photo across all groups is selected.
     private var allSelected: Bool {
@@ -58,7 +59,10 @@ struct SimilarReviewScreen: View {
                         ForEach(feed) { item in
                             switch item {
                             case .group(let idx, _):
-                                SimilarGroupSection(group: $groups[idx])
+                                SimilarGroupSection(
+                                    group: $groups[idx],
+                                    onOpenPhoto: { photoIdx in onOpenPreview(idx, photoIdx) }
+                                )
                             case .nativeAd:
                                 NativeAdView(adUnitID: AdUnits.nativeSimilarList, height: 120)
                             }
@@ -194,6 +198,7 @@ private enum ReviewFeedItem: Identifiable {
 
 private struct SimilarGroupSection: View {
     @Binding var group: SimilarGroup
+    var onOpenPhoto: (Int) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -218,7 +223,8 @@ private struct SimilarGroupSection: View {
                 ForEach(group.photos.indices, id: \.self) { idx in
                     SimilarPhotoCell(
                         photo: $group.photos[idx],
-                        isBestMatch: idx == group.bestMatchIndex
+                        isBestMatch: idx == group.bestMatchIndex,
+                        onOpen: { onOpenPhoto(idx) }
                     )
                 }
             }
@@ -242,26 +248,27 @@ private struct SimilarGroupSection: View {
 private struct SimilarPhotoCell: View {
     @Binding var photo: SimilarPhoto
     let isBestMatch: Bool
+    var onOpen: () -> Void = {}
 
     var body: some View {
         ZStack(alignment: .topLeading) {
+            // Tap the image → open full-screen preview.
             placeholderImage
                 .frame(height: 160)
                 .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .contentShape(Rectangle())
+                .onTapGesture { onOpen() }
 
             if isBestMatch {
                 bestMatchPill.padding(8)
             } else {
+                // Tap the circle → toggle selection (separate hit target).
                 selectionToggle
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(8)
+                    .contentShape(Rectangle())
+                    .onTapGesture { photo.isSelected.toggle() }
             }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            // Best Match is not selectable by design (it stays).
-            guard !isBestMatch else { return }
-            photo.isSelected.toggle()
         }
     }
 

@@ -27,6 +27,8 @@ struct SimilarFlowView: View {
     @State private var filter: SimilarFilter = .default
     @State private var deletedMB: Int = 0
     @State private var deleteError: String?
+    @State private var previewGroupIndex: Int?
+    @State private var previewPhotoIndex: Int = 0
 
     private enum Step { case loading, permissionGate, empty, review, deleting, success }
 
@@ -62,7 +64,11 @@ struct SimilarFlowView: View {
                     selectedMB: totalSelectedMB,
                     onBack: { dismiss() },
                     onFilter: { showFilter = true },
-                    onDeleteTap: { if !selectedPhotos.isEmpty { showDeleteConfirm = true } }
+                    onDeleteTap: { if !selectedPhotos.isEmpty { showDeleteConfirm = true } },
+                    onOpenPreview: { gIdx, pIdx in
+                        previewPhotoIndex = pIdx
+                        previewGroupIndex = gIdx
+                    }
                 )
             case .deleting:
                 SimilarCleaningView(
@@ -102,6 +108,14 @@ struct SimilarFlowView: View {
                 onClear: { filter = .default }
             )
             .presentationDetents([.height(510)])
+        }
+        .fullScreenCover(item: Binding(
+            get: { previewGroupIndex.map { PreviewTarget(groupIndex: $0) } },
+            set: { previewGroupIndex = $0?.groupIndex }
+        )) { target in
+            if groups.indices.contains(target.groupIndex) {
+                PhotoPreviewView(group: $groups[target.groupIndex], startIndex: previewPhotoIndex)
+            }
         }
         .alert("Couldn't delete", isPresented: Binding(
             get: { deleteError != nil },
@@ -314,6 +328,12 @@ struct SimilarFlowView: View {
 }
 
 // MARK: - Mock model
+
+// Identifiable wrapper so the preview cover binds to a group index.
+struct PreviewTarget: Identifiable {
+    let groupIndex: Int
+    var id: Int { groupIndex }
+}
 
 struct SimilarGroup: Identifiable {
     let id = UUID()
