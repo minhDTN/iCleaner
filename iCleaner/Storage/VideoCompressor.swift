@@ -39,6 +39,16 @@ final class VideoCompressor {
             case .savings:  return "Up to 540p — smallest file"
             }
         }
+        var titleKey: String {
+            switch self {
+            case .best: return "compress.qBest"; case .balanced: return "compress.qBalanced"; case .savings: return "compress.qSavings"
+            }
+        }
+        var subtitleKey: String {
+            switch self {
+            case .best: return "compress.qBestSub"; case .balanced: return "compress.qBalancedSub"; case .savings: return "compress.qSavingsSub"
+            }
+        }
         var isRecommended: Bool { self == .balanced }
 
         /// Fraction of the source video bitrate to target. < 1 so output always

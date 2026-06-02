@@ -78,7 +78,7 @@ struct CompressView: View {
         }
         .task { await videoLibrary.load() }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
-        .alert("Compress error", isPresented: Binding(
+        .alert(L("compress.errorTitle"), isPresented: Binding(
             get: { showError != nil },
             set: { if !$0 { showError = nil } }
         )) {
@@ -107,7 +107,7 @@ struct CompressView: View {
     private var videoGridView: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Compress")
+                Text(L("compress.title"))
                     .font(.custom("Inter-SemiBold", size: 18))
                     .foregroundStyle(Color(hex: 0x0F0F0F))
                 Spacer()
@@ -116,7 +116,7 @@ struct CompressView: View {
             .frame(height: 48)
 
             HStack(spacing: 8) {
-                Text("\(videoLibrary.videos.count) Videos")
+                Text(L("compress.videosCount", videoLibrary.videos.count))
                     .font(.custom("Inter-Medium", size: 14))
                     .foregroundStyle(Color(hex: 0x00091D))
                 Text(formatBytes(videoLibrary.totalBytes))
@@ -178,7 +178,7 @@ struct CompressView: View {
             Image(systemName: "video.slash")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.textMuted)
-            Text("No videos found")
+            Text(L("compress.noVideos"))
                 .font(.custom("Inter-Bold", size: 18))
                 .foregroundStyle(AppColor.textPrimary)
             Spacer()
@@ -192,10 +192,10 @@ struct CompressView: View {
             Image(systemName: "photo.badge.exclamationmark")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.brandPrimary)
-            Text("Photos access required")
+            Text(L("compress.permTitle"))
                 .font(.custom("Inter-Bold", size: 18))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("Allow access so iCleaner can list your videos to compress.")
+            Text(L("compress.permBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
                 .multilineTextAlignment(.center)
@@ -203,7 +203,7 @@ struct CompressView: View {
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             } label: {
-                Text("Open Settings")
+                Text(L("common.openSettings"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -223,7 +223,7 @@ struct CompressView: View {
         defer { loadingPicked = false }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [v.id], options: nil).firstObject,
               let url = await Self.videoURL(for: asset) else {
-            showError = "Couldn't open this video."
+            showError = L("compress.errorOpen")
             return
         }
         pickedURL = url
@@ -298,7 +298,7 @@ struct CompressView: View {
                     .foregroundStyle(Color(hex: 0x0F0F0F))
                     .frame(width: 24, height: 24)
             }
-            Text("Video Compress")
+            Text(L("compress.videoCompress"))
                 .font(.custom("Inter-SemiBold", size: 18))
                 .foregroundStyle(Color(hex: 0x0F0F0F))
             Spacer()
@@ -313,12 +313,12 @@ struct CompressView: View {
     private var selectedFileCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Selected File")
+                Text(L("compress.selectedFile"))
                     .font(.custom("Inter-SemiBold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F0F0F))
                 Spacer()
                 Button(action: resetToEmpty) {
-                    Text("Change File")
+                    Text(L("compress.changeFile"))
                         .font(.custom("Inter-SemiBold", size: 14))
                         .foregroundStyle(AppColor.brandPrimary)
                 }
@@ -353,7 +353,7 @@ struct CompressView: View {
 
     private var qualityPicker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Compression Quality")
+            Text(L("compress.quality"))
                 .font(.custom("Inter-SemiBold", size: 16))
                 .foregroundStyle(Color(hex: 0x0F0F0F))
             ForEach(VideoCompressor.Quality.allCases) { q in
@@ -370,7 +370,7 @@ struct CompressView: View {
         let savings = max(0, pickedSizeBytes - estimated)
         return HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("POTENTIAL SAVINGS")
+                Text(L("compress.potentialSavings"))
                     .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
                     .foregroundStyle(AppColor.textMuted)
                 Text(formatBytes(savings))
@@ -380,7 +380,7 @@ struct CompressView: View {
             Spacer()
             HStack(spacing: 10) {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("ORIGINAL")
+                    Text(L("compress.original"))
                         .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
                         .foregroundStyle(AppColor.textMuted)
                     Text(formatBytes(pickedSizeBytes))
@@ -391,7 +391,7 @@ struct CompressView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(AppColor.textMuted)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("ESTIMATED")
+                    Text(L("compress.estimated"))
                         .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
                         .foregroundStyle(AppColor.brandPrimary)
                     Text(formatBytes(estimated))
@@ -411,7 +411,7 @@ struct CompressView: View {
         Button(action: handleStartTap) {
             HStack(spacing: 8) {
                 Image(systemName: "wand.and.stars")
-                Text("Start Compression")
+                Text(L("compress.start"))
             }
             .font(.custom("Inter-Bold", size: 16))
             .foregroundStyle(.white)
@@ -437,28 +437,19 @@ struct CompressView: View {
 
             VStack(spacing: 0) {
                 // No icon (per design) — title leads the card.
-                Text("Confirm Compression?")
+                Text(L("compress.confirmTitle"))
                     .font(.custom("Inter-Bold", size: 22))
                     .foregroundStyle(Color(hex: 0x0F172A))
                     .multilineTextAlignment(.center)
 
-                // "You will save 38 MB of storage." — the size is bold.
-                (
-                    Text("The video will be compressed. You will save ")
-                        .font(.custom("Inter-Regular", size: 14))
-                        .foregroundStyle(Color(hex: 0x64748B))
-                    + Text(savingsText)
-                        .font(.custom("Inter-Bold", size: 14))
-                        .foregroundStyle(Color(hex: 0x0F172A))
-                    + Text(" of storage.")
-                        .font(.custom("Inter-Regular", size: 14))
-                        .foregroundStyle(Color(hex: 0x64748B))
-                )
-                .multilineTextAlignment(.center)
-                .padding(.top, 12)
+                Text(L("compress.confirmBody", savingsText))
+                    .font(.custom("Inter-Regular", size: 14))
+                    .foregroundStyle(Color(hex: 0x64748B))
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 12)
 
                 if !PremiumGate.isPremium {
-                    Text("Today's uses: \(compressor.usesUsedToday)/\(VideoCompressor.dailyLimit)")
+                    Text(L("compress.todaysUses", compressor.usesUsedToday, VideoCompressor.dailyLimit))
                         .font(.custom("Inter-SemiBold", size: 14))
                         .foregroundStyle(AppColor.brandPrimary)
                         .padding(.horizontal, 20)
@@ -469,7 +460,7 @@ struct CompressView: View {
                 }
 
                 Button(action: { step = .progress; Task { await runExport() } }) {
-                    Text("Compress Now")
+                    Text(L("compress.compressNow"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -484,7 +475,7 @@ struct CompressView: View {
                 .padding(.top, 24)
 
                 Button(action: { step = .ready }) {
-                    Text("Cancel")
+                    Text(L("common.cancel"))
                         .font(.custom("Inter-SemiBold", size: 16))
                         .foregroundStyle(Color(hex: 0x64748B))
                         .frame(maxWidth: .infinity)
@@ -515,10 +506,10 @@ struct CompressView: View {
             VStack(spacing: 32) {
                 Spacer()
                 progressRing
-                Text("Compressing your video…")
+                Text(L("compress.compressing"))
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x333333))
-                Text("Original \(ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))   →   Target \(ByteCountFormatter.string(fromByteCount: Int64(estimatedBytes), countStyle: .file))")
+                Text("\(ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))  →  \(ByteCountFormatter.string(fromByteCount: Int64(estimatedBytes), countStyle: .file))")
                     .font(.custom("Inter-Regular", size: 13))
                     .foregroundStyle(AppColor.textSecondary)
                 Spacer()
@@ -556,7 +547,7 @@ struct CompressView: View {
 
     private var cancelProcessButton: some View {
         Button(action: { showCancelConfirm = true }) {
-            Text("Cancel Process")
+            Text(L("compress.cancelProcess"))
                 .font(.custom("Inter-SemiBold", size: 14))
                 .foregroundStyle(AppColor.danger)
                 .padding(.vertical, 12)
@@ -572,10 +563,10 @@ struct CompressView: View {
             Color.black.opacity(0.5).ignoresSafeArea()
                 .onTapGesture { showCancelConfirm = false }
             VStack(spacing: 8) {
-                Text("Are you sure?")
+                Text(L("compress.cancelTitle"))
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x0F172A))
-                Text("Do you really want to cancel the current process? Any unsaved progress will be lost.")
+                Text(L("compress.cancelBody"))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(Color(hex: 0x64748B))
                     .multilineTextAlignment(.center)
@@ -584,7 +575,7 @@ struct CompressView: View {
                         showCancelConfirm = false
                         compressor.cancel()
                     }) {
-                        Text("Yes, Cancel")
+                        Text(L("compress.yesCancel"))
                             .font(.custom("Inter-Bold", size: 16))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -595,7 +586,7 @@ struct CompressView: View {
                             )
                     }
                     Button(action: { showCancelConfirm = false }) {
-                        Text("No, Go Back")
+                        Text(L("compress.noGoBack"))
                             .font(.custom("Inter-SemiBold", size: 16))
                             .foregroundStyle(Color(hex: 0x64748B))
                             .frame(maxWidth: .infinity)
@@ -628,7 +619,7 @@ struct CompressView: View {
                     successCheckBadge(full: false)
                         .padding(.top, 48)
                         .padding(.bottom, 32)
-                    Text("Compression Complete!")
+                    Text(L("compress.complete"))
                         .font(.custom("Inter-Bold", size: 24))
                         .foregroundStyle(Color(hex: 0x0F172A))
                         .padding(.bottom, 32)
@@ -639,7 +630,7 @@ struct CompressView: View {
             }
             VStack(spacing: 12) {
                 Button(action: { Task { await saveAndDismiss(deleteSource: true) } }) {
-                    Text("Replace Original")
+                    Text(L("compress.replaceOriginal"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -652,7 +643,7 @@ struct CompressView: View {
                 }
                 .buttonStyle(.plain)
                 Button(action: { Task { await saveAndDismiss(deleteSource: false) } }) {
-                    Text("Keep Both")
+                    Text(L("compress.keepBoth"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(Color(hex: 0x334155))
                         .frame(maxWidth: .infinity)
@@ -685,7 +676,7 @@ struct CompressView: View {
                 .frame(height: 173)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                Text("SAVED \(pct)%")
+                Text(L("compress.savedPct", pct))
                     .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.05)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8).padding(.vertical, 4)
@@ -696,7 +687,7 @@ struct CompressView: View {
             VStack(spacing: 16) {
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("ORIGINAL")
+                        Text(L("compress.original"))
                             .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.10)
                             .foregroundStyle(Color(hex: 0x94A3B8))
                         Text(formatBytes(pickedSizeBytes))
@@ -711,7 +702,7 @@ struct CompressView: View {
                         .foregroundStyle(Color(hex: 0xCBD5E1))
                     Spacer(minLength: 0)
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("COMPRESSED")
+                        Text(L("compress.compressed"))
                             .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.10)
                             .foregroundStyle(AppColor.brandPrimary)
                         Text(formatBytes(compressedSizeBytes))
@@ -726,7 +717,7 @@ struct CompressView: View {
                         .frame(width: 14, height: 14)
                         .foregroundStyle(AppColor.brandPrimary)
                         .padding(.top, 1)
-                    Text("The video quality has been preserved while reducing the file size by half.")
+                    Text(L("compress.qualityNote"))
                         .font(.custom("Inter-Regular", size: 12))
                         .foregroundStyle(Color(hex: 0x64748B))
                     Spacer(minLength: 0)
@@ -792,7 +783,7 @@ struct CompressView: View {
                         .frame(width: 24, height: 24)
                 }
                 Spacer()
-                Text("Notification")
+                Text(L("compress.notification"))
                     .font(.custom("Inter-Bold", size: 18))
                     .foregroundStyle(Color(hex: 0x0F172A))
                 Spacer()
@@ -807,11 +798,11 @@ struct CompressView: View {
                     successCheckBadge(full: true)
                         .padding(.top, 24)
                         .padding(.bottom, 24)
-                    Text("Successfully Compressed!")
+                    Text(L("compress.successTitle"))
                         .font(.custom("Inter-Bold", size: 24))
                         .foregroundStyle(Color(hex: 0x0F172A))
                         .multilineTextAlignment(.center)
-                    Text("Your file has been fully optimized to save storage space without losing quality.")
+                    Text(L("compress.successBody"))
                         .font(.custom("Inter-Regular", size: 14))
                         .foregroundStyle(Color(hex: 0x64748B))
                         .multilineTextAlignment(.center)
@@ -819,8 +810,8 @@ struct CompressView: View {
                         .padding(.horizontal, 16)
 
                     HStack(spacing: 16) {
-                        notifStat(value: "\(pct)%", label: "SAVED")
-                        notifStat(value: formatBytes(savings), label: "CLEARED")
+                        notifStat(value: "\(pct)%", label: L("compress.saved"))
+                        notifStat(value: formatBytes(savings), label: L("compress.cleared"))
                     }
                     .padding(.top, 32)
 
@@ -834,7 +825,7 @@ struct CompressView: View {
             }
 
             Button(action: finishNotification) {
-                Text("Great!")
+                Text(L("common.great"))
                     .font(.custom("Inter-Bold", size: 18))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -873,7 +864,7 @@ struct CompressView: View {
         let ratio = original > 0 ? min(1, max(0, Double(new) / Double(original))) : 0
         return VStack(spacing: 24) {
             HStack {
-                Text("File Details")
+                Text(L("compress.fileDetails"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
                 Spacer()
@@ -884,7 +875,7 @@ struct CompressView: View {
             }
             VStack(spacing: 16) {
                 HStack {
-                    Text("Original Size")
+                    Text(L("compress.originalSize"))
                         .font(.custom("Inter-Regular", size: 14))
                         .foregroundStyle(Color(hex: 0x64748B))
                     Spacer()
@@ -900,7 +891,7 @@ struct CompressView: View {
                 }
                 .frame(height: 6)
                 HStack {
-                    Text("New Size")
+                    Text(L("compress.newSize"))
                         .font(.custom("Inter-Regular", size: 14))
                         .foregroundStyle(Color(hex: 0x64748B))
                     Spacer()
@@ -1002,11 +993,11 @@ private struct QualityRow: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(quality.title)
+                    Text(L(quality.titleKey))
                         .font(.custom("Inter-SemiBold", size: 15))
                         .foregroundStyle(AppColor.textPrimary)
                     if quality.isRecommended {
-                        Text("Recommended")
+                        Text(L("compress.recommended"))
                             .font(.custom("Inter-Bold", size: 10))
                             .tracking(10 * 0.05)
                             .textCase(.uppercase)
@@ -1016,7 +1007,7 @@ private struct QualityRow: View {
                             .background(Capsule().fill(AppColor.brandPrimary.opacity(0.10)))
                     }
                 }
-                Text(quality.subtitle)
+                Text(L(quality.subtitleKey))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(AppColor.textSecondary)
             }

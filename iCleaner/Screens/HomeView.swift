@@ -109,7 +109,7 @@ struct HomeView: View {
     // Diamond only shows when NOT premium → tapping opens the paywall.
     private var header: some View {
         HStack(spacing: 10) {
-            Text("Your Storage")
+            Text(L("home.storage"))
                 .font(.custom("Inter-SemiBold", size: 18))
                 .foregroundStyle(AppColor.textBlack)
 
@@ -145,7 +145,7 @@ struct HomeView: View {
                 // Figma uses Material Icons `auto_fix_high` — SF Symbol substitute.
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 18, weight: .semibold))
-                Text("Quick Clean (\(quickCleanTotalMB) MB)")
+                Text(L("home.quickClean", "\(quickCleanTotalMB) MB"))
                     .font(.custom("Inter-SemiBold", size: 16))
             }
             .foregroundStyle(AppColor.textOnBrand)
@@ -197,10 +197,10 @@ private struct HomeCategoryCard: View {
     private var titleRow: some View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(category.title)
+                Text(L(category.titleKey))
                     .font(.custom("Inter-SemiBold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
-                Text(category.subtitle)
+                Text(category.subtitle == "Tap to scan" ? L("home.tapToScan") : category.subtitle)
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x64748B))
             }
@@ -215,7 +215,7 @@ private struct HomeCategoryCard: View {
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(AppColor.brandPrimary)
                 }
-                Text(category.metric)
+                Text(L(category.isVideo ? "home.videos" : "home.photos", category.photoCount))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x94A3B8))
             }
@@ -279,7 +279,7 @@ private struct HomeCategoryCard: View {
         HStack(spacing: 4) {
             Image(systemName: "star.fill")
                 .font(.system(size: 9))
-            Text("Best Match")
+            Text(L("home.bestMatch"))
                 .font(.custom("Inter-Bold", size: 10))
         }
         .foregroundStyle(AppColor.brandPrimary)
@@ -359,7 +359,7 @@ private struct HomeCategoryCard: View {
     private var reviewGroupButton: some View {
         Button(action: onReviewTap) {
             HStack(spacing: 6) {
-                Text("Review Group")
+                Text(L("home.reviewGroup"))
                     .font(.custom("Inter-SemiBold", size: 15))
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
@@ -397,6 +397,21 @@ struct HomeCategory: Identifiable {
     var id: String { key }
     var metric: String { isVideo ? "\(photoCount) Videos" : "\(photoCount) Photos" }
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
+
+    // Localization key for the card title (the English `title` is still used for
+    // SimilarFlow detection logic, so it stays as-is).
+    var titleKey: String {
+        switch key {
+        case "similar":             return "home.cat.similar"
+        case "duplicates":          return "home.cat.duplicates"
+        case "similar_screenshots": return "home.cat.similarScreenshots"
+        case "similar_videos":      return "home.cat.similarVideos"
+        case "other_screenshots":   return "home.cat.otherScreenshots"
+        case "chat_photos":         return "home.cat.chatPhotos"
+        case "videos_organizer":    return "home.cat.videosOrganizer"
+        default:                    return "home.cat.other"
+        }
+    }
 
     // Detection rules per category so each card scans the right subset of the
     // library instead of every card showing the same pool.
