@@ -26,6 +26,7 @@ struct CompressView: View {
     @State private var pickedSizeBytes: Int = 0
     @State private var quality: VideoCompressor.Quality = .balanced
     @State private var pickedDuration: Double = 0
+    @State private var estimates: [VideoCompressor.Quality: Int] = [:]   // real per-quality output sizes
     @State private var previewPlayer: AVPlayer?
     @State private var compressedURL: URL?
     @State private var compressedSizeBytes: Int = 0
@@ -229,8 +230,22 @@ struct CompressView: View {
         pickedSizeBytes = v.sizeBytes
         pickedDuration = v.duration
         previewPlayer = AVPlayer(url: url)
+        await computeEstimates(url: url, originalBytes: v.sizeBytes)
         step = .ready
     }
+
+    // Ask the system for the real exported size of each quality so the screen shows
+    // what the compression will actually produce (computed under the loading spinner).
+    private func computeEstimates(url: URL, originalBytes: Int) async {
+        var result: [VideoCompressor.Quality: Int] = [:]
+        for q in VideoCompressor.Quality.allCases {
+            result[q] = await compressor.estimateOutput(sourceURL: url, quality: q, originalBytes: originalBytes)
+        }
+        estimates = result
+    }
+
+    // Selected quality's real estimated output size (0 until computed).
+    private var estimatedBytes: Int { estimates[quality] ?? 0 }
 
     nonisolated private static func videoURL(for asset: PHAsset) async -> URL? {
         let opts = PHVideoRequestOptions()
@@ -340,7 +355,7 @@ struct CompressView: View {
                 .font(.custom("Inter-SemiBold", size: 16))
                 .foregroundStyle(Color(hex: 0x0F0F0F))
             ForEach(VideoCompressor.Quality.allCases) { q in
-                QualityRow(quality: q, selected: quality == q, inputBytes: pickedSizeBytes)
+                QualityRow(quality: q, selected: quality == q, inputBytes: pickedSizeBytes, estimatedBytes: estimates[q] ?? 0)
                     .contentShape(Rectangle())
                     .onTapGesture { quality = q }
             }
@@ -349,7 +364,7 @@ struct CompressView: View {
 
     // POTENTIAL SAVINGS | ORIGINAL → ESTIMATED (Figma 2005:22335 footer row).
     private var savingsRow: some View {
-        let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)
+        let estimated = estimatedBytes
         let savings = max(0, pickedSizeBytes - estimated)
         return HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
@@ -412,8 +427,7 @@ struct CompressView: View {
     // MARK: - Confirm modal
 
     private var confirmModal: some View {
-        let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)
-        let savings = max(0, pickedSizeBytes - estimated)
+        let savings = max(0, pickedSizeBytes - estimatedBytes)
         let savingsText = ByteCountFormatter.string(fromByteCount: Int64(savings), countStyle: .file)
         return ZStack {
             Color.black.opacity(0.5).ignoresSafeArea()
@@ -502,7 +516,7 @@ struct CompressView: View {
                 Text("Compressing your video…")
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x333333))
-                Text("Original \(ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))   →   Target \(ByteCountFormatter.string(fromByteCount: Int64(VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)), countStyle: .file))")
+                Text("Original \(ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))   →   Target \(ByteCountFormatter.string(fromByteCount: Int64(estimatedBytes), countStyle: .file))")
                     .font(.custom("Inter-Regular", size: 13))
                     .foregroundStyle(AppColor.textSecondary)
                 Spacer()
@@ -912,7 +926,7 @@ struct CompressView: View {
     private func runExport() async {
         guard let pickedURL else { step = .ready; return }
         do {
-            let outURL = try await compressor.compress(sourceURL: pickedURL, quality: quality, originalBytes: pickedSizeBytes)
+            let outURL = try await compressor.compress(sourceURL: pickedURL, quality: quality)
             compressedURL = outURL
             compressedSizeBytes = (try? FileManager.default.attributesOfItem(atPath: outURL.path)[.size] as? Int) ?? 0
             previewPlayer = AVPlayer(url: outURL)   // play the compressed result
@@ -967,6 +981,7 @@ struct CompressView: View {
         compressedURL = nil
         compressedSizeBytes = 0
         quality = .balanced
+        estimates = [:]
         step = .empty
     }
 }
@@ -977,10 +992,10 @@ private struct QualityRow: View {
     let quality: VideoCompressor.Quality
     let selected: Bool
     let inputBytes: Int
+    let estimatedBytes: Int   // real system estimate; 0 until computed
 
     var body: some View {
-        let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: inputBytes, quality: quality)
-        return HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(quality.title)
@@ -1007,7 +1022,7 @@ private struct QualityRow: View {
                     .font(.custom("Inter-Regular", size: 12))
                     .strikethrough()
                     .foregroundStyle(AppColor.textMuted)
-                Text("~\(ByteCountFormatter.string(fromByteCount: Int64(estimated), countStyle: .file))")
+                Text(estimatedBytes > 0 ? "~\(ByteCountFormatter.string(fromByteCount: Int64(estimatedBytes), countStyle: .file))" : "…")
                     .font(.custom("Inter-Bold", size: 14))
                     .foregroundStyle(AppColor.textPrimary)
             }

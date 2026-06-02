@@ -29,23 +29,25 @@ final class VideoCompressor {
         }
         var subtitle: String {
             switch self {
-            case .best:     return "Keep source resolution, lighter encode"
-            case .balanced: return "1280×720 — recommended for sharing"
-            case .savings:  return "960×540 — smallest file"
+            case .best:     return "Up to 1080p — best quality"
+            case .balanced: return "Up to 720p — recommended for sharing"
+            case .savings:  return "Up to 540p — smallest file"
             }
         }
         var isRecommended: Bool { self == .balanced }
 
-        /// AVFoundation preset id.
+        /// AVFoundation preset id. All three cap resolution + re-encode so every
+        /// tier actually shrinks the file (HighestQuality can inflate, so "best"
+        /// caps at 1080p instead).
         var avPreset: String {
             switch self {
-            case .best:     return AVAssetExportPresetHighestQuality
+            case .best:     return AVAssetExportPreset1920x1080
             case .balanced: return AVAssetExportPreset1280x720
             case .savings:  return AVAssetExportPreset960x540
             }
         }
-        /// Heuristic compression ratio used for the "Estimated size" badge —
-        /// real ratio depends on codec/bitrate, so this is intentionally rough.
+        /// Rough ratio used only as a fallback when the system can't estimate the
+        /// real output size (see VideoCompressor.estimateOutput).
         var estimatedRatio: Double {
             switch self {
             case .best:     return 0.70
@@ -108,8 +110,24 @@ final class VideoCompressor {
 
     // MARK: - Estimate
 
-    /// Returns the estimated output file size in bytes for a given input + quality.
-    /// Used to display "Estimated 120 MB" on the entry screen.
+    /// Apple's source-aware estimate of the exported size for a preset. Because the
+    /// real export below uses the SAME preset (no size cap), the number shown to the
+    /// user matches what the compression actually produces. Falls back to a rough
+    /// ratio only if the system can't estimate (returns 0).
+    func estimateOutput(sourceURL: URL, quality: Quality, originalBytes: Int) async -> Int {
+        let asset = AVURLAsset(url: sourceURL)
+        guard let session = AVAssetExportSession(asset: asset, presetName: quality.avPreset) else {
+            return Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
+        }
+        session.outputFileType = .mp4
+        if let duration = try? await asset.load(.duration) {
+            session.timeRange = CMTimeRange(start: .zero, duration: duration)
+        }
+        let length = (try? await session.estimatedOutputFileLengthInBytes) ?? 0
+        return length > 0 ? Int(length) : Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
+    }
+
+    /// Rough fallback estimate (input × ratio) when the system estimate is unavailable.
     nonisolated static func estimatedOutputBytes(inputBytes: Int, quality: Quality) -> Int {
         Int(Double(inputBytes) * quality.estimatedRatio)
     }
@@ -119,7 +137,7 @@ final class VideoCompressor {
     /// Exports `sourceURL` at the selected quality. Increments the daily counter
     /// only after a successful export. Output URL lives in NSTemporaryDirectory.
     @discardableResult
-    func compress(sourceURL: URL, quality: Quality, originalBytes: Int) async throws -> URL {
+    func compress(sourceURL: URL, quality: Quality) async throws -> URL {
         guard canCompressMore else { throw CompressError.quotaExceeded }
 
         progress = 0
@@ -145,13 +163,8 @@ final class VideoCompressor {
         session.outputURL = outURL
         session.outputFileType = .mp4
         session.shouldOptimizeForNetworkUse = true
-        // A preset alone has a fixed target bitrate, so a small/low-bitrate source
-        // can come out ~unchanged (the "saved 0%" bug). Cap the output to the
-        // estimated target size so the real result actually matches the estimate.
-        let targetBytes = Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
-        if targetBytes > 0 {
-            session.fileLengthLimit = Int64(targetBytes)
-        }
+        // No fileLengthLimit: the preset's natural output is exactly what
+        // estimateOutput predicted, so the result matches the size shown to the user.
 
         currentExport = session
         startProgressTimer()
