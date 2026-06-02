@@ -16,12 +16,16 @@ struct CreatePasscodeView: View {
     private enum Step { case choose, confirm }
 
     var body: some View {
-        ZStack {
-            AppColor.surfaceBackground.ignoresSafeArea()
+        VStack(spacing: 0) {
+            VaultHeader(title: "Private Vault")
 
-            VStack(spacing: 0) {
-                glassIcon
-                    .padding(.bottom, 32)
+            ZStack {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
+
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    glassIcon
+                        .padding(.bottom, 32)
 
                 Text(step == .choose ? "Create a Passcode" : "Re-enter Passcode")
                     .font(.custom("Inter-Bold", size: 24))
@@ -50,10 +54,11 @@ struct CreatePasscodeView: View {
                     onComplete: handleComplete
                 )
 
-                Spacer()
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 64)
         }
         .alert("Couldn't save passcode", isPresented: Binding(
             get: { saveError != nil },

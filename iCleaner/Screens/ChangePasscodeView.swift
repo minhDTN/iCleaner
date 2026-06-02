@@ -22,13 +22,16 @@ struct ChangePasscodeView: View {
     private enum Step { case verify, choose, confirm }
 
     var body: some View {
-        ZStack {
-            AppColor.surfaceBackground.ignoresSafeArea()
+        VStack(spacing: 0) {
+            VaultHeader(title: "Private Vault", onBack: { dismiss() })
 
-            VStack(spacing: 0) {
-                Spacer().frame(height: 24)
-                glassIcon
-                    .padding(.bottom, 32)
+            ZStack {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
+
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    glassIcon
+                        .padding(.bottom, 32)
 
                 Text(title)
                     .font(.custom("Inter-Bold", size: 24))
@@ -50,14 +53,14 @@ struct ChangePasscodeView: View {
                     errorRow("Codes don't match — start over")
                 }
 
-                PasscodeKeypad(entry: currentEntry, onComplete: handleComplete)
-                Spacer()
+                    PasscodeKeypad(entry: currentEntry, onComplete: handleComplete)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 32)
         }
-        .navigationTitle("Change Passcode")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .alert("Couldn't save", isPresented: Binding(
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }

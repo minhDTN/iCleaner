@@ -66,3 +66,53 @@ struct VaultView: View {
 #Preview {
     VaultView()
 }
+
+// Figma vault top bar (status-bar header across all vault screens): "Private
+// Vault" (Inter SemiBold 20 #111827) left-aligned, optional back chevron, optional
+// change-passcode (lock-rotate) icon on the right. White bg + 1px bottom border
+// #B2B2B2. Custom (vs system nav bar) so there's no iOS 26 glass pill behind the
+// trailing icon and the title stays left-aligned per design.
+struct VaultHeader: View {
+    let title: String
+    var onBack: (() -> Void)? = nil
+    var onChangePass: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .frame(width: 32, height: 32, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            Text(title)
+                .font(.custom("Inter-SemiBold", size: 20))
+                .foregroundStyle(Color(hex: 0x111827))
+            Spacer(minLength: 0)
+            if let onChangePass {
+                Button(action: onChangePass) {
+                    Image("Vault/ic_change_pass")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 28)
+                        .foregroundStyle(Color(hex: 0x292D32))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 56)
+        .background(
+            AppColor.surfaceBackground
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
+                }
+        )
+    }
+}

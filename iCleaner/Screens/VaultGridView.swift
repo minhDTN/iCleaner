@@ -21,42 +21,35 @@ struct VaultGridView: View {
     @State private var importing: Bool = false
     @State private var importError: String?
 
-    private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
+    private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 11), count: 2)
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            LinearGradient(
-                colors: [Color(hex: 0xFAF8FF), Color(hex: 0xFFFFFF)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        VStack(spacing: 0) {
+            VaultHeader(title: "Private Vault", onChangePass: { showChangePasscode = true })
 
-            if items.isEmpty && !importing {
-                emptyState
-            } else {
-                grid
-            }
+            ZStack(alignment: .bottomTrailing) {
+                LinearGradient(
+                    colors: [Color(hex: 0xFAF8FF), Color(hex: 0xFFFFFF)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .ignoresSafeArea(edges: .bottom)
 
-            fab
-                .padding(.trailing, 16)
-                .padding(.bottom, 24)
-
-            if importing {
-                importingOverlay
-            }
-        }
-        .navigationTitle("Private Vault")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Top-right: change passcode (per design). Long-press to lock.
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { showChangePasscode = true }) {
-                    Image(systemName: "lock.rotation")
-                        .foregroundStyle(AppColor.brandPrimary)
+                if items.isEmpty && !importing {
+                    emptyState
+                } else {
+                    grid
                 }
-                .simultaneousGesture(LongPressGesture().onEnded { _ in vault.lock() })
+
+                fab
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 24)
+
+                if importing {
+                    importingOverlay
+                }
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $showChangePasscode) {
             ChangePasscodeView(vault: vault)
         }
@@ -98,16 +91,17 @@ struct VaultGridView: View {
 
     private var grid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 6) {
+            LazyVGrid(columns: columns, spacing: 11) {
                 ForEach(items) { item in
                     VaultThumbnail(vault: vault, item: item)
                         .aspectRatio(1, contentMode: .fill)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        .overlay(alignment: .topTrailing) { glassDot.padding(8) }
                         .onTapGesture { previewItem = item }
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
             .padding(.bottom, 120)  // room for FAB
         }
     }
@@ -128,11 +122,22 @@ struct VaultGridView: View {
         }
     }
 
+    // Decorative glass dot in each cell's top-right corner (Figma overlay).
+    private var glassDot: some View {
+        Circle()
+            .fill(Color.black.opacity(0.1))
+            .frame(width: 23, height: 23)
+            .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1.9))
+    }
+
     private var fab: some View {
         Button(action: { showAddSheet = true }) {
             HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .bold))
+                Image("Vault/ic_add_plus")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
                 Text("Add More")
                     .font(.custom("Inter-Bold", size: 16))
                     .tracking(16 * -0.025)

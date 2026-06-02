@@ -12,17 +12,20 @@ struct VaultLockView: View {
     @State private var didAutoPromptBiometry: Bool = false
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(hex: 0xFAF8FF), Color(hex: 0xFFFFFF)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        VStack(spacing: 0) {
+            VaultHeader(title: "Private Vault")
 
-            VStack(spacing: 32) {
-                Spacer()
+            ZStack {
+                LinearGradient(
+                    colors: [Color(hex: 0xFAF8FF), Color(hex: 0xFFFFFF)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .ignoresSafeArea(edges: .bottom)
 
-                shieldIllustration
+                VStack(spacing: 32) {
+                    Spacer()
+
+                    lockGlyph
 
                 VStack(spacing: 12) {
                     Text("Private Vault is\nLocked")
@@ -31,9 +34,9 @@ struct VaultLockView: View {
                         .foregroundStyle(Color(hex: 0x191B23))
                         .multilineTextAlignment(.center)
 
-                    Text("Your photos are encrypted and protected.")
-                        .font(.custom("Inter-Regular", size: 14))
-                        .foregroundStyle(AppColor.textSecondary)
+                    Text("Your photos are encrypted and\nprotected.")
+                        .font(.custom("Inter-Regular", size: 17))
+                        .foregroundStyle(Color(hex: 0x434655))
                         .multilineTextAlignment(.center)
                 }
 
@@ -42,11 +45,12 @@ struct VaultLockView: View {
                 primaryActions
                     .padding(.horizontal, 20)
             }
-            .padding(.vertical, 64)
+            .padding(.bottom, 48)
 
             if showPasscode {
                 passcodeOverlay
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             }
         }
         .alert("Couldn't authenticate", isPresented: Binding(
@@ -69,21 +73,16 @@ struct VaultLockView: View {
         .animation(.easeInOut(duration: 0.25), value: showPasscode)
     }
 
-    private var shieldIllustration: some View {
-        ZStack {
-            Circle()
-                .fill(AppColor.brandPrimary.opacity(0.10))
-                .frame(width: 160, height: 160)
-                .blur(radius: 24)
-
-            // Figma central glass illustration `2008:31953`.
-            Image("Vault/lock_illustration")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 160, height: 160)
-                .shadow(color: Color(hex: 0x004AC6).opacity(0.15), radius: 24, x: 0, y: 12)
-        }
-        .frame(width: 160, height: 192)
+    // Figma `2008:31953` central glyph: the iOS Face ID (or Touch ID) mark in
+    // black; falls back to a lock when no biometry is enrolled.
+    private var lockGlyph: some View {
+        let symbol: String = vault.canUseBiometry
+            ? (vault.biometryName == "Face ID" ? "faceid" : "touchid")
+            : "lock.fill"
+        return Image(systemName: symbol)
+            .font(.system(size: 104, weight: .regular))
+            .foregroundStyle(Color(hex: 0x191B23))
+            .frame(width: 160, height: 160)
     }
 
     private var primaryActions: some View {
@@ -102,7 +101,7 @@ struct VaultLockView: View {
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(AppColor.brandPrimary)
-                            .shadow(color: Color(hex: 0x004AC6).opacity(0.25), radius: 12, x: 0, y: 8)
+                            .shadow(color: Color(hex: 0x004AC6).opacity(0.25), radius: 24, x: 0, y: 8)
                     )
                 }
                 .buttonStyle(.plain)

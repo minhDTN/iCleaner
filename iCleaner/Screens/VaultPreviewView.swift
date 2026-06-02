@@ -3,12 +3,11 @@ import SwiftData
 import Photos
 import AVKit
 
-// Figma `2010:2345` (private preview). White bg. Top header (glass white 90% +
-// blur 24) with close + lock badge. Meta data overlay top-left (rgba(243,244,246,0.8)
-// + blur 12, Inter Regular 14/20 #1F2937). Bottom footer (glass + blur 16) with
-// Share + Delete actions (58×58 padded buttons).
+// Figma `2010:2345` (private preview). White screen: header (back + "Private
+// Vault" + "AES-256 Encrypted" subtitle), metadata row (date + file • size), the
+// decrypted media filling the middle, and a bottom bar with Share + Delete.
 //
-// Image decrypts via VaultService.readDecrypted off the main actor. Delete
+// Media decrypts via VaultService.readDecrypted off the main actor. Delete
 // removes the SwiftData row + the encrypted blob file.
 struct VaultPreviewView: View {
     @Environment(\.dismiss) private var dismiss
@@ -27,43 +26,19 @@ struct VaultPreviewView: View {
     private var isVideo: Bool { item.mimeType.hasPrefix("video") }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            // Decrypted media
-            Group {
-                if isVideo, let player {
-                    VideoPlayer(player: player)
-                        .onAppear { player.play() }
-                        .onDisappear { player.pause() }
-                } else if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    VStack(spacing: 12) {
-                        ProgressView().tint(.white).scaleEffect(1.4)
-                        Text("Decrypting…")
-                            .font(.custom("Inter-SemiBold", size: 14))
-                            .foregroundStyle(.white)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            VStack {
-                topBar
-                metaOverlay
-                Spacer()
-                bottomBar
-            }
+        VStack(spacing: 0) {
+            header
+            metaRow
+            mediaArea
+            bottomBar
         }
+        .background(AppColor.surfaceBackground.ignoresSafeArea())
         .task { await loadMedia() }
         .onDisappear {
             // Clean up the temp plaintext file so decrypted media never lingers.
             if let url = decryptedURL { try? FileManager.default.removeItem(at: url) }
         }
-        .confirmationDialog("Delete this photo?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Delete this item?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { performDelete() }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -82,47 +57,47 @@ struct VaultPreviewView: View {
         } message: { Text(loadError ?? "") }
     }
 
-    // MARK: - Bars
+    // MARK: - Header
 
-    private var topBar: some View {
-        HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(hex: 0x0F172A))
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(Color.white.opacity(0.9)))
+    private var header: some View {
+        ZStack {
+            VStack(spacing: 2) {
+                Text("Private Vault")
+                    .font(.custom("Inter-Bold", size: 18))
+                    .foregroundStyle(Color(hex: 0x131B2E))
+                HStack(spacing: 5) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("AES-256 Encrypted")
+                        .font(.custom("Inter-Medium", size: 11))
+                }
+                .foregroundStyle(AppColor.brandPrimary)
             }
-            Spacer()
-            HStack(spacing: 6) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                Text("AES-256 Encrypted")
-                    .font(.custom("Inter-SemiBold", size: 11))
-                    .tracking(11 * 0.05)
-                    .textCase(.uppercase)
-            }
-            .foregroundStyle(AppColor.brandPrimary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule().fill(Color.white.opacity(0.9))
-            )
-            Spacer()
-            Button(action: { showDeleteConfirm = true }) {
-                Image(systemName: "trash")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColor.danger)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(Color.white.opacity(0.9)))
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .frame(width: 40, height: 40, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Color.clear.frame(width: 28, height: 28)
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .frame(height: 56)
+        .background(
+            AppColor.surfaceBackground
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
+                }
+        )
     }
 
-    private var metaOverlay: some View {
-        let dateStr = item.addedAt.formatted(date: .abbreviated, time: .shortened)
+    private var metaRow: some View {
+        let dateStr = Self.dateString(item.addedAt)
         let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(item.sizeBytes), countStyle: .file)
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -130,55 +105,83 @@ struct VaultPreviewView: View {
                 Text("\(item.fileName) • \(sizeStr)")
             }
             .font(.custom("Inter-Regular", size: 13))
-            .foregroundStyle(Color(hex: 0x1F2937))
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(hex: 0xF3F4F6).opacity(0.8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
-                    )
-            )
+            .foregroundStyle(Color(hex: 0x434655))
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.vertical, 12)
+    }
+
+    private var mediaArea: some View {
+        ZStack {
+            Color(hex: 0x0F172A).opacity(0.03)
+            Group {
+                if isVideo, let player {
+                    VideoPlayer(player: player)
+                        .onAppear { player.play() }
+                        .onDisappear { player.pause() }
+                } else if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    VStack(spacing: 12) {
+                        ProgressView().tint(AppColor.brandPrimary).scaleEffect(1.3)
+                        Text("Decrypting…")
+                            .font(.custom("Inter-SemiBold", size: 14))
+                            .foregroundStyle(AppColor.textSecondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 
     private var bottomBar: some View {
-        HStack(spacing: 98) {
-            barButton(systemIcon: "square.and.arrow.up", label: "Share", action: prepareShare)
-            barButton(systemIcon: "trash", label: "Delete", tint: AppColor.danger, action: { showDeleteConfirm = true })
+        HStack {
+            Spacer()
+            barButton(systemIcon: "square.and.arrow.up", label: "Share",
+                      tint: AppColor.brandPrimary, action: prepareShare)
+            Spacer()
+            barButton(systemIcon: "trash", label: "Delete",
+                      tint: AppColor.danger, action: { showDeleteConfirm = true })
+            Spacer()
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .frame(maxWidth: .infinity)
         .background(
-            Color.white.opacity(0.9)
+            AppColor.surfaceBackground
                 .ignoresSafeArea(edges: .bottom)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
+                }
         )
     }
 
-    private func barButton(systemIcon: String, label: String, tint: Color = AppColor.brandPrimary, action: @escaping () -> Void) -> some View {
+    private func barButton(systemIcon: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: systemIcon)
                     .font(.system(size: 22))
                 Text(label)
-                    .font(.custom("Inter-SemiBold", size: 11))
+                    .font(.custom("Inter-SemiBold", size: 12))
             }
             .foregroundStyle(tint)
-            .frame(width: 58)
+            .frame(width: 72)
         }
         .buttonStyle(.plain)
     }
 
+    // MARK: - Format
+
+    private static func dateString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM yyyy • HH:mm"
+        return f.string(from: date)
+    }
+
     // MARK: - Load
 
-    // Decrypt to a temp file. Videos play from that file via AVPlayer; images
-    // also load a UIImage for display. The temp file doubles as the share source
-    // and is removed on disappear.
     private func loadMedia() async {
         let itemID = item.id
         let v = vault
@@ -215,7 +218,6 @@ struct VaultPreviewView: View {
     }
 
     private func prepareShare() {
-        // Share the already-decrypted temp file (works for both image + video).
         guard decryptedURL != nil else { return }
         showShareSheet = true
     }
