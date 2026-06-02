@@ -24,7 +24,7 @@ struct ChangePasscodeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VaultHeader(title: "Private Vault", onBack: { dismiss() })
+            VaultHeader(title: L("vault.title"), onBack: { dismiss() })
 
             ZStack {
                 AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
@@ -48,10 +48,10 @@ struct ChangePasscodeView: View {
                     .padding(.bottom, 32)
 
                 if wrongOld {
-                    errorRow("That passcode doesn't match — try again")
+                    errorRow(L("passcode.wrongCurrent"))
                 }
                 if mismatch {
-                    errorRow("Codes don't match — start over")
+                    errorRow(L("passcode.mismatch"))
                 }
 
                     PasscodeKeypad(entry: currentEntry, onComplete: handleComplete)
@@ -66,7 +66,7 @@ struct ChangePasscodeView: View {
         // isn't covered. Push/pop fire onAppear/onDisappear reliably.
         .onAppear { if let chrome { chrome.vaultDepth += 1 } }
         .onDisappear { if let chrome { chrome.vaultDepth = max(0, chrome.vaultDepth - 1) } }
-        .alert("Couldn't save", isPresented: Binding(
+        .alert(L("passcode.saveError2Title"), isPresented: Binding(
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }
         )) {
@@ -84,17 +84,17 @@ struct ChangePasscodeView: View {
 
     private var title: String {
         switch step {
-        case .verify:  return "Change Passcode"
-        case .choose:  return "New Passcode"
-        case .confirm: return "Re-enter Passcode"
+        case .verify:  return L("passcode.changeTitle")
+        case .choose:  return L("passcode.newTitle")
+        case .confirm: return L("passcode.reenter")
         }
     }
 
     private var subtitle: String {
         switch step {
-        case .verify:  return "Enter your current 6-digit passcode to\nverify your identity."
-        case .choose:  return "Choose a new 6-digit code for your\nprivate vault."
-        case .confirm: return "Enter the same 6 digits again to\nconfirm your new passcode."
+        case .verify:  return L("passcode.verifySub")
+        case .choose:  return L("passcode.newSub")
+        case .confirm: return L("passcode.confirmSub")
         }
     }
 
@@ -150,7 +150,7 @@ struct ChangePasscodeView: View {
                     try vault.setPasscode(newEntry)
                     dismiss()
                 } catch {
-                    saveError = "Failed to save new passcode. Please try again."
+                    saveError = L("passcode.saveError2Body")
                 }
             } else {
                 mismatch = true

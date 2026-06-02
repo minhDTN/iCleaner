@@ -13,7 +13,7 @@ struct VaultLockView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VaultHeader(title: "Private Vault")
+            VaultHeader(title: L("vault.title"))
 
             ZStack {
                 LinearGradient(
@@ -28,13 +28,13 @@ struct VaultLockView: View {
                     lockGlyph
 
                 VStack(spacing: 12) {
-                    Text("Private Vault is\nLocked")
+                    Text(L("vault.lockedTitle"))
                         .font(.custom("Inter-Bold", size: 34))
                         .tracking(34 * -0.02)
                         .foregroundStyle(Color(hex: 0x191B23))
                         .multilineTextAlignment(.center)
 
-                    Text("Your photos are encrypted and\nprotected.")
+                    Text(L("vault.lockedBody"))
                         .font(.custom("Inter-Regular", size: 17))
                         .foregroundStyle(Color(hex: 0x434655))
                         .multilineTextAlignment(.center)
@@ -53,12 +53,12 @@ struct VaultLockView: View {
             }
             }
         }
-        .alert("Couldn't authenticate", isPresented: Binding(
+        .alert(L("vault.authFailTitle"), isPresented: Binding(
             get: { biometryError != nil },
             set: { if !$0 { biometryError = nil } }
         )) {
             Button("OK", role: .cancel) { biometryError = nil }
-            Button("Use Passcode") { showPasscode = true }
+            Button(L("passcode.usePasscode")) { showPasscode = true }
         } message: {
             Text(biometryError ?? "")
         }
@@ -92,7 +92,7 @@ struct VaultLockView: View {
                     HStack(spacing: 8) {
                         Image(systemName: vault.biometryName == "Face ID" ? "faceid" : "touchid")
                             .font(.system(size: 20))
-                        Text("Unlock with \(vault.biometryName)")
+                        Text(L("vault.unlockFaceID", vault.biometryName))
                             .font(.custom("Inter-SemiBold", size: 17))
                     }
                     .foregroundStyle(.white)
@@ -108,7 +108,7 @@ struct VaultLockView: View {
             }
 
             Button(action: { showPasscode = true }) {
-                Text("Use Passcode")
+                Text(L("passcode.usePasscode"))
                     .font(.custom("Inter-SemiBold", size: 17))
                     .foregroundStyle(AppColor.brandPrimary)
                     .padding(.vertical, 8)
@@ -126,12 +126,12 @@ struct VaultLockView: View {
                 }
 
             VStack(spacing: 24) {
-                Text("Enter Passcode")
+                Text(L("passcode.enterTitle"))
                     .font(.custom("Inter-Bold", size: 22))
                     .foregroundStyle(Color(hex: 0x0F172A))
 
                 if passcodeError {
-                    Text("Wrong passcode — try again")
+                    Text(L("passcode.wrong"))
                         .font(.custom("Inter-Medium", size: 13))
                         .foregroundStyle(AppColor.danger)
                 }
@@ -149,7 +149,7 @@ struct VaultLockView: View {
 
     private func tryBiometry() async {
         do {
-            try await vault.unlockWithBiometry(reason: "Unlock your private vault")
+            try await vault.unlockWithBiometry(reason: L("vault.unlockReason"))
         } catch {
             // Don't pop a noisy alert when user cancels biometry — only when
             // there's a real failure (lockout, no biometry enrolled, etc).

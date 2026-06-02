@@ -30,9 +30,11 @@ final class Localizer {
         return LocalizedStrings.table[lang]?[key]
             ?? LocalizedStrings2.table[lang]?[key]
             ?? LocalizedStrings3.table[lang]?[key]
+            ?? LocalizedStrings4.table[lang]?[key]
             ?? LocalizedStrings.table["en"]?[key]
             ?? LocalizedStrings2.table["en"]?[key]
             ?? LocalizedStrings3.table["en"]?[key]
+            ?? LocalizedStrings4.table["en"]?[key]
             ?? key
     }
 

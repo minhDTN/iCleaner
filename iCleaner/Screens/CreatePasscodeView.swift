@@ -17,7 +17,7 @@ struct CreatePasscodeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VaultHeader(title: "Private Vault")
+            VaultHeader(title: L("vault.title"))
 
             ZStack {
                 AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
@@ -27,23 +27,21 @@ struct CreatePasscodeView: View {
                     glassIcon
                         .padding(.bottom, 32)
 
-                Text(step == .choose ? "Create a Passcode" : "Re-enter Passcode")
+                Text(step == .choose ? L("passcode.create") : L("passcode.reenter"))
                     .font(.custom("Inter-Bold", size: 24))
                     .tracking(24 * -0.01)
                     .foregroundStyle(Color(hex: 0x0F172A))
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 16)
 
-                Text(step == .choose
-                     ? "Choose a 6-digit code to protect\nyour private vault."
-                     : "Enter the same 6 digits again to\nconfirm your new passcode.")
+                Text(step == .choose ? L("passcode.createSub") : L("passcode.confirmSub"))
                     .font(.custom("Inter-Regular", size: 16))
                     .foregroundStyle(Color(hex: 0x334155))
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 32)
 
                 if mismatch {
-                    Text("Codes don't match — start over")
+                    Text(L("passcode.mismatch"))
                         .font(.custom("Inter-Medium", size: 14))
                         .foregroundStyle(AppColor.danger)
                         .padding(.bottom, 16)
@@ -60,7 +58,7 @@ struct CreatePasscodeView: View {
                 .padding(.bottom, 24)
             }
         }
-        .alert("Couldn't save passcode", isPresented: Binding(
+        .alert(L("passcode.saveErrorTitle"), isPresented: Binding(
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }
         )) {
@@ -107,7 +105,7 @@ struct CreatePasscodeView: View {
                     try vault.setPasscode(firstEntry)
                     _ = vault.verifyPasscode(firstEntry)  // sets isUnlocked = true
                 } catch {
-                    saveError = "Failed to store passcode securely. Please try again."
+                    saveError = L("passcode.saveErrorBody")
                 }
             } else {
                 mismatch = true
