@@ -15,6 +15,8 @@ struct PhotoPreviewView: View {
     @Binding var group: SimilarGroup
     let index: Int
 
+    @State private var dragOffset: CGSize = .zero
+
     private var photo: SimilarPhoto? {
         guard index >= 0, index < group.photos.count else { return nil }
         return group.photos[index]
@@ -58,33 +60,78 @@ struct PhotoPreviewView: View {
     // MARK: - Media card with side action buttons
 
     private func mediaCard(for photo: SimilarPhoto) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(hex: 0xEDEDF9))
+        // No filler background — the media fits its own aspect ratio. Swipe left
+        // → Delete, right → Keep, with a tint + indicator following the drag.
+        mediaContent(for: photo)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay { dragIndicator }
+            .offset(x: dragOffset.width, y: dragOffset.height * 0.15)
+            .rotationEffect(.degrees(Double(dragOffset.width / 25)))
+            .gesture(
+                DragGesture()
+                    .onChanged { dragOffset = $0.translation }
+                    .onEnded { value in
+                        let threshold: CGFloat = 110
+                        if value.translation.width < -threshold {
+                            decide(keep: false)
+                        } else if value.translation.width > threshold {
+                            decide(keep: true)
+                        } else {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                dragOffset = .zero
+                            }
+                        }
+                    }
+            )
+            // Delete + Keep float at vertical centre, inset from the media edges.
+            .overlay(alignment: .leading) {
+                actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A)) {
+                    decide(keep: false)
+                }
+                .padding(.leading, 20)
+            }
+            .overlay(alignment: .trailing) {
+                actionButton(asset: "Clean/ic_keep", bg: AppColor.success) {
+                    decide(keep: true)
+                }
+                .padding(.trailing, 20)
+            }
+            .overlay(alignment: .bottom) {
+                actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6)) {
+                    sendToVault()
+                }
+                .offset(y: 32)
+            }
+    }
 
-            mediaContent(for: photo)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    // DELETE / KEEP badge that fades in as the user drags.
+    @ViewBuilder
+    private var dragIndicator: some View {
+        let w = dragOffset.width
+        if w < -20 {
+            badge(text: "DELETE", color: Color(hex: 0xBA1A1A))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(16)
+                .opacity(Double(min(1, -w / 100)))
+        } else if w > 20 {
+            badge(text: "KEEP", color: AppColor.success)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(16)
+                .opacity(Double(min(1, w / 100)))
         }
-        // Delete + Keep buttons float at vertical centre, hanging over the
-        // left/right edges of the media (Figma layout).
-        .overlay(alignment: .leading) {
-            actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A)) {
-                decide(keep: false)
-            }
-            .offset(x: -6)
-        }
-        .overlay(alignment: .trailing) {
-            actionButton(asset: "Clean/ic_keep", bg: AppColor.success) {
-                decide(keep: true)
-            }
-            .offset(x: 6)
-        }
-        .overlay(alignment: .bottom) {
-            actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6)) {
-                sendToVault()
-            }
-            .offset(y: 32)
-        }
+    }
+
+    private func badge(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.custom("Inter-SemiBold", size: 20))
+            .foregroundStyle(color)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(color, lineWidth: 4)
+                    .background(Color(hex: 0xFAF8FF).opacity(0.2))
+            )
     }
 
     @ViewBuilder
