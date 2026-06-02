@@ -1,6 +1,8 @@
 import SwiftUI
 import AVKit
+import Photos
 import PhotosUI
+import Observation
 import LibEarnMoneyIOS
 
 // Figma cluster: 2005:22138 (entry) → 2005:22335 (confirm) → 2005:23000 (progress)
@@ -16,9 +18,9 @@ import LibEarnMoneyIOS
 //   .result      — Replace Original / Keep Both
 struct CompressView: View {
     @State private var compressor = VideoCompressor()
+    @State private var videoLibrary = VideoLibraryService()
     @State private var step: Step = .empty
-    @State private var showPicker: Bool = false
-    @State private var pickerSelection: [PhotosPickerItem] = []
+    @State private var loadingPicked = false
     @State private var pickedURL: URL?
     @State private var pickedFileName: String = ""
     @State private var pickedSizeBytes: Int = 0
@@ -36,7 +38,7 @@ struct CompressView: View {
             AppColor.surfaceBackground.ignoresSafeArea()
 
             switch step {
-            case .empty:    emptyView
+            case .empty:    videoGridView
             case .ready:    readyView
             case .progress: progressView
             case .result:   resultView
@@ -51,25 +53,19 @@ struct CompressView: View {
                 cancelConfirmModal
                     .transition(.opacity)
             }
+            if loadingPicked {
+                ZStack {
+                    Color.black.opacity(0.3).ignoresSafeArea()
+                    ProgressView().tint(.white).scaleEffect(1.3)
+                }
+            }
         }
         // Per-state bottom ad (scenario): landing banner_compress, ready/confirm
         // banner_video_compress, compressing native_video_compress, result
         // banner_success_view_compress. Sits above the tab bar.
         .safeAreaInset(edge: .bottom) { compressAd }
         .bottomChromeInset()
-        .photosPicker(
-            isPresented: $showPicker,
-            selection: $pickerSelection,
-            maxSelectionCount: 1,
-            matching: .videos
-        )
-        .onChange(of: pickerSelection) { _, new in
-            guard let first = new.first else { return }
-            Task {
-                await loadPicked(first)
-                pickerSelection = []
-            }
-        }
+        .task { await videoLibrary.load() }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .alert("Compress error", isPresented: Binding(
             get: { showError != nil },
@@ -92,70 +88,156 @@ struct CompressView: View {
         }
     }
 
-    // MARK: - Empty state
+    // MARK: - Video grid (entry — Figma 2005:22138)
 
-    private var emptyView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "video.badge.plus")
-                .font(.system(size: 64))
-                .foregroundStyle(AppColor.brandPrimary)
-            VStack(spacing: 8) {
-                Text("Compress a video")
-                    .font(.custom("Inter-Bold", size: 22))
-                    .foregroundStyle(AppColor.textPrimary)
-                Text("Pick a video from your library to shrink it down without losing what matters.")
-                    .font(.custom("Inter-Regular", size: 14))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+    private let gridColumns = [GridItem(.flexible(), spacing: 11), GridItem(.flexible(), spacing: 11)]
+
+    private var videoGridView: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Compress")
+                    .font(.custom("Inter-SemiBold", size: 18))
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
+                Spacer()
             }
-            quotaBadge
-                .padding(.top, 4)
-            pickButton
-                .padding(.top, 16)
-                .padding(.horizontal, 32)
-            Spacer()
-        }
-    }
+            .padding(.horizontal, 20)
+            .frame(height: 48)
 
-    private var pickButton: some View {
-        Button(action: { showPicker = true }) {
             HStack(spacing: 8) {
-                Image(systemName: "photo.fill.on.rectangle.fill")
-                Text("Pick from Photos")
+                Text("\(videoLibrary.videos.count) Videos")
+                    .font(.custom("Inter-Medium", size: 14))
+                    .foregroundStyle(Color(hex: 0x00091D))
+                Text(formatBytes(videoLibrary.totalBytes))
+                    .font(.custom("Inter-Medium", size: 14))
+                    .foregroundStyle(AppColor.brandPrimary)
+                Spacer()
             }
-            .font(.custom("Inter-Bold", size: 16))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(AppColor.brandPrimary)
-                    .shadow(color: AppColor.brandPrimary.opacity(0.3), radius: 10, x: 0, y: 6)
-            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+
+            if videoLibrary.auth == .denied {
+                permissionGate
+            } else if videoLibrary.videos.isEmpty {
+                if videoLibrary.loading {
+                    Spacer()
+                    ProgressView().tint(AppColor.brandPrimary)
+                    Spacer()
+                } else {
+                    emptyVideosView
+                }
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: gridColumns, spacing: 11) {
+                        ForEach(videoLibrary.videos) { v in
+                            videoCell(v)
+                                .onTapGesture { Task { await selectVideo(v) } }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 120)
+                }
+            }
         }
-        .buttonStyle(.plain)
     }
 
-    private var quotaBadge: some View {
-        let canMore = compressor.canCompressMore
-        let label: String = {
-            if PremiumGate.isPremium { return "Unlimited (Premium)" }
-            return "Today's uses: \(compressor.usesUsedToday)/\(VideoCompressor.dailyLimit)"
-        }()
-        return HStack(spacing: 6) {
-            Image(systemName: canMore ? "bolt.fill" : "lock.fill")
-                .font(.system(size: 11, weight: .semibold))
-            Text(label)
-                .font(.custom("Inter-SemiBold", size: 12))
+    private func videoCell(_ v: VideoLibraryService.VideoItem) -> some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay { PHAssetThumbnail(localIdentifier: v.id, targetSize: CGSize(width: 400, height: 400)) }
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(alignment: .bottomLeading) { badge(Self.durationString(v.duration), bold: false).padding(8) }
+            .overlay(alignment: .bottomTrailing) { badge(formatBytes(v.sizeBytes), bold: true).padding(8) }
+            .contentShape(Rectangle())
+    }
+
+    private func badge(_ text: String, bold: Bool) -> some View {
+        Text(text)
+            .font(.custom(bold ? "Inter-Bold" : "Inter-Medium", size: bold ? 11 : 10))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.black.opacity(0.6)))
+    }
+
+    private var emptyVideosView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "video.slash")
+                .font(.system(size: 56))
+                .foregroundStyle(AppColor.textMuted)
+            Text("No videos found")
+                .font(.custom("Inter-Bold", size: 18))
+                .foregroundStyle(AppColor.textPrimary)
+            Spacer()
         }
-        .foregroundStyle(canMore ? AppColor.success : AppColor.warning)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            Capsule().fill((canMore ? AppColor.success : AppColor.warning).opacity(0.10))
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var permissionGate: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "photo.badge.exclamationmark")
+                .font(.system(size: 56))
+                .foregroundStyle(AppColor.brandPrimary)
+            Text("Photos access required")
+                .font(.custom("Inter-Bold", size: 18))
+                .foregroundStyle(AppColor.textPrimary)
+            Text("Allow access so iCleaner can list your videos to compress.")
+                .font(.custom("Inter-Regular", size: 14))
+                .foregroundStyle(AppColor.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            } label: {
+                Text("Open Settings")
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary))
+            }
+            .padding(.horizontal, 32)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // Tap a video → check quota → resolve its URL → quality screen.
+    private func selectVideo(_ v: VideoLibraryService.VideoItem) async {
+        guard compressor.canCompressMore else { showPaywall = true; return }
+        loadingPicked = true
+        defer { loadingPicked = false }
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [v.id], options: nil).firstObject,
+              let url = await Self.videoURL(for: asset) else {
+            showError = "Couldn't open this video."
+            return
+        }
+        pickedURL = url
+        pickedFileName = url.lastPathComponent
+        pickedSizeBytes = v.sizeBytes
+        step = .ready
+    }
+
+    nonisolated private static func videoURL(for asset: PHAsset) async -> URL? {
+        let opts = PHVideoRequestOptions()
+        opts.isNetworkAccessAllowed = true
+        opts.deliveryMode = .highQualityFormat
+        return await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: opts) { avAsset, _, _ in
+                cont.resume(returning: (avAsset as? AVURLAsset)?.url)
+            }
+        }
+    }
+
+    private func formatBytes(_ bytes: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+    }
+
+    private static func durationString(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     // MARK: - Ready state (video loaded)
@@ -579,20 +661,6 @@ struct CompressView: View {
         step = .confirm
     }
 
-    private func loadPicked(_ pick: PhotosPickerItem) async {
-        do {
-            // PhotosPickerItem.loadTransferable for .video returns a temp URL.
-            // We use the Movie helper that gives us a stable URL we can hand to AVFoundation.
-            guard let movie = try await pick.loadTransferable(type: PickedMovie.self) else { return }
-            pickedURL = movie.url
-            pickedFileName = movie.url.lastPathComponent
-            pickedSizeBytes = (try? FileManager.default.attributesOfItem(atPath: movie.url.path)[.size] as? Int) ?? 0
-            step = .ready
-        } catch {
-            showError = error.localizedDescription
-        }
-    }
-
     private func runExport() async {
         guard let pickedURL else { step = .ready; return }
         do {
@@ -635,7 +703,6 @@ struct CompressView: View {
     }
 
     private func resetToEmpty() {
-        pickerSelection = []
         pickedURL = nil
         pickedFileName = ""
         pickedSizeBytes = 0
@@ -686,22 +753,57 @@ private struct QualityRow: View {
     }
 }
 
-// MARK: - PhotosPicker movie bridge
+// MARK: - Video library (all device videos for the compress grid)
 
-private struct PickedMovie: Transferable {
-    let url: URL
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(contentType: .movie) { movie in
-            SentTransferredFile(movie.url)
-        } importing: { received in
-            // Copy into a stable temp location — the file PhotosPicker hands us
-            // gets cleaned up out from under us if we hold the original URL.
-            let stable = NSURL.fileURL(withPath: NSTemporaryDirectory())
-                .appendingPathComponent("iCleaner-picked-\(UUID().uuidString.prefix(8)).mov")
-            try? FileManager.default.removeItem(at: stable)
-            try FileManager.default.copyItem(at: received.file, to: stable)
-            return Self(url: stable)
+@MainActor
+@Observable
+final class VideoLibraryService {
+    struct VideoItem: Identifiable {
+        let id: String       // PHAsset.localIdentifier
+        let duration: Double
+        let sizeBytes: Int
+    }
+    enum Auth { case notDetermined, denied, authorized }
+
+    private(set) var auth: Auth
+    private(set) var videos: [VideoItem] = []
+    private(set) var loading = false
+
+    var totalBytes: Int { videos.reduce(0) { $0 + $1.sizeBytes } }
+
+    init() { auth = Self.map(PHPhotoLibrary.authorizationStatus(for: .readWrite)) }
+
+    func load() async {
+        if auth == .notDetermined {
+            auth = Self.map(await PHPhotoLibrary.requestAuthorization(for: .readWrite))
         }
+        guard auth == .authorized, videos.isEmpty else { return }
+        loading = true
+        videos = await Task.detached(priority: .userInitiated) { Self.fetchVideos() }.value
+        loading = false
+    }
+
+    private static func map(_ s: PHAuthorizationStatus) -> Auth {
+        switch s {
+        case .authorized, .limited: return .authorized
+        case .notDetermined:        return .notDetermined
+        default:                    return .denied
+        }
+    }
+
+    nonisolated private static func fetchVideos() -> [VideoItem] {
+        let opts = PHFetchOptions()
+        opts.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
+        opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        let result = PHAsset.fetchAssets(with: opts)
+        var items: [VideoItem] = []
+        result.enumerateObjects { asset, _, _ in
+            let size = PHAssetResource.assetResources(for: asset)
+                .first
+                .flatMap { $0.value(forKey: "fileSize") as? Int } ?? 0
+            items.append(VideoItem(id: asset.localIdentifier, duration: asset.duration, sizeBytes: size))
+        }
+        return items
     }
 }
 
