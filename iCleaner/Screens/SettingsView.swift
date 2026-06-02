@@ -63,7 +63,7 @@ struct SettingsView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    Text("Settings")
+                    Text(L("settings.title"))
                         .font(.custom("Inter-Bold", size: 20))
                         .tracking(20 * -0.025)
                         .foregroundStyle(Color(hex: 0x0F172A))
@@ -121,18 +121,18 @@ struct SettingsView: View {
 
     private var premiumBanner: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Cleaner Ultimate")
+            Text(L("settings.ultimate"))
                 .font(.custom("Inter-Bold", size: 24))
                 .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 12) {
-                bullet("Instantly Detect Similar Photos")
-                bullet("No Ads and Limits")
-                bullet("Save Both Storage & Time")
+                bullet(L("settings.feature.similar"))
+                bullet(L("settings.feature.noads"))
+                bullet(L("settings.feature.storage"))
             }
 
             Button(action: { showPaywall = true }) {
-                Text("Get Premium")
+                Text(L("settings.getPremium"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -188,35 +188,35 @@ struct SettingsView: View {
     // MARK: - Sections
 
     private var stayInTouchSection: some View {
-        SettingsSection(title: "Stay in Touch") {
-            SettingsRow(assetIcon: "Settings/ic_share", title: "Share Cleanup", action: { showShareSheet = true })
+        SettingsSection(title: L("settings.stayInTouch")) {
+            SettingsRow(assetIcon: "Settings/ic_share", title: L("settings.share"), action: { showShareSheet = true })
             divider
-            SettingsRow(assetIcon: "Settings/ic_rate", title: "Rate Us", action: { requestReview() })
+            SettingsRow(assetIcon: "Settings/ic_rate", title: L("settings.rate"), action: { requestReview() })
             divider
-            SettingsRow(assetIcon: "Settings/ic_language", title: "Language", trailing: selectedLanguageName, action: { showLanguage = true })
+            SettingsRow(assetIcon: "Settings/ic_language", title: L("settings.language"), trailing: selectedLanguageName, action: { showLanguage = true })
         }
     }
 
     private var supportSection: some View {
         // FAQ / Terms / Privacy open their web pages IN-APP (WebViewScreen pushed
         // here), not in Safari. Order matches Figma 336:4696.
-        SettingsSection(title: "Support") {
-            NavigationLink(destination: WebViewScreen(title: "FAQ", url: AppInfo.faqURL)) {
-                SettingsRowChrome(assetIcon: "Settings/ic_faq", title: "FAQ")
+        SettingsSection(title: L("settings.support")) {
+            NavigationLink(destination: WebViewScreen(title: L("settings.faq"), url: AppInfo.faqURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_faq", title: L("settings.faq"))
             }
             divider
             NavigationLink(destination: ContactView()) {
-                SettingsRowChrome(assetIcon: "Settings/ic_contact", title: "Contact Us")
+                SettingsRowChrome(assetIcon: "Settings/ic_contact", title: L("settings.contact"))
             }
             divider
-            SettingsRow(assetIcon: "Settings/ic_restore", title: "Restore Purchase", action: restorePurchases)
+            SettingsRow(assetIcon: "Settings/ic_restore", title: L("settings.restore"), action: restorePurchases)
             divider
-            NavigationLink(destination: WebViewScreen(title: "Terms of Service", url: AppInfo.termsURL)) {
-                SettingsRowChrome(assetIcon: "Settings/ic_terms", title: "Terms of Service")
+            NavigationLink(destination: WebViewScreen(title: L("settings.terms"), url: AppInfo.termsURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_terms", title: L("settings.terms"))
             }
             divider
-            NavigationLink(destination: WebViewScreen(title: "Privacy Policy", url: AppInfo.privacyURL)) {
-                SettingsRowChrome(assetIcon: "Settings/ic_privacy", title: "Privacy Policy")
+            NavigationLink(destination: WebViewScreen(title: L("settings.privacy"), url: AppInfo.privacyURL)) {
+                SettingsRowChrome(assetIcon: "Settings/ic_privacy", title: L("settings.privacy"))
             }
         }
     }

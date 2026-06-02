@@ -49,11 +49,11 @@ struct LanguageView: View {
                     VStack(spacing: 20) {
                         searchField
                         if let sel = selected {
-                            section(title: "Selected") {
+                            section(title: L("lang.selected")) {
                                 row(language: sel, isSelected: true)
                             }
                         }
-                        section(title: "All language") {
+                        section(title: L("lang.all")) {
                             VStack(spacing: 0) {
                                 ForEach(filteredAll) { lang in
                                     row(language: lang, isSelected: false)
@@ -87,7 +87,7 @@ struct LanguageView: View {
                         .frame(width: 24, height: 24)
                 }
             }
-            Text("Language")
+            Text(L("lang.title"))
                 .font(AppFont.headline)
                 .foregroundStyle(AppColor.textPrimary)
             Spacer()
@@ -105,7 +105,7 @@ struct LanguageView: View {
                 .scaledToFit()
                 .foregroundStyle(AppColor.brandPrimary)
                 .frame(width: 20, height: 20)
-            TextField("Enter name of Language...", text: $query)
+            TextField(L("lang.search"), text: $query)
                 .font(.custom("Inter-Regular", size: 13))
                 .foregroundStyle(AppColor.textPrimary)
                 .tint(AppColor.brandPrimary)
@@ -166,8 +166,8 @@ struct LanguageView: View {
 
     private var letsStartButton: some View {
         VStack(spacing: 0) {
-            Button(action: { onStart(selectedCode) }) {
-                Text("Let’s Start")
+            Button(action: { Localizer.shared.setLanguage(selectedCode); onStart(selectedCode) }) {
+                Text(L("lang.start"))
                     .font(.custom("Inter-Bold", size: 14))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)

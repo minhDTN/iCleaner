@@ -40,7 +40,7 @@ struct CustomTabBar: View {
                 .scaledToFit()
                 .frame(width: 36, height: 36)
                 .foregroundStyle(tint)
-            Text(tab.title)
+            Text(L(tab.titleKey))
                 .font(.custom(isActive ? "Inter-Bold" : "Inter-Medium", size: 10))
                 .foregroundStyle(tint)
         }

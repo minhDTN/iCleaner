@@ -10,6 +10,8 @@
 		AA0000000000000000000201 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000101 /* AppDelegate.swift */; };
 		AA0000000000000000000202 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000102 /* SceneDelegate.swift */; };
 		AA0000000000000000000203 /* LibConfig+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000103 /* LibConfig+Host.swift */; };
+		AA0000000000000000000292 /* Localizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000192 /* Localizer.swift */; };
+		AA0000000000000000000293 /* LocalizedStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000193 /* LocalizedStrings.swift */; };
 		AA0000000000000000000204 /* MyProduct.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000104 /* MyProduct.swift */; };
 		AA0000000000000000000205 /* MyPermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000105 /* MyPermission.swift */; };
 		AA0000000000000000000206 /* AdUnits.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000106 /* AdUnits.swift */; };
@@ -80,6 +82,8 @@
 		AA0000000000000000000101 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AA0000000000000000000102 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		AA0000000000000000000103 /* LibConfig+Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibConfig+Host.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000192 /* Localizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization/Localizer.swift; sourceTree = "<group>"; };
+		AA0000000000000000000193 /* LocalizedStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization/LocalizedStrings.swift; sourceTree = "<group>"; };
 		AA0000000000000000000104 /* MyProduct.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyProduct.swift; sourceTree = "<group>"; };
 		AA0000000000000000000105 /* MyPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPermission.swift; sourceTree = "<group>"; };
 		AA0000000000000000000106 /* AdUnits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdUnits.swift; sourceTree = "<group>"; };
@@ -187,6 +191,8 @@
 				AA0000000000000000000101 /* AppDelegate.swift */,
 				AA0000000000000000000102 /* SceneDelegate.swift */,
 				AA0000000000000000000103 /* LibConfig+Host.swift */,
+				AA0000000000000000000192 /* Localizer.swift */,
+				AA0000000000000000000193 /* LocalizedStrings.swift */,
 				AA0000000000000000000104 /* MyProduct.swift */,
 				AA0000000000000000000105 /* MyPermission.swift */,
 				AA0000000000000000000106 /* AdUnits.swift */,
@@ -386,6 +392,8 @@
 				AA0000000000000000000201 /* AppDelegate.swift in Sources */,
 				AA0000000000000000000202 /* SceneDelegate.swift in Sources */,
 				AA0000000000000000000203 /* LibConfig+Host.swift in Sources */,
+				AA0000000000000000000292 /* Localizer.swift in Sources */,
+				AA0000000000000000000293 /* LocalizedStrings.swift in Sources */,
 				AA0000000000000000000204 /* MyProduct.swift in Sources */,
 				AA0000000000000000000205 /* MyPermission.swift in Sources */,
 				AA0000000000000000000206 /* AdUnits.swift in Sources */,

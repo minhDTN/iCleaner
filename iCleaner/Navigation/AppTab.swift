@@ -18,6 +18,16 @@ enum AppTab: String, CaseIterable, Identifiable {
         }
     }
 
+    // Localization key (resolved at render time so the tab bar follows the in-app language).
+    var titleKey: String {
+        switch self {
+        case .home:     return "tab.home"
+        case .contacts: return "tab.contacts"
+        case .vault:    return "tab.vault"
+        case .compress: return "tab.compress"
+        }
+    }
+
     var iconAssetName: String {
         switch self {
         case .home:     return "TabBar/tab_home"
