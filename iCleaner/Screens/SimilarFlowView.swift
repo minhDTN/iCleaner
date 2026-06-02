@@ -114,7 +114,7 @@ struct SimilarFlowView: View {
             set: { previewGroupIndex = $0?.groupIndex }
         )) { target in
             if groups.indices.contains(target.groupIndex) {
-                PhotoPreviewView(group: $groups[target.groupIndex], startIndex: previewPhotoIndex)
+                PhotoPreviewView(group: $groups[target.groupIndex], index: previewPhotoIndex)
             }
         }
         .alert("Couldn't delete", isPresented: Binding(

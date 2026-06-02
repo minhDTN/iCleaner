@@ -251,25 +251,25 @@ private struct SimilarPhotoCell: View {
     var onOpen: () -> Void = {}
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            // Tap the image → open full-screen preview.
-            placeholderImage
-                .frame(height: 160)
-                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                .contentShape(Rectangle())
-                .onTapGesture { onOpen() }
-
-            if isBestMatch {
-                bestMatchPill.padding(8)
-            } else {
-                // Tap the circle → toggle selection (separate hit target).
-                selectionToggle
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(8)
-                    .contentShape(Rectangle())
-                    .onTapGesture { photo.isSelected.toggle() }
+        // Tap anywhere on the image → open preview. The selection circle is a
+        // small overlay with its own hit target (top-trailing), so it no longer
+        // swallows taps meant for the preview.
+        placeholderImage
+            .frame(height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture { onOpen() }
+            .overlay(alignment: .topLeading) {
+                if isBestMatch { bestMatchPill.padding(8) }
             }
-        }
+            .overlay(alignment: .topTrailing) {
+                if !isBestMatch {
+                    selectionToggle
+                        .padding(8)
+                        .contentShape(Circle())
+                        .onTapGesture { photo.isSelected.toggle() }
+                }
+            }
     }
 
     @ViewBuilder
