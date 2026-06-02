@@ -95,10 +95,17 @@ struct VaultGridView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 11) {
                 ForEach(items) { item in
-                    VaultThumbnail(vault: vault, item: item)
-                        .aspectRatio(1, contentMode: .fill)
+                    // Color.clear sizer = an exact square at the column width, so every
+                    // cell is identical. The thumbnail fills it (scaledToFill) and the
+                    // outer clipShape crops the overflow — no fit, no overlap.
+                    Color.clear
+                        .aspectRatio(1, contentMode: .fit)
+                        .overlay {
+                            VaultThumbnail(vault: vault, item: item)
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                         .overlay(alignment: .topTrailing) { glassDot.padding(8) }
+                        .contentShape(Rectangle())
                         .onTapGesture { previewItem = item }
                 }
             }
