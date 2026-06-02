@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import AVFoundation
 import LibEarnMoneyIOS
 
 // Figma `2010:2568` (private — empty/grid state).
@@ -14,6 +15,7 @@ struct VaultGridView: View {
     @State private var showAddSheet: Bool = false
     @State private var showPhotosPicker: Bool = false
     @State private var showCamera: Bool = false
+    @State private var showChangePasscode: Bool = false
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var previewItem: VaultItem?
     @State private var importing: Bool = false
@@ -46,12 +48,17 @@ struct VaultGridView: View {
         .navigationTitle("Private Vault")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Top-right: change passcode (per design). Long-press to lock.
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { vault.lock() }) {
-                    Image(systemName: "lock.fill")
+                Button(action: { showChangePasscode = true }) {
+                    Image(systemName: "lock.rotation")
                         .foregroundStyle(AppColor.brandPrimary)
                 }
+                .simultaneousGesture(LongPressGesture().onEnded { _ in vault.lock() })
             }
+        }
+        .navigationDestination(isPresented: $showChangePasscode) {
+            ChangePasscodeView(vault: vault)
         }
         .confirmationDialog("Add to Vault", isPresented: $showAddSheet, titleVisibility: .hidden) {
             Button("Add from Camera") { showCamera = true }
@@ -62,7 +69,7 @@ struct VaultGridView: View {
             isPresented: $showPhotosPicker,
             selection: $pickerSelection,
             maxSelectionCount: 20,
-            matching: .images
+            matching: .any(of: [.images, .videos])
         )
         .onChange(of: pickerSelection) { _, newItems in
             guard !newItems.isEmpty else { return }
@@ -170,9 +177,15 @@ struct VaultGridView: View {
         }
         for pick in picks {
             do {
+                // Raw bytes regardless of type; classify by supplied content types.
                 guard let data = try await pick.loadTransferable(type: Data.self) else { continue }
-                let fileName = pick.itemIdentifier ?? "Photo-\(UUID().uuidString.prefix(6))"
-                try saveImported(data: data, fileName: String(fileName))
+                let isVideo = pick.supportedContentTypes.contains { $0.conforms(to: .movie) }
+                let stamp = String(UUID().uuidString.prefix(6))
+                if isVideo {
+                    try saveImportedVideo(data: data, fileName: pick.itemIdentifier ?? "Video-\(stamp)")
+                } else {
+                    try saveImported(data: data, fileName: pick.itemIdentifier ?? "Photo-\(stamp)")
+                }
             } catch {
                 importError = (error as NSError).localizedDescription
                 return
@@ -206,6 +219,21 @@ struct VaultGridView: View {
         modelContext.insert(item)
         try? modelContext.save()
     }
+
+    private func saveImportedVideo(data: Data, fileName: String) throws {
+        // Video dimensions aren't needed for the grid (we show a play badge), so
+        // store 0×0. mimeType drives the play overlay + video preview path.
+        let item = VaultItem(
+            sizeBytes: data.count,
+            fileName: fileName.isEmpty ? "Video" : fileName,
+            mimeType: "video/quicktime",
+            pixelWidth: 0,
+            pixelHeight: 0
+        )
+        try vault.writeEncrypted(data, for: item.id)
+        modelContext.insert(item)
+        try? modelContext.save()
+    }
 }
 
 // MARK: - Thumbnail
@@ -214,6 +242,8 @@ private struct VaultThumbnail: View {
     let vault: VaultService
     let item: VaultItem
     @State private var image: UIImage?
+
+    private var isVideo: Bool { item.mimeType.hasPrefix("video") }
 
     var body: some View {
         Group {
@@ -224,26 +254,52 @@ private struct VaultThumbnail: View {
             } else {
                 Color(hex: 0xE2E8F0)
                     .overlay(
-                        Image(systemName: "lock.fill")
+                        Image(systemName: isVideo ? "video.fill" : "lock.fill")
                             .foregroundStyle(AppColor.textMuted)
                     )
             }
         }
+        .overlay {
+            if isVideo {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .shadow(radius: 3)
+            }
+        }
         .task(id: item.id) {
-            image = await Self.loadThumbnail(vault: vault, item: item)
+            image = await Self.loadThumbnail(vault: vault, item: item, isVideo: isVideo)
         }
     }
 
     // Decrypt off the main thread so the grid scrolls smoothly. Capture only
     // `id` (Sendable) before crossing actor boundary — VaultItem isn't Sendable.
-    private static func loadThumbnail(vault: VaultService, item: VaultItem) async -> UIImage? {
+    private static func loadThumbnail(vault: VaultService, item: VaultItem, isVideo: Bool) async -> UIImage? {
         let itemID = item.id
+        let fileName = item.fileName
         return await Task.detached(priority: .userInitiated) {
-            guard let data = try? vault.readDecrypted(for: itemID),
-                  let img = UIImage(data: data) else { return nil }
+            guard let data = try? vault.readDecrypted(for: itemID) else { return nil }
+            if isVideo {
+                return Self.videoThumbnail(from: data, fileName: fileName)
+            }
+            guard let img = UIImage(data: data) else { return nil }
             // Downscale to ~256pt longest edge — playbook §4 perf principle.
             return img.preparingThumbnail(of: CGSize(width: 256, height: 256))
         }.value
+    }
+
+    // Decode a poster frame from decrypted video bytes via a temp file.
+    nonisolated private static func videoThumbnail(from data: Data, fileName: String) -> UIImage? {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vault-thumb-\(UUID().uuidString.prefix(6)).mov")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard (try? data.write(to: tmp)) != nil else { return nil }
+        let asset = AVURLAsset(url: tmp)
+        let gen = AVAssetImageGenerator(asset: asset)
+        gen.appliesPreferredTrackTransform = true
+        gen.maximumSize = CGSize(width: 256, height: 256)
+        guard let cg = try? gen.copyCGImage(at: CMTime(seconds: 0, preferredTimescale: 60), actualTime: nil) else { return nil }
+        return UIImage(cgImage: cg)
     }
 }
 
