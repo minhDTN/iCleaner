@@ -123,12 +123,12 @@ struct PhotoPreviewView: View {
     private var dragIndicator: some View {
         let w = dragOffset.width
         if w < -20 {
-            badge(text: "DELETE", color: Color(hex: 0xBA1A1A))
+            badge(text: L("preview.delete"), color: Color(hex: 0xBA1A1A))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(16)
                 .opacity(Double(min(1, -w / 100)))
         } else if w > 20 {
-            badge(text: "KEEP", color: AppColor.success)
+            badge(text: L("preview.keep"), color: AppColor.success)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(16)
                 .opacity(Double(min(1, w / 100)))

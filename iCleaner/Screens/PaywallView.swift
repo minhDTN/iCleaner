@@ -49,7 +49,7 @@ struct PaywallView: View {
 
             stickyBottomBar
         }
-        .alert("Purchase failed", isPresented: Binding(
+        .alert(L("paywall.purchaseFailTitle"), isPresented: Binding(
             get: { purchaseError != nil },
             set: { if !$0 { purchaseError = nil } }
         )) {
@@ -65,7 +65,7 @@ struct PaywallView: View {
     private var topBar: some View {
         HStack {
             Button(action: restore) {
-                Text("Restore")
+                Text(L("paywall.restore"))
                     .font(.custom("Inter-Medium", size: 14))
                     .foregroundStyle(Color(hex: 0x94A3B8))
             }
@@ -84,13 +84,13 @@ struct PaywallView: View {
 
     private var heading: some View {
         VStack(spacing: 8) {
-            Text("Unlock More Storage")
+            Text(L("paywall.unlockStorage"))
                 .font(.custom("Inter-Bold", size: 30))
                 .tracking(30 * -0.025)
                 .foregroundStyle(Color(hex: 0x0F172A))
                 .multilineTextAlignment(.center)
 
-            Text("Keep what you want, remove the unnecessary!")
+            Text(L("paywall.subtitle"))
                 .font(.custom("Inter-Medium", size: 14))
                 .foregroundStyle(Color(hex: 0x64748B))
                 .multilineTextAlignment(.center)
@@ -105,8 +105,8 @@ struct PaywallView: View {
             // Figma icon frames differ in size on purpose: Photos glyph fills its
             // canvas edge-to-edge (48pt) while the Drive logo has built-in
             // whitespace, so it's drawn at 68pt to look visually balanced.
-            sourcePill(label: "Photos", assetIcon: "Paywall/ic_source_photos", iconSize: 48)
-            sourcePill(label: "Drive",  assetIcon: "Paywall/ic_source_drive",  iconSize: 68)
+            sourcePill(label: L("paywall.photos"), assetIcon: "Paywall/ic_source_photos", iconSize: 48)
+            sourcePill(label: L("paywall.drive"),  assetIcon: "Paywall/ic_source_drive",  iconSize: 68)
         }
         .frame(maxWidth: .infinity)
     }
@@ -166,9 +166,9 @@ struct PaywallView: View {
             .frame(height: 32)
 
             (Text(usedStr).foregroundStyle(Color(hex: 0xF63B3B))
-             + Text(" of ").foregroundStyle(Color(hex: 0x64748B))
+             + Text(L("paywall.of")).foregroundStyle(Color(hex: 0x64748B))
              + Text(totalStr).foregroundStyle(Color(hex: 0x3B82F6))
-             + Text(" used").foregroundStyle(Color(hex: 0x64748B)))
+             + Text(L("paywall.used")).foregroundStyle(Color(hex: 0x64748B)))
                 .font(.custom("Inter-Bold", size: 18))
                 .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -189,11 +189,11 @@ struct PaywallView: View {
         Button(action: { selectedPlan = .weekly }) {
             VStack(alignment: .leading, spacing: 10.9) {
                 HStack {
-                    Text("Cleaner Pro")
+                    Text(L("paywall.proTitle"))
                         .font(.custom("Inter-Bold", size: 20))
                         .foregroundStyle(Color(hex: 0x0F172A))
                     Spacer()
-                    Text("Premium")
+                    Text(L("paywall.premium"))
                         .font(.custom("Inter-Bold", size: 10))
                         .tracking(10 * 0.05)
                         .textCase(.uppercase)
@@ -205,7 +205,7 @@ struct PaywallView: View {
                         )
                 }
 
-                Text("Smart Cleaning, VideoCompressor, No Limits.")
+                Text(L("paywall.features"))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(Color(hex: 0x475569))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -214,7 +214,7 @@ struct PaywallView: View {
                     Text("$1.99")
                         .font(.custom("Inter-Bold", size: 20))
                         .foregroundStyle(Color(hex: 0x0F172A))
-                    Text("/week")
+                    Text(L("paywall.perWeek"))
                         .font(.custom("Inter-Regular", size: 12))
                         .foregroundStyle(Color(hex: 0x64748B))
                 }
@@ -243,7 +243,7 @@ struct PaywallView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 22, height: 22)
-            Text("Enable Free Trial")
+            Text(L("paywall.enableTrial"))
                 .font(.custom("Inter-SemiBold", size: 16))
                 .foregroundStyle(Color(hex: 0x334155))
             Spacer()
@@ -264,10 +264,10 @@ struct PaywallView: View {
         Button(action: { selectedPlan = .monthly }) {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Monthly")
+                    Text(L("paywall.monthly"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(Color(hex: 0x0F172A))
-                    Text("Full access, cancel anytime")
+                    Text(L("paywall.monthlyDesc"))
                         .font(.custom("Inter-Regular", size: 12))
                         .foregroundStyle(Color(hex: 0x64748B))
                 }
@@ -302,7 +302,7 @@ struct PaywallView: View {
                     if isPurchasing {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Continue")
+                        Text(L("paywall.continue"))
                             .font(.custom("Inter-Bold", size: 16))
                             .foregroundStyle(.white)
                     }
@@ -320,9 +320,9 @@ struct PaywallView: View {
             .disabled(isPurchasing)
 
             HStack {
-                Link("Terms of Use", destination: AppInfo.termsURL)
+                Link(L("paywall.terms"), destination: AppInfo.termsURL)
                 Spacer()
-                Link("Privacy Policy", destination: AppInfo.privacyURL)
+                Link(L("paywall.privacy"), destination: AppInfo.privacyURL)
             }
             .font(.custom("Inter-Medium", size: 11))
             .foregroundStyle(Color(hex: 0x94A3B8))
@@ -346,7 +346,7 @@ struct PaywallView: View {
     private func subscribe() {
         guard let cfg = LibEarnMoneyIOS.shared.config,
               let product = cfg.products.first(where: { $0.id == selectedProductID }) else {
-            purchaseError = "Subscription product unavailable"
+            purchaseError = L("paywall.unavailable")
             return
         }
         isPurchasing = true
@@ -371,7 +371,7 @@ struct PaywallView: View {
                 if PermissionManager.shared.isPremium {
                     dismiss()
                 } else {
-                    purchaseError = "No purchases to restore."
+                    purchaseError = L("paywall.noRestore")
                 }
             }
         }

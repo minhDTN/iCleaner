@@ -73,6 +73,7 @@ struct SimilarFlowView: View {
                 )
             case .deleting:
                 SimilarCleaningView(
+                    title: L("cleaning.deleting"),
                     performDelete: performRealDelete,
                     onComplete: { success in
                         // Only celebrate if the OS actually deleted the assets.

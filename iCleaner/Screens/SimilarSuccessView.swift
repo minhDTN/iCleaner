@@ -22,7 +22,7 @@ struct SimilarSuccessView: View {
 
                 Spacer().frame(height: 40)
 
-                Text("Congratulations!")
+                Text(L("success.congrats"))
                     .font(.custom("Inter-Bold", size: 30))
                     .tracking(30 * -0.025)
                     .foregroundStyle(Color(hex: 0x333333))
@@ -41,7 +41,7 @@ struct SimilarSuccessView: View {
                     .padding(.horizontal, 20)
 
                 Button(action: onContinue) {
-                    Text("Perfect!")
+                    Text(L("success.perfect"))
                         .font(.custom("Inter-Bold", size: 18))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -97,7 +97,7 @@ struct SimilarSuccessView: View {
 
     private var statCard: some View {
         VStack(spacing: 8) {
-            Text("Junk Files Removed")
+            Text(L("success.junkRemoved"))
                 .font(.custom("Inter-Regular", size: 12))
                 .tracking(12 * 0.10)
                 .textCase(.uppercase)
@@ -107,7 +107,7 @@ struct SimilarSuccessView: View {
                 .font(.custom("Inter-Bold", size: 36))
                 .foregroundStyle(Color(hex: 0x333333))
 
-            Text("Cleaned")
+            Text(L("success.cleaned"))
                 .font(.custom("Inter-Regular", size: 12))
                 .tracking(12 * 0.10)
                 .textCase(.uppercase)

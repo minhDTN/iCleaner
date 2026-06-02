@@ -42,7 +42,7 @@ struct QuickCleanFlowView: View {
             case .empty:              emptyView
             case .cleaning:
                 SimilarCleaningView(
-                    title: "Cleaning your phone...",
+                    title: L("quickclean.cleaning"),
                     performDelete: performQuickClean,
                     onComplete: { success in
                         // Only show success if the OS actually deleted. Denying the
@@ -59,7 +59,7 @@ struct QuickCleanFlowView: View {
                 )
             }
         }
-        .alert("Couldn't delete", isPresented: Binding(
+        .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { deleteError != nil },
             set: { if !$0 { deleteError = nil } }
         )) {
@@ -137,7 +137,7 @@ struct QuickCleanFlowView: View {
             ProgressView()
                 .tint(AppColor.brandPrimary)
                 .scaleEffect(1.4)
-            Text("Scanning for similar photos…")
+            Text(L("quickclean.scanning"))
                 .font(.custom("Inter-SemiBold", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
         }
@@ -148,16 +148,16 @@ struct QuickCleanFlowView: View {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 64))
                 .foregroundStyle(AppColor.brandPrimary)
-            Text("Photos access required")
+            Text(L("compress.permTitle"))
                 .font(.custom("Inter-Bold", size: 22))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("iCleaner needs access to your photo library to scan for cleanup.")
+            Text(L("quickclean.permBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Button(action: { photoLibrary.opensSettings() }) {
-                Text("Open Settings")
+                Text(L("common.openSettings"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -169,7 +169,7 @@ struct QuickCleanFlowView: View {
             }
             .padding(.horizontal, 32)
             Button(action: { dismiss() }) {
-                Text("Back")
+                Text(L("common.back"))
                     .font(.custom("Inter-SemiBold", size: 14))
                     .foregroundStyle(AppColor.textSecondary)
             }
@@ -181,16 +181,16 @@ struct QuickCleanFlowView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.success)
-            Text("Already squeaky clean")
+            Text(L("quickclean.emptyTitle"))
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("We didn't find any similar photos to clean right now.")
+            Text(L("quickclean.emptyBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             Button(action: { dismiss() }) {
-                Text("Done")
+                Text(L("common.done"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 32)

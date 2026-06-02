@@ -18,12 +18,12 @@ struct SimilarDeleteConfirm: View {
                 .onTapGesture { onCancel() }
 
             VStack(spacing: 6.9) {
-                Text("Delete \(photoCount) Photos?")
+                Text(L("deleteconfirm.title", photoCount))
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x0F172A))
                     .multilineTextAlignment(.center)
 
-                Text("These \(sizeMB) MB of photos will be\npermanently removed.")
+                Text(L("deleteconfirm.body", "\(sizeMB) MB"))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(Color(hex: 0x64748B))
                     .multilineTextAlignment(.center)
@@ -31,7 +31,7 @@ struct SimilarDeleteConfirm: View {
 
                 VStack(spacing: 12) {
                     Button(action: onDelete) {
-                        Text("Delete")
+                        Text(L("common.delete"))
                             .font(.custom("Inter-Bold", size: 16))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -42,7 +42,7 @@ struct SimilarDeleteConfirm: View {
                             )
                     }
                     Button(action: onCancel) {
-                        Text("Cancel")
+                        Text(L("common.cancel"))
                             .font(.custom("Inter-SemiBold", size: 16))
                             .foregroundStyle(Color(hex: 0x64748B))
                             .frame(maxWidth: .infinity)

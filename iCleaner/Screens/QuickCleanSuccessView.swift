@@ -24,7 +24,7 @@ struct QuickCleanSuccessView: View {
 
                 Spacer().frame(height: 40)
 
-                Text("Congratulations!")
+                Text(L("success.congrats"))
                     .font(.custom("Inter-Bold", size: 30))
                     .tracking(30 * -0.025)
                     .foregroundStyle(Color(hex: 0x333333))
@@ -37,8 +37,8 @@ struct QuickCleanSuccessView: View {
                 Spacer().frame(height: 16)
 
                 HStack(spacing: 16) {
-                    secondaryStatCard(value: "\(photosOptimized)", label: "Photos Optimized")
-                    secondaryStatCard(value: formatMB(memoryBoosted), label: "Memory Boosted")
+                    secondaryStatCard(value: "\(photosOptimized)", label: L("success.photosOptimized"))
+                    secondaryStatCard(value: formatMB(memoryBoosted), label: L("success.memoryBoosted"))
                 }
                 .padding(.horizontal, 32)
 
@@ -51,7 +51,7 @@ struct QuickCleanSuccessView: View {
                     .padding(.horizontal, 20)
 
                 Button(action: onContinue) {
-                    Text("Great!")
+                    Text(L("common.great"))
                         .font(.custom("Inter-Bold", size: 18))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -99,7 +99,7 @@ struct QuickCleanSuccessView: View {
 
     private var primaryStatCard: some View {
         VStack(spacing: 8) {
-            Text("Total Cleaned")
+            Text(L("success.totalCleaned"))
                 .font(.custom("Inter-Regular", size: 12))
                 .tracking(12 * 0.10)
                 .textCase(.uppercase)
@@ -109,7 +109,7 @@ struct QuickCleanSuccessView: View {
                 .font(.custom("Inter-Bold", size: 36))
                 .foregroundStyle(Color(hex: 0x333333))
 
-            Text("Junk Removed")
+            Text(L("success.junkRemoved2"))
                 .font(.custom("Inter-Regular", size: 12))
                 .tracking(12 * 0.10)
                 .textCase(.uppercase)

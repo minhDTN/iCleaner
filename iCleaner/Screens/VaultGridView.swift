@@ -25,7 +25,7 @@ struct VaultGridView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VaultHeader(title: "Private Vault", onChangePass: { showChangePasscode = true })
+            VaultHeader(title: L("vault.title"), onChangePass: { showChangePasscode = true })
 
             ZStack(alignment: .bottomTrailing) {
                 LinearGradient(
@@ -55,10 +55,10 @@ struct VaultGridView: View {
         .navigationDestination(isPresented: $showChangePasscode) {
             ChangePasscodeView(vault: vault)
         }
-        .confirmationDialog("Add to Vault", isPresented: $showAddSheet, titleVisibility: .hidden) {
-            Button("Add from Camera") { showCamera = true }
-            Button("Add from Photos") { showPhotosPicker = true }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L("vault.addToVault"), isPresented: $showAddSheet, titleVisibility: .hidden) {
+            Button(L("vault.addCamera")) { showCamera = true }
+            Button(L("vault.addPhotos")) { showPhotosPicker = true }
+            Button(L("common.cancel"), role: .cancel) {}
         }
         .photosPicker(
             isPresented: $showPhotosPicker,
@@ -79,7 +79,7 @@ struct VaultGridView: View {
         .fullScreenCover(item: $previewItem) { item in
             VaultPreviewView(vault: vault, items: items, current: item)
         }
-        .alert("Couldn't import", isPresented: Binding(
+        .alert(L("vault.importError"), isPresented: Binding(
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
         )) {
@@ -123,10 +123,10 @@ struct VaultGridView: View {
             Image(systemName: "lock.shield")
                 .font(.system(size: 64))
                 .foregroundStyle(AppColor.brandPrimary)
-            Text("No private photos yet")
+            Text(L("vault.emptyTitle"))
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("Tap Add More to bring photos here.\nThey're encrypted AES-256 on this device only.")
+            Text(L("vault.emptyBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
                 .multilineTextAlignment(.center)
@@ -150,7 +150,7 @@ struct VaultGridView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 14, height: 14)
-                Text("Add More")
+                Text(L("vault.addMore"))
                     .font(.custom("Inter-Bold", size: 16))
                     .tracking(16 * -0.025)
             }
@@ -172,7 +172,7 @@ struct VaultGridView: View {
             Color.black.opacity(0.3).ignoresSafeArea()
             VStack(spacing: 12) {
                 ProgressView().tint(.white).scaleEffect(1.4)
-                Text("Encrypting…")
+                Text(L("vault.encrypting"))
                     .font(.custom("Inter-SemiBold", size: 14))
                     .foregroundStyle(.white)
             }

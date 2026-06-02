@@ -53,16 +53,16 @@ struct VaultPreviewView: View {
         }
         .task(id: currentID) { await loadMedia() }
         .onDisappear { cleanupTemp() }
-        .confirmationDialog("Delete this item?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { performDelete() }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L("vault.deleteItemTitle"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button(L("common.delete"), role: .destructive) { performDelete() }
+            Button(L("common.cancel"), role: .cancel) {}
         } message: {
-            Text("This permanently removes the encrypted copy from your vault.")
+            Text(L("vault.deleteItemBody"))
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = decryptedURL { ShareSheet(items: [url]) }
         }
-        .alert("Decryption failed", isPresented: Binding(
+        .alert(L("vault.decryptFailTitle"), isPresented: Binding(
             get: { loadError != nil }, set: { if !$0 { loadError = nil } }
         )) {
             Button("OK", role: .cancel) { loadError = nil }
@@ -91,13 +91,13 @@ struct VaultPreviewView: View {
     private var header: some View {
         ZStack {
             VStack(spacing: 2) {
-                Text("Private Vault")
+                Text(L("vault.title"))
                     .font(.custom("Inter-SemiBold", size: 20))
                     .foregroundStyle(Color(hex: 0x111827))
                 HStack(spacing: 4) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10, weight: .semibold))
-                    Text("AES-256 Encrypted")
+                    Text(L("vault.aes"))
                         .font(.custom("Inter-SemiBold", size: 12))
                         .tracking(12 * 0.05)
                 }
@@ -184,9 +184,9 @@ struct VaultPreviewView: View {
 
     private var footer: some View {
         HStack(spacing: 98) {
-            footerButton(icon: "square.and.arrow.up", label: "Share",
+            footerButton(icon: "square.and.arrow.up", label: L("vault.share"),
                          tint: Color(hex: 0x374151), action: prepareShare)
-            footerButton(icon: "trash", label: "Delete",
+            footerButton(icon: "trash", label: L("common.delete"),
                          tint: Color(hex: 0xDC2626), action: { showDeleteConfirm = true })
         }
         .frame(maxWidth: .infinity)
@@ -240,7 +240,7 @@ struct VaultPreviewView: View {
         // Ignore a result that arrived after the user already switched items.
         guard cur.id == currentID else { return }
         guard let result, let url = result.url else {
-            loadError = "Couldn't decrypt this file. It may be corrupted."
+            loadError = L("vault.decryptFailBody")
             return
         }
         decryptedURL = url
