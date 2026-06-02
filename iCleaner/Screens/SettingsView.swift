@@ -13,13 +13,11 @@ import LibEarnMoneyIOS
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.requestReview) private var requestReview
-    @State private var vault = VaultService()
     @State private var observedPremium = PermissionManager.shared.isPremium
     @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
     @State private var showPaywall = false
     @State private var showLanguage = false
     @State private var showShareSheet = false
-    @State private var showEraseConfirm = false
     @State private var restoreMessage: String?
 
     private var isPremium: Bool {
@@ -36,9 +34,6 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 32) {
                     if !isPremium {
                         premiumBanner
-                    }
-                    if vault.hasPasscode {
-                        vaultSection
                     }
                     stayInTouchSection
                     supportSection
@@ -83,12 +78,6 @@ struct SettingsView: View {
         )) {
             Button("OK", role: .cancel) { restoreMessage = nil }
         } message: { Text(restoreMessage ?? "") }
-        .confirmationDialog("Erase the Vault?", isPresented: $showEraseConfirm, titleVisibility: .visible) {
-            Button("Erase Vault", role: .destructive) { vault.eraseAll() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This permanently deletes the passcode, encryption key, and every encrypted photo in the vault. This action cannot be undone.")
-        }
     }
 
     // MARK: - Developer section (DEBUG only)
@@ -118,18 +107,6 @@ struct SettingsView: View {
         }
     }
     #endif
-
-    // MARK: - Vault section
-
-    private var vaultSection: some View {
-        SettingsSection(title: "Vault") {
-            NavigationLink(destination: ChangePasscodeView(vault: vault)) {
-                SettingsRowChrome(icon: "lock.rotation", title: "Change Passcode")
-            }
-            divider
-            SettingsRow(icon: "trash.fill", title: "Erase Vault", tint: AppColor.danger, action: { showEraseConfirm = true })
-        }
-    }
 
     // MARK: - Premium banner
 
@@ -186,13 +163,16 @@ struct SettingsView: View {
     }
 
     private func bullet(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16))
+        HStack(alignment: .center, spacing: 12) {
+            Image("Settings/ic_check")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 15, height: 15)
                 .foregroundStyle(.white)
             Text(text)
                 .font(.custom("Inter-Medium", size: 14))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color(hex: 0xFDFDFD))
         }
     }
 
