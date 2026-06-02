@@ -6,6 +6,8 @@ import SwiftUI
 //   • authorized/limited → NavigationStack { ContactsDashboardView }
 struct ContactsView: View {
     @State private var service = ContactsService()
+    @State private var path = NavigationPath()
+    @Environment(TabChrome.self) private var chrome: TabChrome?
 
     var body: some View {
         Group {
@@ -15,8 +17,13 @@ struct ContactsView: View {
             case .denied, .restricted:
                 permissionGate
             case .authorized, .limited:
-                NavigationStack {
+                NavigationStack(path: $path) {
                     ContactsDashboardView(service: service)
+                }
+                .onChange(of: path) { _, newPath in
+                    // Tell RootView to hide the tab bar + banner while a detail
+                    // screen is open (detail screens have their own bottom bar).
+                    chrome?.contactsDepth = newPath.count
                 }
             }
         }
