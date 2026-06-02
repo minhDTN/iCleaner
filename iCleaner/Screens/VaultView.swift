@@ -10,6 +10,7 @@ import LibEarnMoneyIOS
 // Lifecycle: re-lock when the app enters background (security). Interstitial
 // fires once per unlock event (premium-gated, lib's 30s global cap applies).
 struct VaultView: View {
+    var isActive: Bool = true   // true while the Vault tab is the selected tab
     @State private var vault = VaultService()
     @State private var didShowUnlockAd: Bool = false
     @Environment(\.scenePhase) private var scenePhase
@@ -50,6 +51,11 @@ struct VaultView: View {
                 // and someone else picks up the phone.
                 vault.lock()
             }
+        }
+        .onChange(of: isActive) { _, active in
+            // Re-lock whenever the user leaves the Vault tab → passcode/Face ID is
+            // required again on every return (user preference).
+            if !active { vault.lock() }
         }
     }
 

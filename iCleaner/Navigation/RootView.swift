@@ -41,7 +41,7 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $selection) {
             HomeView().tag(AppTab.home).toolbar(.hidden, for: .tabBar)
-            VaultView().tag(AppTab.vault).toolbar(.hidden, for: .tabBar)
+            VaultView(isActive: selection == .vault).tag(AppTab.vault).toolbar(.hidden, for: .tabBar)
             ContactsView().tag(AppTab.contacts).toolbar(.hidden, for: .tabBar)
             CompressView().tag(AppTab.compress).toolbar(.hidden, for: .tabBar)
         }
