@@ -27,7 +27,7 @@ struct HomeView: View {
     @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
 
     @State private var photoLibrary = PhotoLibraryService()
-    @State private var recentIDs: [String] = []
+    @State private var previewIDs: [String: [String]] = [:]   // per-category card thumbnails
 
     private var isPremium: Bool {
         #if DEBUG
@@ -41,24 +41,29 @@ struct HomeView: View {
         showPopulated ? HomeCategory.populatedMock : HomeCategory.emptyMock
     }
 
-    // Slice 3 consecutive real photo IDs per card (best + 2 duplicates) from the
-    // recent-images pool. Returns nil when no photos are available yet → the
-    // card falls back to its placeholder gradient.
-    private func assetIDs(for index: Int) -> CardAssets? {
-        guard !recentIDs.isEmpty else { return nil }
-        let base = (index * 3) % recentIDs.count
-        func at(_ offset: Int) -> String? {
-            recentIDs.isEmpty ? nil : recentIDs[(base + offset) % recentIDs.count]
-        }
+    // The card's preview photos for `cat` — the newest assets matching that
+    // category's own detection config, so the card shows the same KIND of photos
+    // (videos for video cards, screenshots for screenshot cards, chat photos for
+    // Chat Photos) drawn from the same pool the detail scans. nil → placeholder.
+    private func assetIDs(for cat: HomeCategory) -> CardAssets? {
+        guard let ids = previewIDs[cat.key], !ids.isEmpty else { return nil }
+        func at(_ i: Int) -> String? { i < ids.count ? ids[i] : nil }
         return CardAssets(best: at(0), dup1: at(1), dup2: at(2))
     }
 
-    // Re-fetches recent photo IDs. Called on appear and after the SimilarFlow
-    // dismisses — that's where the Photos permission is first granted, so the
-    // cards need to refresh once the user comes back with access.
+    // Fetch each category's preview thumbnails (cheap per-category fetch, run
+    // concurrently). Called on appear and after a SimilarFlow dismiss — that's
+    // where the Photos permission is first granted, so cards refresh on return.
     private func reloadThumbnails() async {
         guard photoLibrary.authStatus.canRead else { return }
-        recentIDs = await photoLibrary.recentImageIDs()
+        var result: [String: [String]] = [:]
+        await withTaskGroup(of: (String, [String]).self) { group in
+            for cat in HomeCategory.populatedMock {
+                group.addTask { (cat.key, await photoLibrary.previewAssetIDs(config: cat.detectionConfig, limit: 3)) }
+            }
+            for await (key, ids) in group { result[key] = ids }
+        }
+        previewIDs = result
     }
 
     private var quickCleanTotalMB: Int {
@@ -72,10 +77,10 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 15) {
                     header
-                    ForEach(Array(categories.enumerated()), id: \.element.id) { index, cat in
+                    ForEach(categories) { cat in
                         HomeCategoryCard(
                             category: cat,
-                            assets: assetIDs(for: index),
+                            assets: assetIDs(for: cat),
                             onReviewTap: { openedCategory = cat }
                         )
                     }
@@ -442,7 +447,14 @@ struct HomeCategory: Identifiable {
         case "similar_videos", "videos_organizer":
             // Video clustering.
             return .init(mediaType: .video, groupNoun: "Videos")
-        case "chat_photos", "other":
+        case "chat_photos":
+            // Real chat photos = images saved into messaging-app albums.
+            return .init(mediaType: .image, excludeScreenshots: true,
+                         albumNames: ["WhatsApp", "Telegram", "Messenger", "Instagram",
+                                      "WeChat", "Line", "Viber", "Signal", "Snapchat",
+                                      "Facebook", "Zalo", "Messages", "Kakao", "Discord"],
+                         groupNoun: "Similar")
+        case "other":
             return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar")
         default:
             return .init()

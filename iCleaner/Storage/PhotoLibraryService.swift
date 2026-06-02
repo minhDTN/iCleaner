@@ -52,7 +52,67 @@ final class PhotoLibraryService {
         var screenshotsOnly: Bool = false   // only PHAssetMediaSubtype.photoScreenshot
         var excludeScreenshots: Bool = false // skip screenshots (for "Similar" photos)
         var exactDuplicates: Bool = false    // group identical (same dims + ~size), not time-window
+        var albumNames: [String]? = nil      // restrict to user albums matching these names (e.g. chat apps)
         var groupNoun: String = "Similar"    // group title noun, e.g. "4 Similar" / "3 Duplicates"
+    }
+
+    // Single source of truth for "which assets belong to this category" — used by
+    // BOTH the Home card preview and the detail scan, so the photos shown outside a
+    // card and inside its detail come from the same pool. `recentFirst`/`limit` let
+    // the preview grab just the newest few cheaply (no clustering).
+    nonisolated static func matchingAssets(config: DetectionConfig, sinceDays: Int?, recentFirst: Bool, limit: Int?) -> [PHAsset] {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: !recentFirst)]
+        var predicates = [NSPredicate(format: "mediaType = %d", config.mediaType.rawValue)]
+        if config.screenshotsOnly {
+            predicates.append(NSPredicate(format: "(mediaSubtypes & %d) != 0",
+                                          PHAssetMediaSubtype.photoScreenshot.rawValue))
+        }
+        if let sinceDays, let cutoff = Calendar.current.date(byAdding: .day, value: -sinceDays, to: Date()) {
+            predicates.append(NSPredicate(format: "creationDate >= %@", cutoff as NSDate))
+        }
+        options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+
+        func keep(_ asset: PHAsset) -> Bool {
+            !(config.excludeScreenshots && asset.mediaSubtypes.contains(.photoScreenshot))
+        }
+
+        if let albumNames = config.albumNames {
+            // Only assets inside user albums whose name matches (WhatsApp, Telegram…).
+            let colls = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: nil)
+            var collected: [PHAsset] = []
+            var seen = Set<String>()
+            colls.enumerateObjects { coll, _, _ in
+                guard let title = coll.localizedTitle,
+                      albumNames.contains(where: { title.localizedCaseInsensitiveContains($0) }) else { return }
+                PHAsset.fetchAssets(in: coll, options: options).enumerateObjects { asset, _, _ in
+                    if keep(asset), seen.insert(asset.localIdentifier).inserted { collected.append(asset) }
+                }
+            }
+            collected.sort {
+                let a = $0.creationDate ?? .distantPast, b = $1.creationDate ?? .distantPast
+                return recentFirst ? a > b : a < b
+            }
+            return limit.map { Array(collected.prefix($0)) } ?? collected
+        }
+
+        var result: [PHAsset] = []
+        PHAsset.fetchAssets(with: options).enumerateObjects { asset, _, stop in
+            guard keep(asset) else { return }
+            result.append(asset)
+            if let limit, result.count >= limit { stop.pointee = true }
+        }
+        return result
+    }
+
+    /// Recent localIdentifiers matching a category's config — what its Home card
+    /// previews. Same pool the detail scans, so outside and inside stay consistent.
+    func previewAssetIDs(config: DetectionConfig, limit: Int = 3) async -> [String] {
+        guard authStatus.canRead else { return [] }
+        return await Task.detached(priority: .userInitiated) {
+            Self.matchingAssets(config: config, sinceDays: nil, recentFirst: true, limit: limit)
+                .map(\.localIdentifier)
+        }.value
     }
 
     // `sinceDays`: only include assets created within the last N days (nil = all).
@@ -70,26 +130,9 @@ final class PhotoLibraryService {
     ) async -> [PHAssetGroup] {
         guard authStatus.canRead else { return [] }
 
-        // 1. Fetch matching assets (off main).
+        // 1. Fetch matching assets (off main) — same pool the Home card previews.
         let assets: [PHAsset] = await Task.detached(priority: .userInitiated) {
-            let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-            var predicates = [NSPredicate(format: "mediaType = %d", config.mediaType.rawValue)]
-            if config.screenshotsOnly {
-                predicates.append(NSPredicate(format: "(mediaSubtypes & %d) != 0",
-                                              PHAssetMediaSubtype.photoScreenshot.rawValue))
-            }
-            if let sinceDays, let cutoff = Calendar.current.date(byAdding: .day, value: -sinceDays, to: Date()) {
-                predicates.append(NSPredicate(format: "creationDate >= %@", cutoff as NSDate))
-            }
-            options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-            let fetch = PHAsset.fetchAssets(with: options)
-            var result: [PHAsset] = []
-            fetch.enumerateObjects { asset, _, _ in
-                if config.excludeScreenshots, asset.mediaSubtypes.contains(.photoScreenshot) { return }
-                result.append(asset)
-            }
-            return result
+            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
         }.value
 
         // 2. Cluster by content (images) or time-window (videos).
