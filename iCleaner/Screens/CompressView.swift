@@ -33,18 +33,19 @@ struct CompressView: View {
     @State private var showPaywall = false
     @State private var showError: String?
 
-    private enum Step { case empty, ready, confirm, progress, result }
+    private enum Step { case empty, ready, confirm, progress, result, notification }
 
     var body: some View {
         ZStack {
             AppColor.surfaceBackground.ignoresSafeArea()
 
             switch step {
-            case .empty:    videoGridView
-            case .ready:    readyView
-            case .progress: progressView
-            case .result:   resultView
-            case .confirm:  readyView  // confirm is an overlay; ready stays visible underneath
+            case .empty:        videoGridView
+            case .ready:        readyView
+            case .progress:     progressView
+            case .result:       resultView
+            case .notification: notificationView
+            case .confirm:      readyView  // confirm is an overlay; ready stays visible underneath
             }
 
             if step == .confirm {
@@ -87,6 +88,7 @@ struct CompressView: View {
         case .ready, .confirm: BannerAdView(adUnitID: AdUnits.bannerVideoCompress)
         case .progress:        NativeAdView(adUnitID: AdUnits.nativeVideoCompress, height: 120)
         case .result:          BannerAdView(adUnitID: AdUnits.bannerSuccessCompress)
+        case .notification:    EmptyView()
         }
     }
 
@@ -673,6 +675,134 @@ struct CompressView: View {
         )
     }
 
+    // MARK: - Successfully Compressed notification (Figma "popup after")
+
+    private var notificationView: some View {
+        let savings = max(0, pickedSizeBytes - compressedSizeBytes)
+        let pct = pickedSizeBytes > 0 ? Int((Double(savings) / Double(pickedSizeBytes)) * 100) : 0
+        return VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button(action: finishNotification) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color(hex: 0x0F0F0F))
+                        .frame(width: 24, height: 24)
+                }
+                Spacer()
+                Text("Notification")
+                    .font(.custom("Inter-Bold", size: 18))
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
+                Spacer()
+                Color.clear.frame(width: 24, height: 24)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 48)
+
+            ScrollView {
+                VStack(spacing: 20) {
+                    notifSuccessBadge
+                        .padding(.top, 24)
+                    VStack(spacing: 8) {
+                        Text("Successfully Compressed!")
+                            .font(.custom("Inter-Bold", size: 24))
+                            .foregroundStyle(AppColor.textPrimary)
+                        Text("Your file has been fully optimized to save storage space without losing quality.")
+                            .font(.custom("Inter-Regular", size: 14))
+                            .foregroundStyle(AppColor.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                    HStack(spacing: 12) {
+                        notifStat(value: "\(pct)%", label: "SAVED")
+                        notifStat(value: formatBytes(savings), label: "CLEARED")
+                    }
+                    fileDetailsCard(original: pickedSizeBytes, new: compressedSizeBytes)
+                    Spacer(minLength: 24)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+            }
+
+            Button(action: finishNotification) {
+                Text("Great!")
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+        }
+    }
+
+    private var notifSuccessBadge: some View {
+        ZStack {
+            Circle().fill(AppColor.success.opacity(0.2)).frame(width: 120, height: 120).blur(radius: 32)
+            Circle().fill(AppColor.success).frame(width: 72, height: 72)
+            Image(systemName: "checkmark").font(.system(size: 32, weight: .heavy)).foregroundStyle(.white)
+        }
+    }
+
+    private func notifStat(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.custom("Inter-Bold", size: 22))
+                .foregroundStyle(AppColor.brandPrimary)
+            Text(label)
+                .font(.custom("Inter-SemiBold", size: 11)).tracking(0.5)
+                .foregroundStyle(AppColor.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary.opacity(0.06)))
+    }
+
+    private func fileDetailsCard(original: Int, new: Int) -> some View {
+        let ratio = original > 0 ? min(1, Double(new) / Double(original)) : 0
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("File Details")
+                    .font(.custom("Inter-SemiBold", size: 16))
+                    .foregroundStyle(AppColor.textPrimary)
+                Spacer()
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColor.brandPrimary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color(hex: 0xE2E8F0))
+                    Capsule().fill(AppColor.brandPrimary).frame(width: geo.size.width * ratio)
+                }
+            }
+            .frame(height: 8)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Original Size")
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(AppColor.textSecondary)
+                    Text(formatBytes(original))
+                        .font(.custom("Inter-SemiBold", size: 14))
+                        .foregroundStyle(AppColor.textPrimary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("New Size")
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(AppColor.textSecondary)
+                    Text(formatBytes(new))
+                        .font(.custom("Inter-SemiBold", size: 14))
+                        .foregroundStyle(AppColor.brandPrimary)
+                }
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.surfaceBackground))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xE2E8F0), lineWidth: 1))
+    }
+
     // MARK: - Actions
 
     private func handleStartTap() {
@@ -708,11 +838,17 @@ struct CompressView: View {
             // bridge (Part B polish). User can clean the original via Similar/Quick Clean.
             _ = deleteSource
             try await compressor.saveToPhotos(fileURL: compressedURL, deletingSource: nil)
-            fireResultInterstitial()
-            resetToEmpty()
+            previewPlayer?.pause()
+            step = .notification
         } catch {
             showError = error.localizedDescription
         }
+    }
+
+    // "Great!" / back on the success notification → ad + back to the video grid.
+    private func finishNotification() {
+        fireResultInterstitial()
+        resetToEmpty()
     }
 
     private func fireResultInterstitial() {
