@@ -30,6 +30,19 @@ struct ContactRowInfo {
             subtitle = "No name"
         }
     }
+
+    // Localized title/subtitle: real names/phones pass through; the fallback
+    // labels get translated. Resolved on the main actor (the view), since L() is.
+    @MainActor var locTitle: String { Self.loc(title) }
+    @MainActor var locSubtitle: String { Self.loc(subtitle) }
+    @MainActor private static func loc(_ s: String) -> String {
+        switch s {
+        case "No number": return L("contacts.noNumber")
+        case "No name":   return L("contacts.noName")
+        case "Unknown":   return L("contacts.unknown")
+        default:          return s
+        }
+    }
 }
 
 // 40×40 circle. Light-blue (#D0E1FB / #54647A) normally, red (#CF2C30 / #FFECEA)

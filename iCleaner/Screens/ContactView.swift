@@ -39,7 +39,7 @@ struct ContactView: View {
             sendButton
         }
         .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerContactUs) }
-        .navigationTitle("Contact Us")
+        .navigationTitle(L("contact.title"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showMail) {
             MailComposer(
@@ -48,7 +48,7 @@ struct ContactView: View {
                 body: "From: \(name) <\(email)>\n\n\(message)"
             )
         }
-        .alert("Couldn't send", isPresented: Binding(
+        .alert(L("contact.errorTitle"), isPresented: Binding(
             get: { mailFallbackMessage != nil },
             set: { if !$0 { mailFallbackMessage = nil } }
         )) {
@@ -58,11 +58,11 @@ struct ContactView: View {
 
     private var headerText: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Get in touch")
+            Text(L("contact.hero"))
                 .font(.custom("Inter-Bold", size: 24))
                 .tracking(24 * -0.025)
                 .foregroundStyle(Color(hex: 0x0F172A))
-            Text("We'd love to hear from you. Send us a message and we'll respond as soon as possible.")
+            Text(L("contact.intro"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(Color(hex: 0x64748B))
                 .lineSpacing(20 - 14)
@@ -71,8 +71,8 @@ struct ContactView: View {
 
     private var formFields: some View {
         VStack(alignment: .leading, spacing: 24) {
-            field(label: "Name", placeholder: "Enter your name", text: $name)
-            field(label: "Email Address", placeholder: "Enter your email address", text: $email, keyboard: .emailAddress)
+            field(label: L("contact.name"), placeholder: L("contact.namePh"), text: $name)
+            field(label: L("contact.email"), placeholder: L("contact.emailPh"), text: $email, keyboard: .emailAddress)
             messageField
         }
     }
@@ -102,7 +102,7 @@ struct ContactView: View {
 
     private var messageField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Your Message")
+            Text(L("contact.message"))
                 .font(.custom("Inter-SemiBold", size: 14))
                 .foregroundStyle(Color(hex: 0x0F172A))
             TextEditor(text: $message)
@@ -121,7 +121,7 @@ struct ContactView: View {
 
     private var sendButton: some View {
         Button(action: send) {
-            Text("Send Message")
+            Text(L("contact.send"))
                 .font(.custom("Inter-Bold", size: 16))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -142,7 +142,7 @@ struct ContactView: View {
         if MFMailComposeViewController.canSendMail() {
             showMail = true
         } else {
-            mailFallbackMessage = "No mail account is configured. Please email us directly at \(Self.supportEmail)."
+            mailFallbackMessage = L("contact.noMail", Self.supportEmail)
         }
     }
 }

@@ -25,9 +25,9 @@ struct ContactsIncompleteView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactsDetailHeader(title: "Incomplete Contacts", subtitle: "\(contacts.count) contacts") {
+            ContactsDetailHeader(title: L("contacts.inc.title"), subtitle: L("contacts.count", contacts.count)) {
                 if !contacts.isEmpty {
-                    ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
+                    ContactsLinkButton(title: isAllSelected ? L("contacts.deselectAll") : L("contacts.selectAll")) {
                         toggleSelectAll()
                     }
                 }
@@ -62,7 +62,7 @@ struct ContactsIncompleteView: View {
                 Task { await service.refresh() }
             }
         }
-        .alert("Couldn't delete", isPresented: Binding(
+        .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
         )) {
@@ -89,7 +89,7 @@ struct ContactsIncompleteView: View {
     private func row(_ contact: CNContact) -> some View {
         let selected = selection.contains(contact.identifier)
         let hasName = !ContactsService.isNameMissing(contact)
-        let title = hasName ? ContactsService.displayName(for: contact) : "No name"
+        let title = hasName ? ContactsService.displayName(for: contact) : L("contacts.noName")
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -128,9 +128,9 @@ struct ContactsIncompleteView: View {
     private func missingText(for contact: CNContact) -> String {
         let nameMissing = ContactsService.isNameMissing(contact)
         let phoneMissing = contact.phoneNumbers.isEmpty
-        if nameMissing && phoneMissing { return "Missing name & phone number" }
-        if nameMissing { return "Missing contact name" }
-        return "Missing phone number"
+        if nameMissing && phoneMissing { return L("contacts.inc.missingBoth") }
+        if nameMissing { return L("contacts.inc.missingName") }
+        return L("contacts.inc.missingPhone")
     }
 
     private var emptyView: some View {
@@ -138,7 +138,7 @@ struct ContactsIncompleteView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.success)
-            Text("All contacts look complete")
+            Text(L("contacts.inc.emptyTitle"))
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
         }
@@ -147,12 +147,12 @@ struct ContactsIncompleteView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            ContactActionButton(title: "Edit contacts", iconAsset: "Contacts/ic_edit",
+            ContactActionButton(title: L("contacts.inc.edit"), iconAsset: "Contacts/ic_edit",
                                  iconSize: CGSize(width: 17, height: 17),
                                  style: .primary, enabled: !selection.isEmpty && !deleting) {
                 editingID = selectedContacts.first?.identifier
             }
-            ContactActionButton(title: "Delete selected", iconAsset: "Contacts/ic_trash",
+            ContactActionButton(title: L("contacts.deleteSelected"), iconAsset: "Contacts/ic_trash",
                                  iconSize: CGSize(width: 14, height: 15),
                                  style: .destructive, enabled: !selection.isEmpty && !deleting) {
                 Task { await performDelete() }

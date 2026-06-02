@@ -29,8 +29,10 @@ final class Localizer {
         let lang = Self.langKey(for: code)   // reading `code` registers the SwiftUI dependency
         return LocalizedStrings.table[lang]?[key]
             ?? LocalizedStrings2.table[lang]?[key]
+            ?? LocalizedStrings3.table[lang]?[key]
             ?? LocalizedStrings.table["en"]?[key]
             ?? LocalizedStrings2.table["en"]?[key]
+            ?? LocalizedStrings3.table["en"]?[key]
             ?? key
     }
 

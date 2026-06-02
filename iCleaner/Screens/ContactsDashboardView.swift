@@ -17,7 +17,7 @@ struct ContactsDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Contacts")
+                Text(L("tab.contacts"))
                     .font(.custom("Inter-SemiBold", size: 20))
                     .foregroundStyle(Color(hex: 0x111827))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,6 +141,26 @@ enum ContactsCategory: String, Identifiable, CaseIterable, Hashable {
         case .all:        return "View all contacts on device."
         }
     }
+
+    // Localization keys (resolved in the view so they follow the in-app language).
+    var titleKey: String {
+        switch self {
+        case .duplicates: return "contacts.card.duplicates"; case .incomplete: return "contacts.card.incomplete"
+        case .backups: return "contacts.card.backup"; case .all: return "contacts.card.all"
+        }
+    }
+    var descKey: String {
+        switch self {
+        case .duplicates: return "contacts.desc.duplicates"; case .incomplete: return "contacts.desc.incomplete"
+        case .backups: return "contacts.desc.backup"; case .all: return "contacts.desc.all"
+        }
+    }
+    var countKey: String {
+        switch self {
+        case .duplicates: return "contacts.count.duplicates"; case .incomplete: return "contacts.count.incomplete"
+        case .backups: return "contacts.count.backups"; case .all: return "contacts.count"
+        }
+    }
 }
 
 // MARK: - Card
@@ -161,16 +181,16 @@ private struct DashboardCard: View {
                 .background(Circle().fill(category.bucketTint))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(category.title)
+                Text(L(category.titleKey))
                     .font(.custom("Inter-SemiBold", size: 20))
                     .foregroundStyle(Color(hex: 0x131B2E))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(category.countLine(count))
+                    Text(L(category.countKey, count))
                         .font(.custom("Inter-SemiBold", size: 13))
                         .tracking(13 * 0.05)
                         .foregroundStyle(category.countTint)
-                    Text(category.descriptionLine)
+                    Text(L(category.descKey))
                         .font(.custom("Inter-Regular", size: 15))
                         .foregroundStyle(Color(hex: 0x434655))
                         .lineLimit(1)

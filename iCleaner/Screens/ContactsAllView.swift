@@ -47,9 +47,9 @@ struct ContactsAllView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactsDetailHeader(title: "All Contacts", subtitle: "\(contacts.count) contacts") {
+            ContactsDetailHeader(title: L("contacts.all.title"), subtitle: L("contacts.count", contacts.count)) {
                 if !contacts.isEmpty {
-                    ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
+                    ContactsLinkButton(title: isAllSelected ? L("contacts.deselectAll") : L("contacts.selectAll")) {
                         toggleSelectAll()
                     }
                 }
@@ -88,7 +88,7 @@ struct ContactsAllView: View {
         )) { box in
             ContactReadOnly(contact: box.c) { editingID = nil }
         }
-        .alert("Couldn't delete", isPresented: Binding(
+        .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
         )) {
@@ -103,7 +103,7 @@ struct ContactsAllView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(Color(hex: 0x737686))
-            TextField("", text: $query, prompt: Text("Search contacts")
+            TextField("", text: $query, prompt: Text(L("contacts.all.search"))
                 .foregroundColor(Color(hex: 0xC3C6D7)))
                 .font(.custom("Inter-Regular", size: 16))
                 .foregroundStyle(Color(hex: 0x131B2E))
@@ -237,7 +237,7 @@ struct ContactsAllView: View {
     // MARK: - Delete bar
 
     private var deleteBar: some View {
-        ContactActionButton(title: "Delete \(selection.count) selected", iconAsset: "Contacts/ic_trash",
+        ContactActionButton(title: L("contacts.deleteN", selection.count), iconAsset: "Contacts/ic_trash",
                              iconSize: CGSize(width: 14, height: 15),
                              style: .destructive, enabled: !deleting) {
             Task { await performDelete() }

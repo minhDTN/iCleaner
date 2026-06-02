@@ -18,7 +18,7 @@ struct ContactsBackupsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactsDetailHeader(title: "Backups", subtitle: "\(backups.count) Backups")
+            ContactsDetailHeader(title: L("contacts.backups.title"), subtitle: L("contacts.backups.count", backups.count))
             ZStack(alignment: .bottom) {
                 AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
 
@@ -47,26 +47,26 @@ struct ContactsBackupsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { backups = service.fetchBackups() }
         .confirmationDialog(
-            selectedBackup.map { "Backup • \($0.contactCount) contacts" } ?? "Backup",
+            selectedBackup.map { L("contacts.backups.item") + " • " + L("contacts.count", $0.contactCount) } ?? L("contacts.backups.item"),
             isPresented: Binding(get: { selectedBackup != nil }, set: { if !$0 { selectedBackup = nil } }),
             titleVisibility: .visible
         ) {
             if let backup = selectedBackup {
-                Button("Restore \(backup.contactCount) contacts") { Task { await performRestore(backup) } }
-                Button("Delete backup", role: .destructive) {
+                Button(L("contacts.backups.restore", backup.contactCount)) { Task { await performRestore(backup) } }
+                Button(L("contacts.backups.delete"), role: .destructive) {
                     service.deleteBackup(backup)
                     backups.removeAll { $0.id == backup.id }
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L("common.cancel"), role: .cancel) {}
         }
-        .alert("Backup error", isPresented: Binding(
+        .alert(L("contacts.backups.errorTitle"), isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
         )) {
             Button("OK", role: .cancel) { actionError = nil }
         } message: { Text(actionError ?? "") }
-        .alert("Restored", isPresented: Binding(
+        .alert(L("contacts.backups.restoredTitle"), isPresented: Binding(
             get: { lastResult != nil },
             set: { if !$0 { lastResult = nil } }
         )) {
@@ -92,7 +92,7 @@ struct ContactsBackupsView: View {
                 Text(Self.dateString(backup.createdAt))
                     .font(.custom("Inter-Medium", size: 17))
                     .foregroundStyle(Color(hex: 0x131B2E))
-                Text("\(backup.contactCount) contacts")
+                Text(L("contacts.count", backup.contactCount))
                     .font(.custom("Inter-Regular", size: 15))
                     .foregroundStyle(Color(hex: 0x434655))
             }
@@ -128,7 +128,7 @@ struct ContactsBackupsView: View {
                         .scaledToFit()
                         .frame(width: 20, height: 16)
                         .foregroundStyle(AppColor.brandPrimary)
-                    Text("Backing up contacts…")
+                    Text(L("contacts.backups.backing"))
                         .font(.custom("Inter-SemiBold", size: 15))
                         .foregroundStyle(Color(hex: 0x131B2E))
                 }
@@ -154,10 +154,10 @@ struct ContactsBackupsView: View {
             Image(systemName: "externaldrive.badge.plus")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.brandPrimary)
-            Text("No backups yet")
+            Text(L("contacts.backups.emptyTitle"))
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("Tap Create backup to save a snapshot of every contact as a vCard file on this device.")
+            Text(L("contacts.backups.emptyBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
                 .multilineTextAlignment(.center)
@@ -178,7 +178,7 @@ struct ContactsBackupsView: View {
                         .scaledToFit()
                         .frame(width: 20, height: 20)
                 }
-                Text("Create backup")
+                Text(L("contacts.backups.create"))
                     .font(.custom("Inter-SemiBold", size: 13))
                     .tracking(13 * 0.05)
             }
@@ -234,7 +234,7 @@ struct ContactsBackupsView: View {
         defer { restoring = nil }
         do {
             let count = try await service.restore(from: file)
-            lastResult = "Restored \(count) contact\(count == 1 ? "" : "s") from this backup."
+            lastResult = L("contacts.backups.restoredMsg", count)
             fireActionInterstitial()
         } catch {
             actionError = (error as NSError).localizedDescription

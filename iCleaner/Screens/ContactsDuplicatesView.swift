@@ -28,9 +28,9 @@ struct ContactsDuplicatesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactsDetailHeader(title: "Duplicate Contacts", subtitle: "\(totalContacts) contacts") {
+            ContactsDetailHeader(title: L("contacts.dup.title"), subtitle: L("contacts.count", totalContacts)) {
                 if !groups.isEmpty {
-                    ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
+                    ContactsLinkButton(title: isAllSelected ? L("contacts.deselectAll") : L("contacts.selectAll")) {
                         toggleSelectAll()
                     }
                 }
@@ -53,7 +53,7 @@ struct ContactsDuplicatesView: View {
             groups = await service.fetchDuplicateGroups()
             loading = false
         }
-        .alert("Something went wrong", isPresented: Binding(
+        .alert(L("contacts.somethingWrong"), isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
         )) {
@@ -66,7 +66,7 @@ struct ContactsDuplicatesView: View {
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView().tint(AppColor.brandPrimary).scaleEffect(1.2)
-            Text("Scanning for duplicates…")
+            Text(L("contacts.dup.scanning"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
         }
@@ -78,10 +78,10 @@ struct ContactsDuplicatesView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(AppColor.success)
-            Text("No duplicates found")
+            Text(L("contacts.dup.emptyTitle"))
                 .font(.custom("Inter-Bold", size: 20))
                 .foregroundStyle(AppColor.textPrimary)
-            Text("Your contacts look clean.")
+            Text(L("contacts.dup.emptyBody"))
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
         }
@@ -105,12 +105,12 @@ struct ContactsDuplicatesView: View {
     private func groupCard(_ group: DuplicateGroup) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("\(group.contacts.count) duplicate contacts")
+                Text(L("contacts.dup.groupCount", group.contacts.count))
                     .font(.custom("Inter-SemiBold", size: 13))
                     .tracking(13 * 0.05)
                     .foregroundStyle(Color(hex: 0x131B2E))
                 Spacer()
-                ContactsLinkButton(title: "Select group", size: 11) { toggleGroup(group) }
+                ContactsLinkButton(title: L("contacts.selectGroup"), size: 11) { toggleGroup(group) }
             }
             .padding(.bottom, 8)
             .overlay(alignment: .bottom) {
@@ -141,11 +141,11 @@ struct ContactsDuplicatesView: View {
         return HStack(spacing: 16) {
             ContactAvatar(contact: contact, info: info)
             VStack(alignment: .leading, spacing: 0) {
-                Text(info.title)
+                Text(info.locTitle)
                     .font(.custom("Inter-Regular", size: 17))
                     .foregroundStyle(Color(hex: 0x131B2E))
                     .lineLimit(1)
-                Text(info.subtitle)
+                Text(info.locSubtitle)
                     .font(.custom("Inter-Regular", size: 15))
                     .foregroundStyle(Color(hex: 0x434655))
                     .lineLimit(1)
@@ -160,12 +160,12 @@ struct ContactsDuplicatesView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            ContactActionButton(title: "Merge contacts", iconAsset: "Contacts/ic_merge",
+            ContactActionButton(title: L("contacts.dup.merge"), iconAsset: "Contacts/ic_merge",
                                  iconSize: CGSize(width: 12, height: 15),
                                  style: .primary, enabled: canMerge && !busy) {
                 Task { await performMergeSelected() }
             }
-            ContactActionButton(title: "Delete selected", iconAsset: "Contacts/ic_trash",
+            ContactActionButton(title: L("contacts.deleteSelected"), iconAsset: "Contacts/ic_trash",
                                  iconSize: CGSize(width: 14, height: 15),
                                  style: .destructive, enabled: !selection.isEmpty && !busy) {
                 Task { await performDeleteSelected() }
