@@ -25,6 +25,8 @@ struct CompressView: View {
     @State private var pickedFileName: String = ""
     @State private var pickedSizeBytes: Int = 0
     @State private var quality: VideoCompressor.Quality = .balanced
+    @State private var pickedDuration: Double = 0
+    @State private var previewPlayer: AVPlayer?
     @State private var compressedURL: URL?
     @State private var compressedSizeBytes: Int = 0
     @State private var showCancelConfirm = false
@@ -217,6 +219,8 @@ struct CompressView: View {
         pickedURL = url
         pickedFileName = url.lastPathComponent
         pickedSizeBytes = v.sizeBytes
+        pickedDuration = v.duration
+        previewPlayer = AVPlayer(url: url)
         step = .ready
     }
 
@@ -247,9 +251,9 @@ struct CompressView: View {
             navBar
             ScrollView {
                 VStack(spacing: 20) {
-                    filePreviewCard
+                    selectedFileCard
                     qualityPicker
-                    estimatedBadge
+                    savingsRow
                     Spacer(minLength: 100)
                 }
                 .padding(.horizontal, 20)
@@ -262,116 +266,119 @@ struct CompressView: View {
     }
 
     private var navBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button(action: resetToEmpty) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(AppColor.textPrimary)
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
                     .frame(width: 24, height: 24)
             }
+            Text("Video Compress")
+                .font(.custom("Inter-SemiBold", size: 18))
+                .foregroundStyle(Color(hex: 0x0F0F0F))
             Spacer()
-            Text("Compress")
-                .font(.custom("Inter-Bold", size: 20))
-                .tracking(20 * -0.025)
-                .foregroundStyle(AppColor.textPrimary)
-            Spacer()
-            Color.clear.frame(width: 24, height: 24)
         }
         .padding(.horizontal, 20)
         .frame(height: 48)
     }
 
-    private var filePreviewCard: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(AppColor.brandPrimary.opacity(0.10))
-                Image(systemName: "video.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(AppColor.brandPrimary)
+    // "Selected File" — a playable preview of the chosen video (Figma 2005:22335 /
+    // compress preview). Tap to play with native controls; duration + size badges
+    // sit in the corners.
+    private var selectedFileCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Selected File")
+                    .font(.custom("Inter-SemiBold", size: 16))
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
+                Spacer()
+                Button(action: resetToEmpty) {
+                    Text("Change File")
+                        .font(.custom("Inter-SemiBold", size: 14))
+                        .foregroundStyle(AppColor.brandPrimary)
+                }
+                .buttonStyle(.plain)
             }
-            .frame(width: 56, height: 56)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(pickedFileName)
-                    .font(.custom("Inter-SemiBold", size: 14))
-                    .foregroundStyle(AppColor.textPrimary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
+            ZStack {
+                Group {
+                    if let previewPlayer {
+                        VideoPlayer(player: previewPlayer)
+                    } else {
+                        Color(hex: 0xEDEDF9)
+                    }
+                }
+                .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(alignment: .bottomLeading) {
+                    badge(Self.durationString(pickedDuration), bold: false).padding(8)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    badge(formatBytes(pickedSizeBytes), bold: true).padding(8)
+                }
             }
-            Spacer()
+
+            Text(pickedFileName)
+                .font(.custom("Inter-Regular", size: 14))
+                .foregroundStyle(AppColor.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppColor.surfaceBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
-        )
     }
 
     private var qualityPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Quality")
-                .font(.custom("Inter-Bold", size: 12))
-                .tracking(12 * 0.05)
-                .textCase(.uppercase)
-                .foregroundStyle(AppColor.textMuted)
-            VStack(spacing: 0) {
-                ForEach(VideoCompressor.Quality.allCases) { q in
-                    QualityRow(quality: q, selected: quality == q)
-                        .contentShape(Rectangle())
-                        .onTapGesture { quality = q }
-                    if q != VideoCompressor.Quality.allCases.last {
-                        Rectangle()
-                            .fill(Color(hex: 0xF1F5F9))
-                            .frame(height: 1)
-                            .padding(.leading, 16)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Compression Quality")
+                .font(.custom("Inter-SemiBold", size: 16))
+                .foregroundStyle(Color(hex: 0x0F0F0F))
+            ForEach(VideoCompressor.Quality.allCases) { q in
+                QualityRow(quality: q, selected: quality == q, inputBytes: pickedSizeBytes)
+                    .contentShape(Rectangle())
+                    .onTapGesture { quality = q }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(AppColor.surfaceBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
-            )
         }
     }
 
-    private var estimatedBadge: some View {
+    // POTENTIAL SAVINGS | ORIGINAL → ESTIMATED (Figma 2005:22335 footer row).
+    private var savingsRow: some View {
         let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)
-        let savings = pickedSizeBytes - estimated
-        return HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Estimated")
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
-                Text(ByteCountFormatter.string(fromByteCount: Int64(estimated), countStyle: .file))
-                    .font(.custom("Inter-Bold", size: 22))
+        let savings = max(0, pickedSizeBytes - estimated)
+        return HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("POTENTIAL SAVINGS")
+                    .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
+                    .foregroundStyle(AppColor.textMuted)
+                Text(formatBytes(savings))
+                    .font(.custom("Inter-Bold", size: 18))
                     .foregroundStyle(AppColor.textPrimary)
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("Save")
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(AppColor.textSecondary)
-                Text("≈ \(ByteCountFormatter.string(fromByteCount: Int64(max(0, savings)), countStyle: .file))")
-                    .font(.custom("Inter-Bold", size: 22))
-                    .foregroundStyle(AppColor.success)
+            HStack(spacing: 10) {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("ORIGINAL")
+                        .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
+                        .foregroundStyle(AppColor.textMuted)
+                    Text(formatBytes(pickedSizeBytes))
+                        .font(.custom("Inter-SemiBold", size: 13))
+                        .foregroundStyle(AppColor.textPrimary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(AppColor.textMuted)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("ESTIMATED")
+                        .font(.custom("Inter-SemiBold", size: 10)).tracking(0.5)
+                        .foregroundStyle(AppColor.brandPrimary)
+                    Text(formatBytes(estimated))
+                        .font(.custom("Inter-SemiBold", size: 13))
+                        .foregroundStyle(AppColor.brandPrimary)
+                }
             }
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppColor.success.opacity(0.06))
+                .stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
         )
     }
 
@@ -597,6 +604,21 @@ struct CompressView: View {
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(AppColor.textSecondary)
 
+            if let previewPlayer {
+                VideoPlayer(player: previewPlayer)
+                    .frame(height: 170)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(alignment: .topLeading) {
+                        Text("SAVED \(pct)%")
+                            .font(.custom("Inter-Bold", size: 10)).tracking(0.5)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Capsule().fill(AppColor.success))
+                            .padding(8)
+                    }
+                    .padding(.horizontal, 32)
+            }
+
             HStack(spacing: 16) {
                 statTile(label: "Original", value: ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))
                 statTile(label: "Compressed", value: ByteCountFormatter.string(fromByteCount: Int64(compressedSizeBytes), countStyle: .file))
@@ -667,6 +689,7 @@ struct CompressView: View {
             let outURL = try await compressor.compress(sourceURL: pickedURL, quality: quality)
             compressedURL = outURL
             compressedSizeBytes = (try? FileManager.default.attributesOfItem(atPath: outURL.path)[.size] as? Int) ?? 0
+            previewPlayer = AVPlayer(url: outURL)   // play the compressed result
             step = .result
         } catch VideoCompressor.CompressError.cancelled {
             step = .ready
@@ -703,6 +726,8 @@ struct CompressView: View {
     }
 
     private func resetToEmpty() {
+        previewPlayer?.pause()
+        previewPlayer = nil
         pickedURL = nil
         pickedFileName = ""
         pickedSizeBytes = 0
@@ -718,15 +743,11 @@ struct CompressView: View {
 private struct QualityRow: View {
     let quality: VideoCompressor.Quality
     let selected: Bool
+    let inputBytes: Int
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                Circle()
-                    .strokeBorder(selected ? AppColor.brandPrimary : Color(hex: 0xCBD5E1),
-                                  lineWidth: selected ? 6 : 2)
-                    .frame(width: 22, height: 22)
-            }
+        let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: inputBytes, quality: quality)
+        return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(quality.title)
@@ -747,9 +768,27 @@ private struct QualityRow: View {
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(AppColor.textSecondary)
             }
-            Spacer()
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(ByteCountFormatter.string(fromByteCount: Int64(inputBytes), countStyle: .file))
+                    .font(.custom("Inter-Regular", size: 12))
+                    .strikethrough()
+                    .foregroundStyle(AppColor.textMuted)
+                Text("~\(ByteCountFormatter.string(fromByteCount: Int64(estimated), countStyle: .file))")
+                    .font(.custom("Inter-Bold", size: 14))
+                    .foregroundStyle(AppColor.textPrimary)
+            }
         }
         .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppColor.surfaceBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(selected ? AppColor.brandPrimary : Color(hex: 0xE2E8F0),
+                        lineWidth: selected ? 2 : 1)
+        )
     }
 }
 
