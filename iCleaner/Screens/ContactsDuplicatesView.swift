@@ -27,31 +27,28 @@ struct ContactsDuplicatesView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AppColor.surfaceBackground.ignoresSafeArea()
-
-            if loading {
-                loadingView
-            } else if groups.isEmpty {
-                emptyView
-            } else {
-                groupList
-                actionBar
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                ContactsNavTitle(title: "Duplicate Contacts", subtitle: "\(totalContacts) contacts")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
+        VStack(spacing: 0) {
+            ContactsDetailHeader(title: "Duplicate Contacts", subtitle: "\(totalContacts) contacts") {
                 if !groups.isEmpty {
                     ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
                         toggleSelectAll()
                     }
                 }
             }
+            ZStack(alignment: .bottom) {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
+
+                if loading {
+                    loadingView
+                } else if groups.isEmpty {
+                    emptyView
+                } else {
+                    groupList
+                    actionBar
+                }
+            }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             groups = await service.fetchDuplicateGroups()
             loading = false

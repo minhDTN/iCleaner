@@ -24,31 +24,28 @@ struct ContactsIncompleteView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AppColor.surfaceBackground.ignoresSafeArea()
-
-            if loading {
-                ProgressView().tint(AppColor.brandPrimary)
-            } else if contacts.isEmpty {
-                emptyView
-            } else {
-                list
-                actionBar
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                ContactsNavTitle(title: "Incomplete Contacts", subtitle: "\(contacts.count) contacts")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
+        VStack(spacing: 0) {
+            ContactsDetailHeader(title: "Incomplete Contacts", subtitle: "\(contacts.count) contacts") {
                 if !contacts.isEmpty {
                     ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
                         toggleSelectAll()
                     }
                 }
             }
+            ZStack(alignment: .bottom) {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
+
+                if loading {
+                    ProgressView().tint(AppColor.brandPrimary)
+                } else if contacts.isEmpty {
+                    emptyView
+                } else {
+                    list
+                    actionBar
+                }
+            }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             contacts = await service.fetchIncompleteContacts()
             loading = false

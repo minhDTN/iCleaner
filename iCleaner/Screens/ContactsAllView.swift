@@ -46,41 +46,38 @@ struct ContactsAllView: View {
     private var isAllSelected: Bool { !contacts.isEmpty && selection.count == contacts.count }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AppColor.surfaceBackground.ignoresSafeArea()
-
-            if loading {
-                ProgressView().tint(AppColor.brandPrimary)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16, pinnedViews: []) {
-                        searchBar
-                            .padding(.horizontal, 20)
-                            .padding(.top, 8)
-                        ForEach(grouped, id: \.letter) { section in
-                            sectionView(section)
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                    .padding(.bottom, selectionMode ? 110 : 24)
-                }
-            }
-
-            if selectionMode { deleteBar }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                ContactsNavTitle(title: "All Contacts", subtitle: "\(contacts.count) contacts")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
+        VStack(spacing: 0) {
+            ContactsDetailHeader(title: "All Contacts", subtitle: "\(contacts.count) contacts") {
                 if !contacts.isEmpty {
                     ContactsLinkButton(title: isAllSelected ? "Deselect all" : "Select all") {
                         toggleSelectAll()
                     }
                 }
             }
+            ZStack(alignment: .bottom) {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
+
+                if loading {
+                    ProgressView().tint(AppColor.brandPrimary)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 16, pinnedViews: []) {
+                            searchBar
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                            ForEach(grouped, id: \.letter) { section in
+                                sectionView(section)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                        .padding(.bottom, selectionMode ? 110 : 24)
+                    }
+                }
+
+                if selectionMode { deleteBar }
+            }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             contacts = await service.fetchAllContacts()
             loading = false

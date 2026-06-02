@@ -146,6 +146,50 @@ struct ContactsNavTitle: View {
     }
 }
 
+// Custom detail-screen top bar (Figma "Header - TopAppBar"): blue back chevron +
+// centered title/subtitle + optional trailing action. Built custom (vs. the
+// system toolbar) so the trailing "Select all" is plain text with NO glass pill
+// background — iOS 26 auto-adds a Liquid Glass pill behind toolbar bar buttons.
+struct ContactsDetailHeader<Trailing: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder var trailing: () -> Trailing
+    @Environment(\.dismiss) private var dismiss
+
+    init(title: String, subtitle: String,
+         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.subtitle = subtitle
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        ZStack {
+            ContactsNavTitle(title: title, subtitle: subtitle)
+            HStack(spacing: 0) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .frame(width: 40, height: 40, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Spacer(minLength: 0)
+                trailing()
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 56)
+        .background(
+            AppColor.surfaceBackground
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color(hex: 0xC3C6D7)).frame(height: 1)
+                }
+        )
+    }
+}
+
 // "Select all" / "Select group" trailing text button (Figma blue link).
 struct ContactsLinkButton: View {
     let title: String

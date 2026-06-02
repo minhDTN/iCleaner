@@ -17,36 +17,34 @@ struct ContactsBackupsView: View {
     @State private var lastResult: String?
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AppColor.surfaceBackground.ignoresSafeArea()
+        VStack(spacing: 0) {
+            ContactsDetailHeader(title: "Backups", subtitle: "\(backups.count) Backups")
+            ZStack(alignment: .bottom) {
+                AppColor.surfaceBackground.ignoresSafeArea(edges: .bottom)
 
-            ScrollView {
-                VStack(spacing: 24) {
-                    if creating { progressCard }
-                    if backups.isEmpty && !creating {
-                        emptyView
-                    } else {
-                        VStack(spacing: 16) {
-                            ForEach(backups) { backup in
-                                backupRow(backup)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        if creating { progressCard }
+                        if backups.isEmpty && !creating {
+                            emptyView
+                        } else {
+                            VStack(spacing: 16) {
+                                ForEach(backups) { backup in
+                                    backupRow(backup)
+                                }
                             }
                         }
+                        Spacer(minLength: 12)
                     }
-                    Spacer(minLength: 12)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 120)  // room for the CTA
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 24)
-                .padding(.bottom, 120)  // room for the CTA
-            }
 
-            createButton
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                ContactsNavTitle(title: "Backups", subtitle: "\(backups.count) Backups")
+                createButton
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .task { backups = service.fetchBackups() }
         .confirmationDialog(
             selectedBackup.map { "Backup • \($0.contactCount) contacts" } ?? "Backup",
