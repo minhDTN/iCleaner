@@ -4,15 +4,20 @@ import Photos
 import Observation
 import LibEarnMoneyIOS
 
-// Wraps AVAssetExportSession for the Compress flow.
-//   • 3 quality presets (Best / Balanced★ / Maximum Savings) mapped to
-//     Apple's standard export presets.
+// Video compressor for the Compress flow.
+//   • Re-encodes with AVAssetReader → AVAssetWriter at an explicit target bitrate
+//     derived from the SOURCE bitrate (a fraction of it), so the output is always
+//     smaller — unlike AVAssetExportSession presets, whose fixed bitrate can
+//     inflate an already-compressed clip (e.g. 683 KB → 3.5 MB).
+//   • The shown estimate is computed from the SAME target bitrate, so "≈ size"
+//     on screen matches the real result.
+//   • 3 quality tiers (Best / Balanced★ / Maximum Savings) = different bitrate
+//     fractions + ceilings.
 //   • Daily usage quota for free tier — 2/day, key-rolled at local midnight.
 //     Premium users bypass the quota entirely.
 //   • Output is written to NSTemporaryDirectory so callers can Replace original
 //     (save compressed + delete source asset) or Keep both (save compressed only).
-//   • Progress is exposed as @Observable `progress: Double` (0...1) so the
-//     SwiftUI ring updates without polling boilerplate.
+//   • Progress is exposed as @Observable `progress: Double` (0...1).
 @MainActor
 @Observable
 final class VideoCompressor {
@@ -36,18 +41,24 @@ final class VideoCompressor {
         }
         var isRecommended: Bool { self == .balanced }
 
-        /// AVFoundation preset id. All three cap resolution + re-encode so every
-        /// tier actually shrinks the file (HighestQuality can inflate, so "best"
-        /// caps at 1080p instead).
-        var avPreset: String {
+        /// Fraction of the source video bitrate to target. < 1 so output always
+        /// shrinks; lower tier = more compression.
+        var bitrateFraction: Double {
             switch self {
-            case .best:     return AVAssetExportPreset1920x1080
-            case .balanced: return AVAssetExportPreset1280x720
-            case .savings:  return AVAssetExportPreset960x540
+            case .best:     return 0.60
+            case .balanced: return 0.42
+            case .savings:  return 0.26
             }
         }
-        /// Rough ratio used only as a fallback when the system can't estimate the
-        /// real output size (see VideoCompressor.estimateOutput).
+        /// Absolute video-bitrate ceiling (bits/s) so huge 4K sources also shrink.
+        var bitrateCeiling: Double {
+            switch self {
+            case .best:     return 8_000_000
+            case .balanced: return 4_000_000
+            case .savings:  return 2_000_000
+            }
+        }
+        /// Rough ratio used only as a last-resort fallback (no source bitrate).
         var estimatedRatio: Double {
             switch self {
             case .best:     return 0.70
@@ -55,6 +66,21 @@ final class VideoCompressor {
             case .savings:  return 0.30
             }
         }
+    }
+
+    struct TargetBitrates { let video: Double; let audio: Double }
+
+    /// Target encode bitrates derived from the source. Video is a fraction of the
+    /// source rate, clamped to a per-tier ceiling and a floor, and ALWAYS kept
+    /// below the source (× 0.9) so the result never inflates.
+    nonisolated static func targetBitrates(quality: Quality, srcVideoRate: Double, srcAudioRate: Double, hasAudio: Bool) -> TargetBitrates {
+        var v = srcVideoRate > 0 ? srcVideoRate * quality.bitrateFraction : quality.bitrateCeiling
+        v = min(v, quality.bitrateCeiling)
+        v = max(v, 100_000)
+        if srcVideoRate > 0 { v = min(v, srcVideoRate * 0.9) }   // never above source
+        var a: Double = 0
+        if hasAudio { a = srcAudioRate > 0 ? min(srcAudioRate, 128_000) : 96_000 }
+        return TargetBitrates(video: v, audio: a)
     }
 
     enum CompressError: Error, LocalizedError {
@@ -82,8 +108,7 @@ final class VideoCompressor {
     private(set) var isExporting: Bool = false
     private(set) var lastOutputURL: URL?
 
-    private var currentExport: AVAssetExportSession?
-    private var progressTimer: Timer?
+    private var activeCancel: CancelBox?
 
     // MARK: - Quota
 
@@ -110,99 +135,217 @@ final class VideoCompressor {
 
     // MARK: - Estimate
 
-    /// Apple's source-aware estimate of the exported size for a preset. Because the
-    /// real export below uses the SAME preset (no size cap), the number shown to the
-    /// user matches what the compression actually produces. Falls back to a rough
-    /// ratio only if the system can't estimate (returns 0).
+    /// Estimated output size = (targetVideoBitrate + targetAudioBitrate) × duration / 8,
+    /// using the SAME target bitrates the encoder will use, so the shown number
+    /// matches the real result. Always ≤ the source size (the encoder targets a
+    /// fraction of the source bitrate).
     func estimateOutput(sourceURL: URL, quality: Quality, originalBytes: Int) async -> Int {
         let asset = AVURLAsset(url: sourceURL)
-        guard let session = AVAssetExportSession(asset: asset, presetName: quality.avPreset) else {
+        guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
             return Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
         }
-        session.outputFileType = .mp4
-        if let duration = try? await asset.load(.duration) {
-            session.timeRange = CMTimeRange(start: .zero, duration: duration)
-        }
-        let length = (try? await session.estimatedOutputFileLengthInBytes) ?? 0
-        return length > 0 ? Int(length) : Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
+        let durationSec = max(0.1, CMTimeGetSeconds((try? await asset.load(.duration)) ?? .zero))
+        let srcVideoRate = Double((try? await videoTrack.load(.estimatedDataRate)) ?? 0)
+        let audioTrack = (try? await asset.loadTracks(withMediaType: .audio).first) ?? nil
+        let srcAudioRate = audioTrack != nil ? Double((try? await audioTrack!.load(.estimatedDataRate)) ?? 0) : 0
+        let t = Self.targetBitrates(quality: quality, srcVideoRate: srcVideoRate, srcAudioRate: srcAudioRate, hasAudio: audioTrack != nil)
+        let bytes = Int((t.video + t.audio) * durationSec / 8.0)
+        guard bytes > 0 else { return Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality) }
+        return originalBytes > 0 ? min(bytes, originalBytes) : bytes
     }
 
-    /// Rough fallback estimate (input × ratio) when the system estimate is unavailable.
+    /// Rough fallback estimate (input × ratio) when source bitrate is unavailable.
     nonisolated static func estimatedOutputBytes(inputBytes: Int, quality: Quality) -> Int {
         Int(Double(inputBytes) * quality.estimatedRatio)
     }
 
     // MARK: - Export
 
-    /// Exports `sourceURL` at the selected quality. Increments the daily counter
-    /// only after a successful export. Output URL lives in NSTemporaryDirectory.
+    /// Re-encodes `sourceURL` at the selected quality's target bitrate (a fraction
+    /// of the source), so the result is always smaller. Increments the daily
+    /// counter only after a successful export. Output lives in NSTemporaryDirectory.
     @discardableResult
     func compress(sourceURL: URL, quality: Quality) async throws -> URL {
         guard canCompressMore else { throw CompressError.quotaExceeded }
 
         progress = 0
         isExporting = true
+        let cancelBox = CancelBox()
+        activeCancel = cancelBox
         defer {
             isExporting = false
-            stopProgressTimer()
-            currentExport = nil
+            activeCancel = nil
         }
 
         let asset = AVURLAsset(url: sourceURL)
-        guard !(try await asset.load(.tracks).isEmpty) else {
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
             throw CompressError.noVideoTrack
         }
+        let audioTrack = try await asset.loadTracks(withMediaType: .audio).first
+        let durationSec = max(0.1, CMTimeGetSeconds(try await asset.load(.duration)))
+        let naturalSize = try await videoTrack.load(.naturalSize)
+        let transform = try await videoTrack.load(.preferredTransform)
+        let srcVideoRate = Double(try await videoTrack.load(.estimatedDataRate))
+        let srcAudioRate = audioTrack != nil ? Double((try? await audioTrack!.load(.estimatedDataRate)) ?? 0) : 0
 
-        guard let session = AVAssetExportSession(asset: asset, presetName: quality.avPreset) else {
-            throw CompressError.exportFailed("Couldn't create export session for preset \(quality.avPreset).")
-        }
+        let targets = Self.targetBitrates(quality: quality, srcVideoRate: srcVideoRate, srcAudioRate: srcAudioRate, hasAudio: audioTrack != nil)
+
+        // Encode at the source's native dimensions (rotation handled via transform);
+        // bitrate alone drives the size. H.264 needs even dimensions.
+        let outW = Int(abs(naturalSize.width).rounded()) & ~1
+        let outH = Int(abs(naturalSize.height).rounded()) & ~1
+        let videoSettings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: max(2, outW),
+            AVVideoHeightKey: max(2, outH),
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: Int(targets.video),
+                AVVideoMaxKeyFrameIntervalKey: 30,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ]
+        ]
+        let audioSettings: [String: Any]? = audioTrack != nil ? [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVNumberOfChannelsKey: 2,
+            AVSampleRateKey: 44_100,
+            AVEncoderBitRateKey: Int(max(48_000, targets.audio))
+        ] : nil
 
         let outURL = NSURL.fileURL(withPath: NSTemporaryDirectory())
             .appendingPathComponent("iCleaner-compress-\(UUID().uuidString.prefix(8)).mp4")
 
-        session.outputURL = outURL
-        session.outputFileType = .mp4
-        session.shouldOptimizeForNetworkUse = true
-        // No fileLengthLimit: the preset's natural output is exactly what
-        // estimateOutput predicted, so the result matches the size shown to the user.
+        try await Self.performTranscode(
+            asset: asset, videoTrack: videoTrack, audioTrack: audioTrack,
+            outURL: outURL, videoSettings: videoSettings, audioSettings: audioSettings,
+            transform: transform, durationSec: durationSec,
+            isCancelled: { cancelBox.value },
+            onProgress: { [weak self] p in Task { @MainActor in self?.progress = p } }
+        )
 
-        currentExport = session
-        startProgressTimer()
-
-        await session.export()
-
-        switch session.status {
-        case .completed:
-            incrementUsage()
-            lastOutputURL = outURL
-            progress = 1
-            return outURL
-        case .cancelled:
-            throw CompressError.cancelled
-        case .failed:
-            throw CompressError.exportFailed(session.error?.localizedDescription ?? "Unknown error")
-        default:
-            throw CompressError.exportFailed("Unexpected export status \(session.status.rawValue).")
-        }
+        incrementUsage()
+        lastOutputURL = outURL
+        progress = 1
+        return outURL
     }
 
-    func cancel() {
-        currentExport?.cancelExport()
-    }
+    func cancel() { activeCancel?.cancel() }
 
-    private func startProgressTimer() {
-        stopProgressTimer()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let session = self?.currentExport else { return }
-                self?.progress = Double(session.progress)
+    // MARK: - Transcode pipeline
+
+    nonisolated private static func performTranscode(
+        asset: AVURLAsset,
+        videoTrack: AVAssetTrack,
+        audioTrack: AVAssetTrack?,
+        outURL: URL,
+        videoSettings: [String: Any],
+        audioSettings: [String: Any]?,
+        transform: CGAffineTransform,
+        durationSec: Double,
+        isCancelled: @escaping @Sendable () -> Bool,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws {
+        let reader = try AVAssetReader(asset: asset)
+        let writer = try AVAssetWriter(outputURL: outURL, fileType: .mp4)
+        writer.shouldOptimizeForNetworkUse = true
+
+        let videoOut = AVAssetReaderTrackOutput(
+            track: videoTrack,
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange]
+        )
+        videoOut.alwaysCopiesSampleData = false
+        guard reader.canAdd(videoOut) else { throw CompressError.exportFailed("reader video output") }
+        reader.add(videoOut)
+
+        let videoIn = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        videoIn.expectsMediaDataInRealTime = false
+        videoIn.transform = transform
+        guard writer.canAdd(videoIn) else { throw CompressError.exportFailed("writer video input") }
+        writer.add(videoIn)
+
+        var audioOut: AVAssetReaderTrackOutput?
+        var audioIn: AVAssetWriterInput?
+        if let audioTrack, let audioSettings {
+            let aOut = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: [AVFormatIDKey: kAudioFormatLinearPCM])
+            aOut.alwaysCopiesSampleData = false
+            let aIn = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            aIn.expectsMediaDataInRealTime = false
+            if reader.canAdd(aOut) && writer.canAdd(aIn) {
+                reader.add(aOut); writer.add(aIn)
+                audioOut = aOut; audioIn = aIn
             }
         }
+
+        guard reader.startReading() else {
+            throw CompressError.exportFailed(reader.error?.localizedDescription ?? "startReading")
+        }
+        guard writer.startWriting() else {
+            throw CompressError.exportFailed(writer.error?.localizedDescription ?? "startWriting")
+        }
+        writer.startSession(atSourceTime: .zero)
+
+        let videoQueue = DispatchQueue(label: "icleaner.compress.video")
+        async let videoDone: Void = pump(videoOut, into: videoIn, on: videoQueue,
+                                         durationSec: durationSec, onProgress: onProgress, isCancelled: isCancelled)
+        if let audioOut, let audioIn {
+            let audioQueue = DispatchQueue(label: "icleaner.compress.audio")
+            async let audioDone: Void = pump(audioOut, into: audioIn, on: audioQueue,
+                                            durationSec: 0, onProgress: nil, isCancelled: isCancelled)
+            _ = await (videoDone, audioDone)
+        } else {
+            _ = await videoDone
+        }
+
+        if isCancelled() {
+            reader.cancelReading()
+            writer.cancelWriting()
+            try? FileManager.default.removeItem(at: outURL)
+            throw CompressError.cancelled
+        }
+        if reader.status == .failed {
+            writer.cancelWriting()
+            throw CompressError.exportFailed(reader.error?.localizedDescription ?? "reader failed")
+        }
+
+        await writer.finishWriting()
+        guard writer.status == .completed else {
+            throw CompressError.exportFailed(writer.error?.localizedDescription ?? "writer status \(writer.status.rawValue)")
+        }
     }
 
-    private func stopProgressTimer() {
-        progressTimer?.invalidate()
-        progressTimer = nil
+    /// Drains one reader output into one writer input on the given queue, resuming
+    /// exactly once when the track is fully transferred / cancelled / fails.
+    nonisolated private static func pump(
+        _ output: AVAssetReaderTrackOutput,
+        into input: AVAssetWriterInput,
+        on queue: DispatchQueue,
+        durationSec: Double,
+        onProgress: (@Sendable (Double) -> Void)?,
+        isCancelled: @escaping @Sendable () -> Bool
+    ) async {
+        // AVFoundation's pull model serialises all access on `queue`, so these are
+        // safe to use there despite being non-Sendable.
+        nonisolated(unsafe) let input = input
+        nonisolated(unsafe) let output = output
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            input.requestMediaDataWhenReady(on: queue) {
+                while input.isReadyForMoreMediaData {
+                    if isCancelled() {
+                        input.markAsFinished(); cont.resume(); return
+                    }
+                    guard let sample = output.copyNextSampleBuffer() else {
+                        input.markAsFinished(); cont.resume(); return
+                    }
+                    if let onProgress, durationSec > 0 {
+                        let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))
+                        onProgress(min(0.99, max(0, t / durationSec)))
+                    }
+                    if !input.append(sample) {
+                        input.markAsFinished(); cont.resume(); return
+                    }
+                }
+                // Not ready for more yet — the block is re-invoked later; don't resume.
+            }
+        }
     }
 
     // MARK: - Save back to Photos
@@ -221,4 +364,12 @@ final class VideoCompressor {
             }
         }
     }
+}
+
+// Thread-safe cancel flag shared with the background transcode queues.
+private final class CancelBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+    var value: Bool { lock.lock(); defer { lock.unlock() }; return flag }
+    func cancel() { lock.lock(); flag = true; lock.unlock() }
 }

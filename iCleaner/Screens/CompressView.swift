@@ -22,6 +22,7 @@ struct CompressView: View {
     @State private var step: Step = .empty
     @State private var loadingPicked = false
     @State private var pickedURL: URL?
+    @State private var pickedAssetID: String?   // source PHAsset, for Replace Original
     @State private var pickedFileName: String = ""
     @State private var pickedSizeBytes: Int = 0
     @State private var quality: VideoCompressor.Quality = .balanced
@@ -226,6 +227,7 @@ struct CompressView: View {
             return
         }
         pickedURL = url
+        pickedAssetID = v.id
         pickedFileName = url.lastPathComponent
         pickedSizeBytes = v.sizeBytes
         pickedDuration = v.duration
@@ -942,13 +944,14 @@ struct CompressView: View {
     private func saveAndDismiss(deleteSource: Bool) async {
         guard let compressedURL else { return }
         do {
-            // For MVP we don't track the source PHAsset (we only have a temp file URL
-            // from PhotosPicker). "Replace Original" therefore just saves the compressed
-            // copy; full delete-source flow requires PHPickerViewController + PHAsset
-            // bridge (Part B polish). User can clean the original via Similar/Quick Clean.
-            _ = deleteSource
-            try await compressor.saveToPhotos(fileURL: compressedURL, deletingSource: nil)
-            await videoLibrary.reload()   // show the newly saved compressed video in the grid
+            // Replace Original: delete the source PHAsset in the same change request
+            // (iOS shows its own confirm alert). Keep Both: save the compressed copy only.
+            var sourceAsset: PHAsset?
+            if deleteSource, let id = pickedAssetID {
+                sourceAsset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
+            }
+            try await compressor.saveToPhotos(fileURL: compressedURL, deletingSource: sourceAsset)
+            await videoLibrary.reload()   // refresh the grid (new file in, deleted source out)
             previewPlayer?.pause()
             step = .notification
         } catch {
@@ -976,6 +979,7 @@ struct CompressView: View {
         previewPlayer?.pause()
         previewPlayer = nil
         pickedURL = nil
+        pickedAssetID = nil
         pickedFileName = ""
         pickedSizeBytes = 0
         compressedURL = nil
