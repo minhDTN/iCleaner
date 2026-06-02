@@ -114,7 +114,10 @@ struct SimilarFlowView: View {
             set: { previewGroupIndex = $0?.groupIndex }
         )) { target in
             if groups.indices.contains(target.groupIndex) {
-                PhotoPreviewView(group: $groups[target.groupIndex], index: previewPhotoIndex)
+                // Only "Similar" categories browse as a filmstrip gallery; the
+                // rest (Duplicates, Screenshots, …) use the single-photo swipe.
+                PhotoPreviewView(group: $groups[target.groupIndex], index: previewPhotoIndex,
+                                 listMode: categoryTitle.lowercased().contains("similar"))
             }
         }
         .alert("Couldn't delete", isPresented: Binding(

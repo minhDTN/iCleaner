@@ -13,12 +13,14 @@ import AVKit
 struct PhotoPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var group: SimilarGroup
+    var listMode: Bool   // true → filmstrip gallery (Similar groups); false → single-photo swipe
     @State private var index: Int
     @State private var dragOffset: CGSize = .zero
 
-    init(group: Binding<SimilarGroup>, index: Int) {
+    init(group: Binding<SimilarGroup>, index: Int, listMode: Bool = true) {
         self._group = group
         self._index = State(initialValue: index)
+        self.listMode = listMode
     }
 
     private var current: SimilarPhoto? {
@@ -36,9 +38,11 @@ struct PhotoPreviewView: View {
             } else {
                 Spacer()
             }
-            filmstrip
-                .padding(.top, 8)
-                .padding(.bottom, 8)
+            if listMode {
+                filmstrip
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+            }
         }
         .background(Color.white.ignoresSafeArea())
         // Scenario: similar preview → bottom-anchored banner (banner_preview_similar).
@@ -56,9 +60,11 @@ struct PhotoPreviewView: View {
                     .frame(width: 24, height: 24)
             }
             Spacer()
-            Text("\(index + 1) / \(group.photos.count)")
-                .font(.custom("Inter-SemiBold", size: 15))
-                .foregroundStyle(Color(hex: 0x0F0F0F))
+            if listMode {
+                Text("\(index + 1) / \(group.photos.count)")
+                    .font(.custom("Inter-SemiBold", size: 15))
+                    .foregroundStyle(Color(hex: 0x0F0F0F))
+            }
             Spacer()
             Color.clear.frame(width: 24, height: 24)
         }
@@ -218,7 +224,8 @@ struct PhotoPreviewView: View {
         if index < group.photos.count {
             group.photos[index].isSelected = (!keep && index != group.bestMatchIndex)
         }
-        advance()
+        // Similar groups browse the whole list; other groups act on one then close.
+        if listMode { advance() } else { dismiss() }
     }
 
     // Move to the next photo so the group can be reviewed sequentially; dismiss
@@ -233,9 +240,9 @@ struct PhotoPreviewView: View {
     }
 
     private func sendToVault() {
-        // Vault move is a Phase 6 integration point — for now just advance.
+        // Vault move is a Phase 6 integration point.
         // TODO: wire VaultService import.
-        advance()
+        if listMode { advance() } else { dismiss() }
     }
 }
 
