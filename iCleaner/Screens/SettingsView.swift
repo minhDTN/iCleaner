@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Environment(\.requestReview) private var requestReview
     @State private var observedPremium = PermissionManager.shared.isPremium
     @AppStorage(PremiumGate.forcePremiumKey) private var forcePremium: Bool = false
+    @AppStorage("app.languageCode") private var languageCode = "en-gb"
     @State private var showPaywall = false
     @State private var showLanguage = false
     @State private var showShareSheet = false
@@ -26,6 +27,10 @@ struct SettingsView: View {
         #else
         return observedPremium
         #endif
+    }
+
+    private var selectedLanguageName: String {
+        Language.mock.first(where: { $0.code == languageCode })?.englishName ?? "English"
     }
 
     var body: some View {
@@ -68,7 +73,11 @@ struct SettingsView: View {
         }
         .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
-        .fullScreenCover(isPresented: $showLanguage) { LanguageView(onStart: { _ in showLanguage = false }, onBack: { showLanguage = false }) }
+        .fullScreenCover(isPresented: $showLanguage) {
+            LanguageView(initialCode: languageCode, showBack: true,
+                         onStart: { code in languageCode = code; showLanguage = false },
+                         onBack: { showLanguage = false })
+        }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: ["Cleaner — keep your photo library tidy. https://apps.apple.com/app/id\(AppInfo.bundleID)"])
         }
@@ -184,7 +193,7 @@ struct SettingsView: View {
             divider
             SettingsRow(assetIcon: "Settings/ic_rate", title: "Rate Us", action: { requestReview() })
             divider
-            SettingsRow(assetIcon: "Settings/ic_language", title: "Language", trailing: "English", action: { showLanguage = true })
+            SettingsRow(assetIcon: "Settings/ic_language", title: "Language", trailing: selectedLanguageName, action: { showLanguage = true })
         }
     }
 

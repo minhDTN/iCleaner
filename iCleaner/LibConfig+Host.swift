@@ -55,7 +55,7 @@ struct AppRootView: View {
         if didSelectLanguage {
             RootView()
         } else {
-            LanguageView(showBack: false, onStart: { code in
+            LanguageView(initialCode: languageCode, showBack: false, onStart: { code in
                 languageCode = code
                 withAnimation { didSelectLanguage = true }
             })

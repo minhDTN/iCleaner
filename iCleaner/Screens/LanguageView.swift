@@ -3,17 +3,28 @@ import SwiftUI
 // Figma `2005:23857` (language).
 // Bg #F3F4F6. Top: status bar + nav row (back + title). Search input white bg with
 // brand-blue stroke. Two sections: "Selected" + "All language" (Inter Medium 14/150%
-// #6D7E95). Bottom: orange `Let's Start` CTA (#FF7D37, Inter Bold 14 white).
+// #6D7E95). Bottom: brand-blue `Let's Start` CTA (Inter Bold 14 white). The chosen
+// code is returned via onStart and persisted by the caller (app.languageCode).
 //
 // MVP scope: 10 languages with downloaded flag PNGs. The full 25-language list +
 // search filter + locale switching wiring lands when localization ships. Back arrow
 // and search magnifier are SF Symbols until specific assets are downloaded.
 struct LanguageView: View {
-    @State private var selectedCode: String = "en-gb"
+    @State private var selectedCode: String
     @State private var query: String = ""
-    var showBack: Bool = true          // hidden on the first-launch onboarding
-    var onStart: (String) -> Void = { _ in }
-    var onBack: () -> Void = {}
+    var showBack: Bool                  // hidden on the first-launch onboarding
+    var onStart: (String) -> Void
+    var onBack: () -> Void
+
+    init(initialCode: String = "en-gb",
+         showBack: Bool = true,
+         onStart: @escaping (String) -> Void = { _ in },
+         onBack: @escaping () -> Void = {}) {
+        _selectedCode = State(initialValue: initialCode)   // start on the saved language
+        self.showBack = showBack
+        self.onStart = onStart
+        self.onBack = onBack
+    }
 
     private var filteredAll: [Language] {
         let others = Language.mock.filter { $0.code != selectedCode }
@@ -46,6 +57,7 @@ struct LanguageView: View {
                             VStack(spacing: 0) {
                                 ForEach(filteredAll) { lang in
                                     row(language: lang, isSelected: false)
+                                        .contentShape(Rectangle())
                                         .onTapGesture { selectedCode = lang.code }
                                 }
                             }
@@ -157,12 +169,12 @@ struct LanguageView: View {
             Button(action: { onStart(selectedCode) }) {
                 Text("Let’s Start")
                     .font(.custom("Inter-Bold", size: 14))
-                    .foregroundStyle(Color(hex: 0xEAF4FC))
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(hex: 0xFF7D37))
+                            .fill(AppColor.brandPrimary)
                     )
             }
             .padding(.horizontal, 16)
