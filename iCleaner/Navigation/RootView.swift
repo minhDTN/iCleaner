@@ -2,18 +2,17 @@ import SwiftUI
 import Observation
 import LibEarnMoneyIOS
 
-// Shared chrome state: lets a tab tell RootView to fully hide the tab bar +
-// banner for full-screen states (Contacts detail, Vault lock/create) that have
-// their own bottom controls and must not stack under the tab bar.
+// Shared chrome state: the measured tab bar + banner height (so each screen can
+// reserve space for it) and flags letting a tab fully hide the chrome for
+// full-screen states (Contacts detail, Vault lock/create).
 @MainActor
 @Observable
 final class TabChrome {
     var contactsDepth = 0
     var vaultGated = false
+    var height: CGFloat = 0   // measured tab bar + banner height
 }
 
-// Measured height of the tab bar + banner, fed back as a bottom safe-area inset
-// on each tab so no content/button is ever covered.
 private struct ChromeHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -24,7 +23,6 @@ private struct ChromeHeightKey: PreferenceKey {
 struct RootView: View {
     @State private var selection: AppTab = .home
     @State private var chrome = TabChrome()
-    @State private var chromeHeight: CGFloat = 0
     @State private var showLaunchPaywall: Bool = false
     @State private var didTriggerLaunchPaywall: Bool = false
 
@@ -42,14 +40,17 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            reserved(HomeView(), .home)
-            reserved(VaultView(), .vault)
-            reserved(ContactsView(), .contacts)
-            reserved(CompressView(), .compress)
+            HomeView().tag(AppTab.home).toolbar(.hidden, for: .tabBar)
+            VaultView().tag(AppTab.vault).toolbar(.hidden, for: .tabBar)
+            ContactsView().tag(AppTab.contacts).toolbar(.hidden, for: .tabBar)
+            CompressView().tag(AppTab.compress).toolbar(.hidden, for: .tabBar)
         }
         .environment(chrome)
-        // Single chrome instance overlaid at the bottom; its measured height is
-        // reserved per-tab via `reserved(...)` so buttons never sit underneath.
+        // One chrome instance overlaid at the bottom. Its measured height is
+        // published via `chrome.height`; each screen reserves it with
+        // `.bottomChromeInset()` so no content/button is ever covered. (Reserving
+        // on individual screens is reliable even inside a NavigationStack, unlike
+        // safeAreaInset applied to the TabView.)
         .overlay(alignment: .bottom) {
             if !chromeHidden {
                 VStack(spacing: 0) {
@@ -66,7 +67,9 @@ struct RootView: View {
                 )
             }
         }
-        .onPreferenceChange(ChromeHeightKey.self) { chromeHeight = $0 }
+        .onPreferenceChange(ChromeHeightKey.self) { h in
+            chrome.height = chromeHidden ? chrome.height : h
+        }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $showLaunchPaywall) {
             PaywallView()
@@ -78,18 +81,6 @@ struct RootView: View {
             try? await Task.sleep(for: .milliseconds(400))
             showLaunchPaywall = true
         }
-    }
-
-    // Reserve space for the chrome on each tab. safeAreaInset on a concrete view
-    // (vs. on the TabView) reliably insets that view's content + bottom buttons.
-    @ViewBuilder
-    private func reserved<V: View>(_ view: V, _ tab: AppTab) -> some View {
-        view
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: chromeHidden ? 0 : chromeHeight)
-            }
-            .tag(tab)
-            .toolbar(.hidden, for: .tabBar)
     }
 
     // Fully hide tab bar + banner for full-screen states in the current tab.
@@ -107,6 +98,22 @@ struct RootView: View {
         case .contacts: return AdUnits.bannerContacts
         case .vault:    return AdUnits.bannerVault
         case .compress: return AdUnits.bannerCompress
+        }
+    }
+}
+
+// Reserve bottom space for the tab bar + banner. Applied to each screen that
+// renders under the chrome (Home, Compress, Vault grid, Contacts dashboard) —
+// works reliably even inside a NavigationStack.
+extension View {
+    func bottomChromeInset() -> some View { modifier(BottomChromeInset()) }
+}
+
+private struct BottomChromeInset: ViewModifier {
+    @Environment(TabChrome.self) private var chrome: TabChrome?
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: chrome?.height ?? 0)
         }
     }
 }

@@ -87,6 +87,7 @@ struct HomeView: View {
 
             quickCleanCTA
         }
+        .bottomChromeInset()
         .task { await reloadThumbnails() }
         .fullScreenCover(item: $openedCategory, onDismiss: { Task { await reloadThumbnails() } }) { cat in
             SimilarFlowView(categoryTitle: cat.title, detectionConfig: cat.detectionConfig)

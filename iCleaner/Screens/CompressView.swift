@@ -52,6 +52,7 @@ struct CompressView: View {
                     .transition(.opacity)
             }
         }
+        .bottomChromeInset()
         .photosPicker(
             isPresented: $showPicker,
             selection: $pickerSelection,

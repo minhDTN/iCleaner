@@ -35,6 +35,7 @@ struct ContactsDashboardView: View {
             .padding(.top, 8)
         }
         .background(AppColor.surfaceBackground)
+        .bottomChromeInset()
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: ContactsCategory.self) { cat in
             switch cat {

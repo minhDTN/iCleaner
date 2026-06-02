@@ -36,6 +36,7 @@ struct VaultGridView: View {
 
                 if items.isEmpty && !importing {
                     emptyState
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     grid
                 }
@@ -48,6 +49,7 @@ struct VaultGridView: View {
                     importingOverlay
                 }
             }
+            .bottomChromeInset()
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $showChangePasscode) {
