@@ -119,7 +119,7 @@ final class VideoCompressor {
     /// Exports `sourceURL` at the selected quality. Increments the daily counter
     /// only after a successful export. Output URL lives in NSTemporaryDirectory.
     @discardableResult
-    func compress(sourceURL: URL, quality: Quality) async throws -> URL {
+    func compress(sourceURL: URL, quality: Quality, originalBytes: Int) async throws -> URL {
         guard canCompressMore else { throw CompressError.quotaExceeded }
 
         progress = 0
@@ -145,6 +145,13 @@ final class VideoCompressor {
         session.outputURL = outURL
         session.outputFileType = .mp4
         session.shouldOptimizeForNetworkUse = true
+        // A preset alone has a fixed target bitrate, so a small/low-bitrate source
+        // can come out ~unchanged (the "saved 0%" bug). Cap the output to the
+        // estimated target size so the real result actually matches the estimate.
+        let targetBytes = Self.estimatedOutputBytes(inputBytes: originalBytes, quality: quality)
+        if targetBytes > 0 {
+            session.fileLengthLimit = Int64(targetBytes)
+        }
 
         currentExport = session
         startProgressTimer()

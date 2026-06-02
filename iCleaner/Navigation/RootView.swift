@@ -12,6 +12,10 @@ final class TabChrome {
     var vaultGated = false
     var vaultDepth = 0        // pushed full-screen vault detail (e.g. Change Passcode)
     var height: CGFloat = 0   // measured tab bar + banner height
+    // Compress publishes its per-step bottom ad here so the chrome can render it
+    // BELOW the tab bar (same place as Home's banner), not above it.
+    var compressAdUnit: String? = nil
+    var compressAdIsNative = false
 }
 
 private struct ChromeHeightKey: PreferenceKey {
@@ -56,9 +60,7 @@ struct RootView: View {
             if !chromeHidden {
                 VStack(spacing: 0) {
                     CustomTabBar(selection: $selection)
-                    if let bannerID = bannerAdUnitID {
-                        BannerAdView(adUnitID: bannerID)
-                    }
+                    chromeBanner
                 }
                 .background(AppColor.surfaceBackground)
                 .background(
@@ -93,12 +95,24 @@ struct RootView: View {
         }
     }
 
-    private var bannerAdUnitID: String? {
-        // Home shows a tab-bar banner. Compress manages its own per-state bottom
-        // ad inside CompressView (banner_compress / video / success / native).
+    // Banner rendered BELOW the tab bar (like Home). Compress publishes its
+    // per-step unit into chrome.compressAdUnit so it shows here instead of above
+    // the bar; progress uses a native, the other steps a banner.
+    @ViewBuilder
+    private var chromeBanner: some View {
         switch selection {
-        case .home:     return AdUnits.bannerHome
-        case .compress, .contacts, .vault: return nil
+        case .home:
+            BannerAdView(adUnitID: AdUnits.bannerHome)
+        case .compress:
+            if let unit = chrome.compressAdUnit {
+                if chrome.compressAdIsNative {
+                    NativeAdView(adUnitID: unit, height: 120)
+                } else {
+                    BannerAdView(adUnitID: unit)
+                }
+            }
+        case .contacts, .vault:
+            EmptyView()
         }
     }
 }

@@ -32,6 +32,7 @@ struct CompressView: View {
     @State private var showCancelConfirm = false
     @State private var showPaywall = false
     @State private var showError: String?
+    @Environment(TabChrome.self) private var chrome: TabChrome?
 
     private enum Step { case empty, ready, confirm, progress, result, notification }
 
@@ -63,11 +64,16 @@ struct CompressView: View {
                 }
             }
         }
-        // Per-state bottom ad (scenario): landing banner_compress, ready/confirm
-        // banner_video_compress, compressing native_video_compress, result
-        // banner_success_view_compress. Sits above the tab bar.
-        .safeAreaInset(edge: .bottom) { compressAd }
+        // Per-step bottom ad is published to the shared chrome so it renders BELOW
+        // the tab bar (same place as Home), not above it. Scenario: landing
+        // banner_compress, ready/confirm banner_video_compress, compressing
+        // native_video_compress, result banner_success_view_compress.
         .bottomChromeInset()
+        .onChange(of: step, initial: true) { _, s in
+            let ad = Self.compressAd(for: s)
+            chrome?.compressAdUnit = ad.unit
+            chrome?.compressAdIsNative = ad.isNative
+        }
         .task { await videoLibrary.load() }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .alert("Compress error", isPresented: Binding(
@@ -80,15 +86,15 @@ struct CompressView: View {
         .animation(.easeInOut(duration: 0.22), value: showCancelConfirm)
     }
 
-    // Bottom ad whose unit depends on the compress step (scenario rows 3/5/6/7).
-    @ViewBuilder
-    private var compressAd: some View {
+    // Bottom ad unit for each compress step (scenario rows 3/5/6/7); rendered by
+    // the chrome below the tab bar. Progress uses a native, the others a banner.
+    private static func compressAd(for step: Step) -> (unit: String?, isNative: Bool) {
         switch step {
-        case .empty:           BannerAdView(adUnitID: AdUnits.bannerCompress)
-        case .ready, .confirm: BannerAdView(adUnitID: AdUnits.bannerVideoCompress)
-        case .progress:        NativeAdView(adUnitID: AdUnits.nativeVideoCompress, height: 120)
-        case .result:          BannerAdView(adUnitID: AdUnits.bannerSuccessCompress)
-        case .notification:    EmptyView()
+        case .empty:           return (AdUnits.bannerCompress, false)
+        case .ready, .confirm: return (AdUnits.bannerVideoCompress, false)
+        case .progress:        return (AdUnits.nativeVideoCompress, true)
+        case .result:          return (AdUnits.bannerSuccessCompress, false)
+        case .notification:    return (nil, false)
         }
     }
 
@@ -406,65 +412,81 @@ struct CompressView: View {
     // MARK: - Confirm modal
 
     private var confirmModal: some View {
-        ZStack {
+        let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)
+        let savings = max(0, pickedSizeBytes - estimated)
+        let savingsText = ByteCountFormatter.string(fromByteCount: Int64(savings), countStyle: .file)
+        return ZStack {
             Color.black.opacity(0.5).ignoresSafeArea()
                 .onTapGesture { step = .ready }
 
-            VStack(spacing: 8) {
-                Image(systemName: "wand.and.stars")
-                    .font(.system(size: 36))
-                    .foregroundStyle(AppColor.brandPrimary)
-                    .padding(.bottom, 8)
-
+            VStack(spacing: 0) {
+                // No icon (per design) — title leads the card.
                 Text("Confirm Compression?")
-                    .font(.custom("Inter-Bold", size: 20))
+                    .font(.custom("Inter-Bold", size: 22))
                     .foregroundStyle(Color(hex: 0x0F172A))
-
-                let estimated = VideoCompressor.estimatedOutputBytes(inputBytes: pickedSizeBytes, quality: quality)
-                let savings = pickedSizeBytes - estimated
-                Text("The video will be compressed. You'll save \(ByteCountFormatter.string(fromByteCount: Int64(max(0, savings)), countStyle: .file)) of storage.")
-                    .font(.custom("Inter-Regular", size: 14))
-                    .foregroundStyle(Color(hex: 0x64748B))
                     .multilineTextAlignment(.center)
+
+                // "You will save 38 MB of storage." — the size is bold.
+                (
+                    Text("The video will be compressed. You will save ")
+                        .font(.custom("Inter-Regular", size: 14))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                    + Text(savingsText)
+                        .font(.custom("Inter-Bold", size: 14))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                    + Text(" of storage.")
+                        .font(.custom("Inter-Regular", size: 14))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                )
+                .multilineTextAlignment(.center)
+                .padding(.top, 12)
 
                 if !PremiumGate.isPremium {
                     Text("Today's uses: \(compressor.usesUsedToday)/\(VideoCompressor.dailyLimit)")
-                        .font(.custom("Inter-Medium", size: 13))
-                        .foregroundStyle(AppColor.warning)
-                        .padding(.top, 4)
+                        .font(.custom("Inter-SemiBold", size: 14))
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Capsule().fill(Color(hex: 0xF6F7FF)))
+                        .overlay(Capsule().stroke(AppColor.brandPrimary.opacity(0.25), lineWidth: 1))
+                        .padding(.top, 20)
                 }
 
-                VStack(spacing: 12) {
-                    Button(action: { step = .progress; Task { await runExport() } }) {
-                        Text("Compress Now")
-                            .font(.custom("Inter-Bold", size: 16))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(AppColor.brandPrimary)
-                            )
-                    }
-                    Button(action: { step = .ready }) {
-                        Text("Cancel")
-                            .font(.custom("Inter-SemiBold", size: 16))
-                            .foregroundStyle(Color(hex: 0x64748B))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                    }
+                Button(action: { step = .progress; Task { await runExport() } }) {
+                    Text("Compress Now")
+                        .font(.custom("Inter-Bold", size: 16))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(AppColor.brandPrimary)
+                                .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 12, x: 0, y: 8)
+                        )
                 }
-                .padding(.top, 16)
+                .buttonStyle(.plain)
+                .padding(.top, 24)
+
+                Button(action: { step = .ready }) {
+                    Text("Cancel")
+                        .font(.custom("Inter-SemiBold", size: 16))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
             }
             .padding(24)
             .frame(width: 326)
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(AppColor.surfaceBackground)
+                    .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 12)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(AppColor.brandPrimary, lineWidth: 1)
+                    .stroke(AppColor.brandPrimary.opacity(0.15), lineWidth: 1)
             )
         }
     }
@@ -582,53 +604,23 @@ struct CompressView: View {
     // MARK: - Result
 
     private var resultView: some View {
-        let savings = pickedSizeBytes - compressedSizeBytes
+        let savings = max(0, pickedSizeBytes - compressedSizeBytes)
         let pct = pickedSizeBytes > 0 ? Int(Double(savings) / Double(pickedSizeBytes) * 100) : 0
-        return VStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .fill(AppColor.success.opacity(0.2))
-                    .frame(width: 120, height: 120)
-                    .blur(radius: 32)
-                Circle()
-                    .fill(AppColor.success)
-                    .frame(width: 80, height: 80)
-                Image(systemName: "checkmark")
-                    .font(.system(size: 36, weight: .heavy))
-                    .foregroundStyle(.white)
+        return VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    successCheckBadge(full: false)
+                        .padding(.top, 48)
+                        .padding(.bottom, 32)
+                    Text("Compression Complete!")
+                        .font(.custom("Inter-Bold", size: 24))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                        .padding(.bottom, 32)
+                    resultCard(pct: pct)
+                        .padding(.horizontal, 24)
+                    Spacer(minLength: 24)
+                }
             }
-            .padding(.top, 40)
-
-            Text("Compression Complete!")
-                .font(.custom("Inter-Bold", size: 24))
-                .foregroundStyle(AppColor.textPrimary)
-            Text("Saved \(pct)% — \(ByteCountFormatter.string(fromByteCount: Int64(max(0, savings)), countStyle: .file)) freed")
-                .font(.custom("Inter-Regular", size: 14))
-                .foregroundStyle(AppColor.textSecondary)
-
-            if let previewPlayer {
-                VideoPlayer(player: previewPlayer)
-                    .frame(height: 170)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(alignment: .topLeading) {
-                        Text("SAVED \(pct)%")
-                            .font(.custom("Inter-Bold", size: 10)).tracking(0.5)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Capsule().fill(AppColor.success))
-                            .padding(8)
-                    }
-                    .padding(.horizontal, 32)
-            }
-
-            HStack(spacing: 16) {
-                statTile(label: "Original", value: ByteCountFormatter.string(fromByteCount: Int64(pickedSizeBytes), countStyle: .file))
-                statTile(label: "Compressed", value: ByteCountFormatter.string(fromByteCount: Int64(compressedSizeBytes), countStyle: .file))
-            }
-            .padding(.horizontal, 32)
-
-            Spacer()
-
             VStack(spacing: 12) {
                 Button(action: { Task { await saveAndDismiss(deleteSource: true) } }) {
                     Text("Replace Original")
@@ -637,42 +629,137 @@ struct CompressView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(AppColor.brandPrimary)
+                                .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 10, x: 0, y: 6)
                         )
                 }
+                .buttonStyle(.plain)
                 Button(action: { Task { await saveAndDismiss(deleteSource: false) } }) {
                     Text("Keep Both")
-                        .font(.custom("Inter-SemiBold", size: 16))
-                        .foregroundStyle(AppColor.brandPrimary)
+                        .font(.custom("Inter-Bold", size: 16))
+                        .foregroundStyle(Color(hex: 0x334155))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(AppColor.brandPrimary, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(hex: 0xF1F5F9))
                         )
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 24)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 10)
         }
     }
 
-    private func statTile(label: String, value: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.custom("Inter-Bold", size: 18))
-                .foregroundStyle(AppColor.textPrimary)
-            Text(label)
-                .font(.custom("Inter-Regular", size: 12))
-                .foregroundStyle(AppColor.textSecondary)
+    // Card: playable preview + "SAVED %" badge, Original → arrow → Compressed,
+    // and a quality note. Figma 2005:22573.
+    private func resultCard(pct: Int) -> some View {
+        VStack(spacing: 24) {
+            ZStack(alignment: .topTrailing) {
+                Group {
+                    if let previewPlayer {
+                        VideoPlayer(player: previewPlayer)
+                    } else {
+                        Color(hex: 0xE2E8F0)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 173)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                Text("SAVED \(pct)%")
+                    .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.05)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Capsule().fill(AppColor.brandPrimary))
+                    .padding(12)
+            }
+
+            VStack(spacing: 16) {
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("ORIGINAL")
+                            .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.10)
+                            .foregroundStyle(Color(hex: 0x94A3B8))
+                        Text(formatBytes(pickedSizeBytes))
+                            .font(.custom("Inter-Bold", size: 18))
+                            .strikethrough()
+                            .foregroundStyle(Color(hex: 0x475569))
+                    }
+                    Spacer(minLength: 0)
+                    Image("Compress/ic_arrow")
+                        .renderingMode(.template).resizable().scaledToFit()
+                        .frame(width: 20, height: 12)
+                        .foregroundStyle(Color(hex: 0xCBD5E1))
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("COMPRESSED")
+                            .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.10)
+                            .foregroundStyle(AppColor.brandPrimary)
+                        Text(formatBytes(compressedSizeBytes))
+                            .font(.custom("Inter-Bold", size: 24))
+                            .foregroundStyle(AppColor.brandPrimary)
+                    }
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    Image("Compress/ic_quality")
+                        .renderingMode(.template).resizable().scaledToFit()
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(AppColor.brandPrimary)
+                        .padding(.top, 1)
+                    Text("The video quality has been preserved while reducing the file size by half.")
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xF1F5F9), lineWidth: 1))
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
         }
-        .frame(maxWidth: .infinity)
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color(hex: 0xF8FAFC))
+                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .stroke(Color(hex: 0xF1F5F9), lineWidth: 1)
+        )
+    }
+
+    // Glowing green check (Figma "Interface / Check"). `full` adds the soft halo +
+    // glass ring used on the Successfully-Compressed screen; the Complete screen
+    // uses just the radial-gradient core.
+    @ViewBuilder
+    private func successCheckBadge(full: Bool) -> some View {
+        ZStack {
+            if full {
+                Circle()
+                    .fill(Color(hex: 0x45EF89).opacity(0.2))
+                    .frame(width: 192, height: 192)
+                    .blur(radius: 64)
+                Circle()
+                    .fill(Color.white.opacity(0.4))
+                    .frame(width: 128, height: 128)
+                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 2))
+                    .shadow(color: Color(hex: 0x1F2687).opacity(0.07), radius: 16, x: 0, y: 8)
+            }
+            Circle()
+                .fill(RadialGradient(colors: [Color(hex: 0xCDF6DD), Color(hex: 0x2BEE79)],
+                                     center: .center, startRadius: 4, endRadius: 46))
+                .frame(width: 85, height: 85)
+                .shadow(color: Color(hex: 0x4FF090), radius: 18, x: 0, y: 0)
+            Image(systemName: "checkmark")
+                .font(.system(size: 34, weight: .heavy))
+                .foregroundStyle(.white)
+        }
     }
 
     // MARK: - Successfully Compressed notification (Figma "popup after")
@@ -685,38 +772,45 @@ struct CompressView: View {
                 Button(action: finishNotification) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color(hex: 0x0F0F0F))
+                        .foregroundStyle(Color(hex: 0x0F172A))
                         .frame(width: 24, height: 24)
                 }
                 Spacer()
                 Text("Notification")
                     .font(.custom("Inter-Bold", size: 18))
-                    .foregroundStyle(Color(hex: 0x0F0F0F))
+                    .foregroundStyle(Color(hex: 0x0F172A))
                 Spacer()
                 Color.clear.frame(width: 24, height: 24)
             }
-            .padding(.horizontal, 20)
-            .frame(height: 48)
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color(hex: 0xF1F5F9)).frame(height: 1) }
 
             ScrollView {
-                VStack(spacing: 20) {
-                    notifSuccessBadge
+                VStack(spacing: 0) {
+                    successCheckBadge(full: true)
                         .padding(.top, 24)
-                    VStack(spacing: 8) {
-                        Text("Successfully Compressed!")
-                            .font(.custom("Inter-Bold", size: 24))
-                            .foregroundStyle(AppColor.textPrimary)
-                        Text("Your file has been fully optimized to save storage space without losing quality.")
-                            .font(.custom("Inter-Regular", size: 14))
-                            .foregroundStyle(AppColor.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
-                    HStack(spacing: 12) {
+                        .padding(.bottom, 24)
+                    Text("Successfully Compressed!")
+                        .font(.custom("Inter-Bold", size: 24))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                        .multilineTextAlignment(.center)
+                    Text("Your file has been fully optimized to save storage space without losing quality.")
+                        .font(.custom("Inter-Regular", size: 14))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 7)
+                        .padding(.horizontal, 16)
+
+                    HStack(spacing: 16) {
                         notifStat(value: "\(pct)%", label: "SAVED")
                         notifStat(value: formatBytes(savings), label: "CLEARED")
                     }
+                    .padding(.top, 32)
+
                     fileDetailsCard(original: pickedSizeBytes, new: compressedSizeBytes)
+                        .padding(.top, 24)
+
                     Spacer(minLength: 24)
                 }
                 .padding(.horizontal, 24)
@@ -725,11 +819,15 @@ struct CompressView: View {
 
             Button(action: finishNotification) {
                 Text("Great!")
-                    .font(.custom("Inter-Bold", size: 16))
+                    .font(.custom("Inter-Bold", size: 18))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary))
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(AppColor.brandPrimary)
+                            .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 12, x: 0, y: 8)
+                    )
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 24)
@@ -737,70 +835,68 @@ struct CompressView: View {
         }
     }
 
-    private var notifSuccessBadge: some View {
-        ZStack {
-            Circle().fill(AppColor.success.opacity(0.2)).frame(width: 120, height: 120).blur(radius: 32)
-            Circle().fill(AppColor.success).frame(width: 72, height: 72)
-            Image(systemName: "checkmark").font(.system(size: 32, weight: .heavy)).foregroundStyle(.white)
-        }
-    }
-
+    // Stat box: value (blue) over label (gray), white fill + thin blue border.
     private func notifStat(value: String, label: String) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.custom("Inter-Bold", size: 22))
+                .font(.custom("Inter-Bold", size: 24))
                 .foregroundStyle(AppColor.brandPrimary)
             Text(label)
-                .font(.custom("Inter-SemiBold", size: 11)).tracking(0.5)
-                .foregroundStyle(AppColor.textSecondary)
+                .font(.custom("Inter-Bold", size: 10)).tracking(10 * 0.05)
+                .foregroundStyle(Color(hex: 0x94A3B8))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.brandPrimary.opacity(0.06)))
+        .padding(.vertical, 20)
+        .padding(.horizontal, 16)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color(hex: 0x135BEC, alpha: 0.2), lineWidth: 1))
     }
 
+    // File Details: Original Size → progress bar → New Size (Figma 144:2990).
     private func fileDetailsCard(original: Int, new: Int) -> some View {
-        let ratio = original > 0 ? min(1, Double(new) / Double(original)) : 0
-        return VStack(alignment: .leading, spacing: 12) {
+        let ratio = original > 0 ? min(1, max(0, Double(new) / Double(original))) : 0
+        return VStack(spacing: 24) {
             HStack {
                 Text("File Details")
-                    .font(.custom("Inter-SemiBold", size: 16))
-                    .foregroundStyle(AppColor.textPrimary)
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(Color(hex: 0x0F172A))
                 Spacer()
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 14))
+                Image("Compress/ic_file_details")
+                    .renderingMode(.template).resizable().scaledToFit()
+                    .frame(width: 14, height: 14)
                     .foregroundStyle(AppColor.brandPrimary)
             }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color(hex: 0xE2E8F0))
-                    Capsule().fill(AppColor.brandPrimary).frame(width: geo.size.width * ratio)
-                }
-            }
-            .frame(height: 8)
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 16) {
+                HStack {
                     Text("Original Size")
-                        .font(.custom("Inter-Regular", size: 12))
-                        .foregroundStyle(AppColor.textSecondary)
+                        .font(.custom("Inter-Regular", size: 14))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                    Spacer()
                     Text(formatBytes(original))
-                        .font(.custom("Inter-SemiBold", size: 14))
-                        .foregroundStyle(AppColor.textPrimary)
+                        .font(.custom("Inter-Bold", size: 14))
+                        .foregroundStyle(Color(hex: 0x0F172A))
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(hex: 0xF1F5F9))
+                        Capsule().fill(AppColor.brandPrimary).frame(width: geo.size.width * ratio)
+                    }
+                }
+                .frame(height: 6)
+                HStack {
                     Text("New Size")
-                        .font(.custom("Inter-Regular", size: 12))
-                        .foregroundStyle(AppColor.textSecondary)
+                        .font(.custom("Inter-Regular", size: 14))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                    Spacer()
                     Text(formatBytes(new))
-                        .font(.custom("Inter-SemiBold", size: 14))
+                        .font(.custom("Inter-Bold", size: 14))
                         .foregroundStyle(AppColor.brandPrimary)
                 }
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColor.surfaceBackground))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xE2E8F0), lineWidth: 1))
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color(hex: 0x135BEC, alpha: 0.2), lineWidth: 1))
     }
 
     // MARK: - Actions
@@ -816,7 +912,7 @@ struct CompressView: View {
     private func runExport() async {
         guard let pickedURL else { step = .ready; return }
         do {
-            let outURL = try await compressor.compress(sourceURL: pickedURL, quality: quality)
+            let outURL = try await compressor.compress(sourceURL: pickedURL, quality: quality, originalBytes: pickedSizeBytes)
             compressedURL = outURL
             compressedSizeBytes = (try? FileManager.default.attributesOfItem(atPath: outURL.path)[.size] as? Int) ?? 0
             previewPlayer = AVPlayer(url: outURL)   // play the compressed result
@@ -838,6 +934,7 @@ struct CompressView: View {
             // bridge (Part B polish). User can clean the original via Similar/Quick Clean.
             _ = deleteSource
             try await compressor.saveToPhotos(fileURL: compressedURL, deletingSource: nil)
+            await videoLibrary.reload()   // show the newly saved compressed video in the grid
             previewPlayer?.pause()
             step = .notification
         } catch {
@@ -953,6 +1050,14 @@ final class VideoLibraryService {
             auth = Self.map(await PHPhotoLibrary.requestAuthorization(for: .readWrite))
         }
         guard auth == .authorized, videos.isEmpty else { return }
+        loading = true
+        videos = await Task.detached(priority: .userInitiated) { Self.fetchVideos() }.value
+        loading = false
+    }
+
+    /// Re-fetch unconditionally (e.g. after a compress saves a new file to Photos).
+    func reload() async {
+        guard auth == .authorized else { return }
         loading = true
         videos = await Task.detached(priority: .userInitiated) { Self.fetchVideos() }.value
         loading = false
