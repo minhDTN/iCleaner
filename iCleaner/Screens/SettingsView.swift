@@ -67,6 +67,7 @@ struct SettingsView: View {
                         .foregroundStyle(Color(hex: 0x0F172A))
                 }
             }
+            .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerSetting) }
         }
         .onReceive(PermissionManager.shared.$isPremium) { observedPremium = $0 }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }

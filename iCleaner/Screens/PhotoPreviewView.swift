@@ -37,6 +37,8 @@ struct PhotoPreviewView: View {
                     .padding(.vertical, 100)
             }
         }
+        // Scenario: similar preview → bottom-anchored banner (banner_preview_similar).
+        .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerPreviewSimilar) }
     }
 
     // MARK: - Top bar

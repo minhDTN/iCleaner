@@ -64,7 +64,8 @@ struct SimilarReviewScreen: View {
                                     onOpenPhoto: { photoIdx in onOpenPreview(idx, photoIdx) }
                                 )
                             case .nativeAd:
-                                NativeAdView(adUnitID: AdUnits.nativeSimilarList, height: 120)
+                                // Scenario: Review Group list → banner (banner_review_group).
+                                BannerAdView(adUnitID: AdUnits.bannerReviewGroup)
                             }
                         }
                         Spacer(minLength: 100)

@@ -63,7 +63,7 @@ struct VaultView: View {
         guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interVaultUnlock,
+            adUnitID: AdUnits.interGlobal,
             from: vc,
             completion: nil
         )

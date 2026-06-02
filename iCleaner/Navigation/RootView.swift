@@ -94,11 +94,11 @@ struct RootView: View {
     }
 
     private var bannerAdUnitID: String? {
+        // Home shows a tab-bar banner. Compress manages its own per-state bottom
+        // ad inside CompressView (banner_compress / video / success / native).
         switch selection {
         case .home:     return AdUnits.bannerHome
-        case .contacts: return AdUnits.bannerContacts
-        case .vault:    return AdUnits.bannerVault
-        case .compress: return AdUnits.bannerCompress
+        case .compress, .contacts, .vault: return nil
         }
     }
 }

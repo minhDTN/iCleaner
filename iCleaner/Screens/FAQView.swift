@@ -44,6 +44,9 @@ struct FAQView: View {
                 )
 
                 contactCTA
+
+                // Scenario: FAQ screen → native (native_faq).
+                NativeAdView(adUnitID: AdUnits.nativeFaq, height: 120)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 24)

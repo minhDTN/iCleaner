@@ -242,7 +242,7 @@ struct SimilarFlowView: View {
             return
         }
         AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interSimilarClean,
+            adUnitID: AdUnits.interGlobal,
             from: vc
         ) {
             Task { @MainActor in next() }

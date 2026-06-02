@@ -6,7 +6,7 @@ import LibEarnMoneyIOS
 // Figma cluster: 2005:22138 (entry) → 2005:22335 (confirm) → 2005:23000 (progress)
 // → 2005:22563 (result). Daily free quota of 2 (key-rolled at local midnight);
 // premium bypasses. Interstitial fires after a successful Result via
-// AdUnits.interCompressResult (premium-gated, lib 30s cap).
+// AdUnits.interGlobal (premium-gated, lib 30s cap).
 //
 // State machine:
 //   .empty       — no video picked yet, prompt to pick
@@ -52,6 +52,10 @@ struct CompressView: View {
                     .transition(.opacity)
             }
         }
+        // Per-state bottom ad (scenario): landing banner_compress, ready/confirm
+        // banner_video_compress, compressing native_video_compress, result
+        // banner_success_view_compress. Sits above the tab bar.
+        .safeAreaInset(edge: .bottom) { compressAd }
         .bottomChromeInset()
         .photosPicker(
             isPresented: $showPicker,
@@ -75,6 +79,17 @@ struct CompressView: View {
         } message: { Text(showError ?? "") }
         .animation(.easeInOut(duration: 0.25), value: step)
         .animation(.easeInOut(duration: 0.22), value: showCancelConfirm)
+    }
+
+    // Bottom ad whose unit depends on the compress step (scenario rows 3/5/6/7).
+    @ViewBuilder
+    private var compressAd: some View {
+        switch step {
+        case .empty:           BannerAdView(adUnitID: AdUnits.bannerCompress)
+        case .ready, .confirm: BannerAdView(adUnitID: AdUnits.bannerVideoCompress)
+        case .progress:        NativeAdView(adUnitID: AdUnits.nativeVideoCompress, height: 120)
+        case .result:          BannerAdView(adUnitID: AdUnits.bannerSuccessCompress)
+        }
     }
 
     // MARK: - Empty state
@@ -613,7 +628,7 @@ struct CompressView: View {
         guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interCompressResult,
+            adUnitID: AdUnits.interGlobal,
             from: vc,
             completion: nil
         )

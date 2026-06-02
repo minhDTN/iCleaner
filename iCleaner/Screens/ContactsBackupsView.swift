@@ -245,7 +245,7 @@ struct ContactsBackupsView: View {
         guard !PremiumGate.isPremium,
               let vc = AdHelpers.topViewController() else { return }
         AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interContactsAction,
+            adUnitID: AdUnits.interGlobal,
             from: vc,
             completion: nil
         )

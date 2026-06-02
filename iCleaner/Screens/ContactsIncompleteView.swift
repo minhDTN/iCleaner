@@ -189,7 +189,7 @@ struct ContactsIncompleteView: View {
             selection.removeAll()
             if !PremiumGate.isPremium, let vc = AdHelpers.topViewController() {
                 AdManager.shared.showInterstitialAd(
-                    adUnitID: AdUnits.interContactsAction,
+                    adUnitID: AdUnits.interGlobal,
                     from: vc,
                     completion: nil
                 )

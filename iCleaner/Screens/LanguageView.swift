@@ -50,6 +50,8 @@ struct LanguageView: View {
                                 }
                             }
                         }
+                        // Scenario: Language screen → native (native_language).
+                        NativeAdView(adUnitID: AdUnits.nativeLanguage, height: 120)
                         Spacer(minLength: 100)  // Room for the floating Let's Start.
                     }
                     .padding(.horizontal, 20)

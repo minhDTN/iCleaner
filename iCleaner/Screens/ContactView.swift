@@ -38,6 +38,7 @@ struct ContactView: View {
 
             sendButton
         }
+        .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerContactUs) }
         .navigationTitle("Contact Us")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showMail) {

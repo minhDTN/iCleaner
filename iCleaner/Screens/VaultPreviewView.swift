@@ -47,6 +47,8 @@ struct VaultPreviewView: View {
                 Spacer(minLength: 0)
                 filmstrip
                 footer
+                // Scenario: image preview → bottom-anchored banner (banner_preview_image).
+                BannerAdView(adUnitID: AdUnits.bannerPreviewImage)
             }
         }
         .task(id: currentID) { await loadMedia() }

@@ -45,20 +45,26 @@ struct QuickCleanSuccessView: View {
                 Spacer()
             }
 
-            Button(action: onContinue) {
-                Text("Great!")
-                    .font(.custom("Inter-Bold", size: 18))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(AppColor.brandPrimary)
-                            .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 5, x: 0, y: 4)
-                            .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 12, x: 0, y: 10)
-                    )
+            VStack(spacing: 16) {
+                // Scenario: clean "Congratulations" → native (native_success_view_clean).
+                NativeAdView(adUnitID: AdUnits.nativeSuccessClean, height: 120)
+                    .padding(.horizontal, 20)
+
+                Button(action: onContinue) {
+                    Text("Great!")
+                        .font(.custom("Inter-Bold", size: 18))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(AppColor.brandPrimary)
+                                .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 5, x: 0, y: 4)
+                                .shadow(color: AppColor.brandPrimary.opacity(0.2), radius: 12, x: 0, y: 10)
+                        )
+                }
+                .padding(.horizontal, 32)
             }
-            .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }
     }

@@ -123,7 +123,7 @@ struct QuickCleanFlowView: View {
             return
         }
         AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interQuickClean,
+            adUnitID: AdUnits.interGlobal,
             from: vc
         ) {
             Task { @MainActor in dismiss() }

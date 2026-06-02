@@ -21,7 +21,7 @@ func makeLibConfig() -> LibConfig {
             appOpenSettingUnitID:  AdUnits.openAll,
             openSplashUnitID:      AdUnits.openSplash,
             interSplashUnitID:     AdUnits.interSplash,
-            interScanResultUnitID: AdUnits.interQuickClean
+            interScanResultUnitID: AdUnits.interGlobal
         ),
 
         // Lib clamps to 5s floor regardless of this default.

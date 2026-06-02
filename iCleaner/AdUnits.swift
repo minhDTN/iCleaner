@@ -1,31 +1,38 @@
 import Foundation
 
-// iCleaner AdMob ad unit IDs.
-// AdMob App ID: <TODO: replace with real iCleaner app ID before release — currently using QRCode's>
-// Currently using Google's official test IDs so dev builds always get fill.
-// Replace each with the real iCleaner ad unit ID before App Store submission.
+// iCleaner AdMob ad unit IDs — from the production ads scenario sheet.
+// App pub account: ca-app-pub-5904408074441373
+// NOTE: the AdMob App ID (GADApplicationIdentifier, the "~" id) is set in
+// Info.plist and is NOT in the sheet — replace it there with the real iCleaner
+// app id before release.
 enum AdUnits {
-    // App Open / Splash
-    static let openSplash    = "ca-app-pub-3940256099942544/5575463023"   // TODO: open_splash
-    static let openAll       = "ca-app-pub-3940256099942544/5575463023"   // TODO: open_all (Settings return)
-    static let interSplash   = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_splash
+    private static let pub = "ca-app-pub-5904408074441373"
 
-    // Banners
-    static let bannerHome        = "ca-app-pub-3940256099942544/2934735716"   // TODO: banner_home
-    static let bannerContacts    = "ca-app-pub-3940256099942544/2934735716"   // TODO: banner_contacts
-    static let bannerVault       = "ca-app-pub-3940256099942544/2934735716"   // TODO: banner_vault
-    static let bannerCompress    = "ca-app-pub-3940256099942544/2934735716"   // TODO: banner_compress
-    static let bannerSettings    = "ca-app-pub-3940256099942544/2934735716"   // TODO: banner_settings
+    // 1 — Splash
+    static let openSplash  = "\(pub)/3063900777"   // appopen_splash
+    static let interSplash = "\(pub)/1750819106"   // inter_splash
 
-    // Interstitials
-    static let interQuickClean        = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_quick_clean (after Quick Clean success)
-    static let interSimilarClean      = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_similar_clean (after Delete N Selected)
-    static let interCompressResult    = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_compress_result (Replace/Keep Both → return)
-    static let interVaultUnlock       = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_vault_unlock (after biometric/passcode)
-    static let interContactsAction    = "ca-app-pub-3940256099942544/4411468910"   // TODO: inter_contacts_action (merge/delete/backup)
+    // 2 — App open on return from background (all screens)
+    static let openAll     = "\(pub)/2213853535"   // open_all
 
-    // Natives
-    static let nativeHome             = "ca-app-pub-3940256099942544/3986624511"   // TODO: native_home (between category cards)
-    static let nativeSimilarList      = "ca-app-pub-3940256099942544/3986624511"   // TODO: native_similar_list (in Similar/Duplicates review)
-    static let nativeContactsList     = "ca-app-pub-3940256099942544/3986624511"   // TODO: native_contacts_list
+    // 12 — Shared interstitial for every action button
+    static let interGlobal = "\(pub)/3560770391"   // inter_global
+
+    // 3-14 — Banners
+    static let bannerHome             = "\(pub)/2439260411"   // banner_home (Home tab)
+    static let bannerCompress         = "\(pub)/1126178744"   // banner_compress (Compress tab)
+    static let bannerReviewGroup      = "\(pub)/8813097079"   // banner_review_group (similar review list)
+    static let bannerVideoCompress    = "\(pub)/7500015400"   // banner_video_compress (compress ready screen)
+    static let bannerSuccessCompress  = "\(pub)/6811574096"   // banner_success_view_compress
+    static let bannerSetting          = "\(pub)/6186933733"   // banner_setting
+    static let bannerContactUs        = "\(pub)/3335363519"   // banner_contact_us
+    static let bannerPreviewSimilar   = "\(pub)/2247688725"   // banner_preview_similar (similar preview, bottom)
+    static let bannerPreviewImage     = "\(pub)/9934607050"   // banner_preview_image (vault preview, bottom)
+
+    // 6-10 — Natives
+    static let nativeVideoCompress    = "\(pub)/7421644261"   // native_video_compress (Compressing screen)
+    static let nativeSuccessDelete    = "\(pub)/5498492428"   // native_success_view_delete
+    static let nativeSuccessClean     = "\(pub)/8587690199"   // native_success_view_clean (Congratulations)
+    static let nativeFaq              = "\(pub)/5961526858"   // native_faq
+    static let nativeLanguage         = "\(pub)/4873852068"   // native_language
 }
