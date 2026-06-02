@@ -195,9 +195,9 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         SettingsSection(title: "Support") {
-            NavigationLink(destination: FAQView()) {
-                SettingsRowChrome(assetIcon: "Settings/ic_faq", title: "FAQ")
-            }
+            // Figma routes FAQ to a Google Doc (node 2005:23750), not an in-app
+            // accordion — open the link in Safari.
+            SettingsRow(assetIcon: "Settings/ic_faq", title: "FAQ", action: { UIApplication.shared.open(AppInfo.faqURL) })
             divider
             SettingsRow(assetIcon: "Settings/ic_restore", title: "Restore Purchase", action: restorePurchases)
             divider

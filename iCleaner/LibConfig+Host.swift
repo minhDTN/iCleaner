@@ -55,7 +55,10 @@ enum AppInfo {
     }
 
     static let termsURL   = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    // Both pulled verbatim from Figma annotation nodes 2005:23750 (FAQ) /
+    // 2005:23752 (Policy).
     static let privacyURL = URL(string: "https://sites.google.com/view/daliti-global/policy")!
+    static let faqURL     = URL(string: "https://docs.google.com/document/d/12O9-91SlfRKRZbl_Hmq65njdvKzFA_AkvZLp5Lp4iYo/edit?usp=sharing")!
 
     static func fetchAppStoreURL() async -> URL? {
         guard let endpoint = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)") else { return nil }
