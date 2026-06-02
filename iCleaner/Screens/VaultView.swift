@@ -13,6 +13,10 @@ struct VaultView: View {
     @State private var vault = VaultService()
     @State private var didShowUnlockAd: Bool = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(TabChrome.self) private var chrome: TabChrome?
+
+    // The lock / create-passcode screens are full-screen gates → no tab bar.
+    private var gated: Bool { !vault.hasPasscode || !vault.isUnlocked }
 
     var body: some View {
         Group {
@@ -26,6 +30,9 @@ struct VaultView: View {
                 }
             }
         }
+        .onAppear { chrome?.vaultGated = gated }
+        .onChange(of: vault.hasPasscode) { _, _ in chrome?.vaultGated = gated }
+        .onChange(of: vault.isUnlocked) { _, _ in chrome?.vaultGated = gated }
         .animation(.easeInOut(duration: 0.25), value: vault.hasPasscode)
         .animation(.easeInOut(duration: 0.25), value: vault.isUnlocked)
         .onChange(of: vault.isUnlocked) { _, unlocked in

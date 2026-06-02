@@ -2,19 +2,29 @@ import SwiftUI
 import Observation
 import LibEarnMoneyIOS
 
-// Shared chrome state: lets a tab's pushed detail screen tell RootView to hide
-// the custom tab bar + banner (so detail screens are full-bleed, matching Figma,
-// instead of stacking their own action bar under the tab bar). Tracked per tab
-// by navigation depth — robust against TabView's onAppear/onDisappear quirks.
+// Shared chrome state: lets a tab tell RootView to fully hide the tab bar +
+// banner for full-screen states (Contacts detail, Vault lock/create) that have
+// their own bottom controls and must not stack under the tab bar.
 @MainActor
 @Observable
 final class TabChrome {
     var contactsDepth = 0
+    var vaultGated = false
+}
+
+// Measured height of the tab bar + banner, fed back as a bottom safe-area inset
+// on each tab so no content/button is ever covered.
+private struct ChromeHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
 
 struct RootView: View {
     @State private var selection: AppTab = .home
     @State private var chrome = TabChrome()
+    @State private var chromeHeight: CGFloat = 0
     @State private var showLaunchPaywall: Bool = false
     @State private var didTriggerLaunchPaywall: Bool = false
 
@@ -32,27 +42,15 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView()
-                .tag(AppTab.home)
-                .toolbar(.hidden, for: .tabBar)
-
-            VaultView()
-                .tag(AppTab.vault)
-                .toolbar(.hidden, for: .tabBar)
-
-            ContactsView()
-                .tag(AppTab.contacts)
-                .toolbar(.hidden, for: .tabBar)
-
-            CompressView()
-                .tag(AppTab.compress)
-                .toolbar(.hidden, for: .tabBar)
+            reserved(HomeView(), .home)
+            reserved(VaultView(), .vault)
+            reserved(ContactsView(), .contacts)
+            reserved(CompressView(), .compress)
         }
         .environment(chrome)
-        // Chrome as a safe-area inset (not a ZStack overlay) so every screen's
-        // content + bottom buttons inset ABOVE the tab bar and banner instead of
-        // being covered by them.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // Single chrome instance overlaid at the bottom; its measured height is
+        // reserved per-tab via `reserved(...)` so buttons never sit underneath.
+        .overlay(alignment: .bottom) {
             if !chromeHidden {
                 VStack(spacing: 0) {
                     CustomTabBar(selection: $selection)
@@ -61,14 +59,19 @@ struct RootView: View {
                     }
                 }
                 .background(AppColor.surfaceBackground)
+                .background(
+                    GeometryReader { g in
+                        Color.clear.preference(key: ChromeHeightKey.self, value: g.size.height)
+                    }
+                )
             }
         }
+        .onPreferenceChange(ChromeHeightKey.self) { chromeHeight = $0 }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $showLaunchPaywall) {
             PaywallView()
         }
         .task {
-            // Show paywall once after lib splash + cold-start ad finish routing here.
             guard !didTriggerLaunchPaywall else { return }
             didTriggerLaunchPaywall = true
             guard !PremiumGate.isPremium else { return }
@@ -77,11 +80,23 @@ struct RootView: View {
         }
     }
 
-    // Hide the tab bar + banner while a detail screen is pushed in the current
-    // tab (only Contacts pushes full-screen detail with its own bottom bar).
+    // Reserve space for the chrome on each tab. safeAreaInset on a concrete view
+    // (vs. on the TabView) reliably insets that view's content + bottom buttons.
+    @ViewBuilder
+    private func reserved<V: View>(_ view: V, _ tab: AppTab) -> some View {
+        view
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: chromeHidden ? 0 : chromeHeight)
+            }
+            .tag(tab)
+            .toolbar(.hidden, for: .tabBar)
+    }
+
+    // Fully hide tab bar + banner for full-screen states in the current tab.
     private var chromeHidden: Bool {
         switch selection {
         case .contacts: return chrome.contactsDepth > 0
+        case .vault:    return chrome.vaultGated
         default:        return false
         }
     }
