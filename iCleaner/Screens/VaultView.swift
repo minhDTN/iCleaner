@@ -30,9 +30,10 @@ struct VaultView: View {
                 }
             }
         }
-        .onAppear { chrome?.vaultGated = gated }
-        .onChange(of: vault.hasPasscode) { _, _ in chrome?.vaultGated = gated }
-        .onChange(of: vault.isUnlocked) { _, _ in chrome?.vaultGated = gated }
+        // Hide the tab bar + banner whenever a full-screen gate (create / lock /
+        // change passcode) is showing. `initial: true` sets it on first appearance
+        // too — onAppear alone doesn't fire reliably on TabView tab switches.
+        .onChange(of: gated, initial: true) { _, isGated in chrome?.vaultGated = isGated }
         .animation(.easeInOut(duration: 0.25), value: vault.hasPasscode)
         .animation(.easeInOut(duration: 0.25), value: vault.isUnlocked)
         .onChange(of: vault.isUnlocked) { _, unlocked in

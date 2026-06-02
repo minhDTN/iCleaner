@@ -26,6 +26,18 @@ final class VaultService {
 
     private(set) var isUnlocked: Bool = false
 
+    init() {
+        // Keychain survives an app uninstall/reinstall but UserDefaults does not.
+        // On a fresh install, clear any stale passcode + key so the user gets the
+        // Create Passcode flow instead of a lock screen guarding an already-wiped
+        // vault. (One-time reset on first launch after this ships.)
+        let installedFlag = "icleaner.vault.installed.v1"
+        if !UserDefaults.standard.bool(forKey: installedFlag) {
+            UserDefaults.standard.set(true, forKey: installedFlag)
+            eraseAll()
+        }
+    }
+
     var hasPasscode: Bool { Keychain.data(forKey: KCKey.passcode) != nil }
     var canUseBiometry: Bool {
         var error: NSError?
