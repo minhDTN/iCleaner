@@ -3,41 +3,54 @@ import SwiftData
 import Photos
 import AVKit
 
-// Figma `2010:2345` (private preview). White screen: header (back + "Private
-// Vault" + "AES-256 Encrypted" subtitle), metadata row (date + file • size), the
-// decrypted media filling the middle, and a bottom bar with Share + Delete.
+// Figma `2010:2345` (private preview). Immersive gallery: the selected media fills
+// the screen, with a glass header (back + "Private Vault" + "AES-256 Encrypted"),
+// a metadata pill (date / file • size), a horizontal filmstrip of EVERY vault item
+// (tap to switch; the active one has a blue ring), and a Share / Delete footer.
 //
-// Media decrypts via VaultService.readDecrypted off the main actor. Delete
-// removes the SwiftData row + the encrypted blob file.
+// Media decrypts via VaultService.readDecrypted off the main actor. Delete removes
+// the SwiftData row + the encrypted blob, then moves to an adjacent item (or
+// dismisses when the vault is empty).
 struct VaultPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
     let vault: VaultService
-    let item: VaultItem
+    @State private var items: [VaultItem]
+    @State private var currentID: UUID
 
     @State private var image: UIImage?
     @State private var player: AVPlayer?
-    @State private var decryptedURL: URL?   // temp plaintext file (video / share)
-    @State private var showDeleteConfirm: Bool = false
-    @State private var showShareSheet: Bool = false
+    @State private var decryptedURL: URL?
+    @State private var showDeleteConfirm = false
+    @State private var showShareSheet = false
     @State private var loadError: String?
 
-    private var isVideo: Bool { item.mimeType.hasPrefix("video") }
+    init(vault: VaultService, items: [VaultItem], current: VaultItem) {
+        self.vault = vault
+        _items = State(initialValue: items)
+        _currentID = State(initialValue: current.id)
+    }
+
+    private var current: VaultItem? { items.first { $0.id == currentID } }
+    private var isVideo: Bool { current?.mimeType.hasPrefix("video") ?? false }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            metaRow
+        ZStack {
+            Color.white.ignoresSafeArea()
+
             mediaArea
-            bottomBar
+
+            VStack(spacing: 0) {
+                header
+                metadataRow
+                Spacer(minLength: 0)
+                filmstrip
+                footer
+            }
         }
-        .background(AppColor.surfaceBackground.ignoresSafeArea())
-        .task { await loadMedia() }
-        .onDisappear {
-            // Clean up the temp plaintext file so decrypted media never lingers.
-            if let url = decryptedURL { try? FileManager.default.removeItem(at: url) }
-        }
+        .task(id: currentID) { await loadMedia() }
+        .onDisappear { cleanupTemp() }
         .confirmationDialog("Delete this item?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { performDelete() }
             Button("Cancel", role: .cancel) {}
@@ -45,16 +58,30 @@ struct VaultPreviewView: View {
             Text("This permanently removes the encrypted copy from your vault.")
         }
         .sheet(isPresented: $showShareSheet) {
-            if let url = decryptedURL {
-                ShareSheet(items: [url])
-            }
+            if let url = decryptedURL { ShareSheet(items: [url]) }
         }
         .alert("Decryption failed", isPresented: Binding(
-            get: { loadError != nil },
-            set: { if !$0 { loadError = nil } }
+            get: { loadError != nil }, set: { if !$0 { loadError = nil } }
         )) {
-            Button("OK", role: .cancel) { loadError = nil; dismiss() }
+            Button("OK", role: .cancel) { loadError = nil }
         } message: { Text(loadError ?? "") }
+    }
+
+    // MARK: - Media
+
+    private var mediaArea: some View {
+        Group {
+            if isVideo, let player {
+                VideoPlayer(player: player)
+                    .onAppear { player.play() }
+                    .onDisappear { player.pause() }
+            } else if let image {
+                Image(uiImage: image).resizable().scaledToFit()
+            } else {
+                ProgressView().tint(AppColor.brandPrimary).scaleEffect(1.3)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Header
@@ -63,111 +90,120 @@ struct VaultPreviewView: View {
         ZStack {
             VStack(spacing: 2) {
                 Text("Private Vault")
-                    .font(.custom("Inter-Bold", size: 18))
-                    .foregroundStyle(Color(hex: 0x131B2E))
-                HStack(spacing: 5) {
+                    .font(.custom("Inter-SemiBold", size: 20))
+                    .foregroundStyle(Color(hex: 0x111827))
+                HStack(spacing: 4) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10, weight: .semibold))
                     Text("AES-256 Encrypted")
-                        .font(.custom("Inter-Medium", size: 11))
+                        .font(.custom("Inter-SemiBold", size: 12))
+                        .tracking(12 * 0.05)
                 }
-                .foregroundStyle(AppColor.brandPrimary)
+                .foregroundStyle(Color(hex: 0x4B5563))
             }
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(AppColor.brandPrimary)
+                        .foregroundStyle(Color(hex: 0x374151))
                         .frame(width: 40, height: 40, alignment: .leading)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Color.clear.frame(width: 28, height: 28)
+                Color.clear.frame(width: 34, height: 34)
             }
         }
         .padding(.horizontal, 20)
         .frame(height: 56)
-        .background(
-            AppColor.surfaceBackground
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
-                }
-        )
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
+        }
     }
 
-    private var metaRow: some View {
-        let dateStr = Self.dateString(item.addedAt)
-        let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(item.sizeBytes), countStyle: .file)
-        return HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(dateStr)
-                Text("\(item.fileName) • \(sizeStr)")
+    private var metadataRow: some View {
+        HStack {
+            if let cur = current {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(Self.dateString(cur.addedAt))
+                    Text("\(cur.fileName) • \(ByteCountFormatter.string(fromByteCount: Int64(cur.sizeBytes), countStyle: .file))")
+                }
+                .font(.custom("Inter-Regular", size: 14))
+                .foregroundStyle(Color(hex: 0x1F2937))
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(hex: 0xF3F4F6).opacity(0.85))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color(hex: 0xE5E7EB), lineWidth: 1)
+                        )
+                )
             }
-            .font(.custom("Inter-Regular", size: 13))
-            .foregroundStyle(Color(hex: 0x434655))
             Spacer()
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
     }
 
-    private var mediaArea: some View {
-        ZStack {
-            Color(hex: 0x0F172A).opacity(0.03)
-            Group {
-                if isVideo, let player {
-                    VideoPlayer(player: player)
-                        .onAppear { player.play() }
-                        .onDisappear { player.pause() }
-                } else if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    VStack(spacing: 12) {
-                        ProgressView().tint(AppColor.brandPrimary).scaleEffect(1.3)
-                        Text("Decrypting…")
-                            .font(.custom("Inter-SemiBold", size: 14))
-                            .foregroundStyle(AppColor.textSecondary)
+    // MARK: - Filmstrip
+
+    private var filmstrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(items) { it in
+                        VaultThumbnail(vault: vault, item: it)
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(Color(hex: 0x003AFF), lineWidth: it.id == currentID ? 2 : 0)
+                            )
+                            .opacity(it.id == currentID ? 1 : 0.6)
+                            .id(it.id)
+                            .onTapGesture { currentID = it.id }
                     }
                 }
+                .padding(.horizontal, 20)
+            }
+            .frame(height: 64)
+            .padding(.vertical, 16)
+            .onChange(of: currentID) { _, id in
+                withAnimation { proxy.scrollTo(id, anchor: .center) }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xF3F4F6)).frame(height: 1) }
     }
 
-    private var bottomBar: some View {
-        HStack {
-            Spacer()
-            barButton(systemIcon: "square.and.arrow.up", label: "Share",
-                      tint: AppColor.brandPrimary, action: prepareShare)
-            Spacer()
-            barButton(systemIcon: "trash", label: "Delete",
-                      tint: AppColor.danger, action: { showDeleteConfirm = true })
-            Spacer()
+    // MARK: - Footer
+
+    private var footer: some View {
+        HStack(spacing: 98) {
+            footerButton(icon: "square.and.arrow.up", label: "Share",
+                         tint: Color(hex: 0x374151), action: prepareShare)
+            footerButton(icon: "trash", label: "Delete",
+                         tint: Color(hex: 0xDC2626), action: { showDeleteConfirm = true })
         }
-        .padding(.vertical, 16)
-        .background(
-            AppColor.surfaceBackground
-                .ignoresSafeArea(edges: .bottom)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
-                }
-        )
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xE5E7EB).opacity(0.6)).frame(height: 1) }
     }
 
-    private func barButton(systemIcon: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func footerButton(icon: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemIcon)
-                    .font(.system(size: 22))
+            VStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 18))
                 Text(label)
                     .font(.custom("Inter-SemiBold", size: 12))
+                    .tracking(12 * 0.05)
             }
             .foregroundStyle(tint)
-            .frame(width: 72)
+            .frame(minWidth: 58)
         }
         .buttonStyle(.plain)
     }
@@ -183,10 +219,14 @@ struct VaultPreviewView: View {
     // MARK: - Load
 
     private func loadMedia() async {
-        let itemID = item.id
-        let v = vault
-        let video = isVideo
+        cleanupTemp()
+        image = nil
+        player = nil
+        guard let cur = current else { return }
+        let itemID = cur.id
+        let video = cur.mimeType.hasPrefix("video")
         let ext = video ? "mov" : "jpg"
+        let v = vault
         let result: (url: URL?, image: UIImage?)? = await Task.detached(priority: .userInitiated) {
             guard let data = try? v.readDecrypted(for: itemID) else { return nil }
             let tmp = FileManager.default.temporaryDirectory
@@ -195,26 +235,34 @@ struct VaultPreviewView: View {
             return (tmp, video ? nil : UIImage(data: data))
         }.value
 
+        // Ignore a result that arrived after the user already switched items.
+        guard cur.id == currentID else { return }
         guard let result, let url = result.url else {
             loadError = "Couldn't decrypt this file. It may be corrupted."
             return
         }
         decryptedURL = url
-        if video {
-            player = AVPlayer(url: url)
-        } else {
+        if video { player = AVPlayer(url: url) }
+        else {
             image = result.image
             if image == nil { loadError = "Couldn't decrypt this file. It may be corrupted." }
         }
     }
 
+    private func cleanupTemp() {
+        if let url = decryptedURL { try? FileManager.default.removeItem(at: url); decryptedURL = nil }
+    }
+
     // MARK: - Actions
 
     private func performDelete() {
-        vault.deleteFile(for: item.id)
-        modelContext.delete(item)
+        guard let cur = current, let idx = items.firstIndex(where: { $0.id == cur.id }) else { return }
+        vault.deleteFile(for: cur.id)
+        modelContext.delete(cur)
         try? modelContext.save()
-        dismiss()
+        items.remove(at: idx)
+        if items.isEmpty { dismiss(); return }
+        currentID = items[min(idx, items.count - 1)].id
     }
 
     private func prepareShare() {

@@ -77,7 +77,7 @@ struct VaultGridView: View {
             .ignoresSafeArea()
         }
         .fullScreenCover(item: $previewItem) { item in
-            VaultPreviewView(vault: vault, item: item)
+            VaultPreviewView(vault: vault, items: items, current: item)
         }
         .alert("Couldn't import", isPresented: Binding(
             get: { importError != nil },
@@ -98,15 +98,18 @@ struct VaultGridView: View {
                     // Color.clear sizer = an exact square at the column width, so every
                     // cell is identical. The thumbnail fills it (scaledToFill) and the
                     // outer clipShape crops the overflow — no fit, no overlap.
-                    Color.clear
-                        .aspectRatio(1, contentMode: .fit)
-                        .overlay {
-                            VaultThumbnail(vault: vault, item: item)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                        .overlay(alignment: .topTrailing) { glassDot.padding(8) }
-                        .contentShape(Rectangle())
-                        .onTapGesture { previewItem = item }
+                    // Button (vs onTapGesture) = reliable tap target → opens preview.
+                    Button { previewItem = item } label: {
+                        Color.clear
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay {
+                                VaultThumbnail(vault: vault, item: item)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .overlay(alignment: .topTrailing) { glassDot.padding(8) }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 20)
@@ -252,7 +255,7 @@ struct VaultGridView: View {
 
 // MARK: - Thumbnail
 
-private struct VaultThumbnail: View {
+struct VaultThumbnail: View {
     let vault: VaultService
     let item: VaultItem
     @State private var image: UIImage?
