@@ -18,12 +18,12 @@ struct SimilarFilterSheet: View {
                 .padding(.top, 16)
 
             HStack {
-                Text("Filter")
+                Text(L("filter.title"))
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(Color(hex: 0x0F172A))
                 Spacer()
                 Button(action: onClear) {
-                    Text("Clear All")
+                    Text(L("filter.clearAll"))
                         .font(.custom("Inter-SemiBold", size: 14))
                         .foregroundStyle(Color(hex: 0x3B82F6))
                 }
@@ -32,28 +32,28 @@ struct SimilarFilterSheet: View {
             .padding(.top, 16)
 
             VStack(alignment: .leading, spacing: 32) {
-                pillSection(title: "DATE RANGE") {
+                pillSection(title: L("filter.dateRange")) {
                     HStack(spacing: 12) {
                         ForEach(SimilarFilter.DateRange.allCases, id: \.self) { opt in
-                            FilterPill(label: opt.rawValue, isActive: filter.dateRange == opt) {
+                            FilterPill(label: L(opt.labelKey), isActive: filter.dateRange == opt) {
                                 filter.dateRange = opt
                             }
                         }
                     }
                 }
-                pillSection(title: "SORT BY SIZE") {
+                pillSection(title: L("filter.sortBySize")) {
                     HStack(spacing: 12) {
                         ForEach(SimilarFilter.SortBySize.allCases, id: \.self) { opt in
-                            FilterPill(label: opt.rawValue, isActive: filter.sortBySize == opt) {
+                            FilterPill(label: L(opt.labelKey), isActive: filter.sortBySize == opt) {
                                 filter.sortBySize = opt
                             }
                         }
                     }
                 }
-                pillSection(title: "SOURCE") {
+                pillSection(title: L("filter.source")) {
                     HStack(spacing: 12) {
                         ForEach(SimilarFilter.Source.allCases, id: \.self) { opt in
-                            FilterPill(label: opt.rawValue, isActive: filter.sources.contains(opt)) {
+                            FilterPill(label: L(opt.labelKey), isActive: filter.sources.contains(opt)) {
                                 if filter.sources.contains(opt) {
                                     filter.sources.remove(opt)
                                 } else {
@@ -69,7 +69,7 @@ struct SimilarFilterSheet: View {
             Spacer()
 
             Button(action: onApply) {
-                Text("Apply")
+                Text(L("filter.apply"))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)

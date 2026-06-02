@@ -15,7 +15,8 @@ import LibEarnMoneyIOS
 // Phase 3 Part C will wire the post-delete interstitial + native ads
 // between groups (premium-gated).
 struct SimilarFlowView: View {
-    let categoryTitle: String
+    let categoryTitle: String                     // English — kept for "similar" listMode logic
+    var categoryTitleKey: String = "home.cat.similar"   // localized title shown in the review header
     var detectionConfig: PhotoLibraryService.DetectionConfig = .init()
 
     @Environment(\.dismiss) private var dismiss
@@ -56,7 +57,7 @@ struct SimilarFlowView: View {
                 emptyView
             case .review:
                 SimilarReviewScreen(
-                    categoryTitle: categoryTitle,
+                    categoryTitle: L(categoryTitleKey),
                     groups: $groups,
                     headerPhotoCount: totalPhotos,
                     headerSizeMB: totalMB,
@@ -120,7 +121,7 @@ struct SimilarFlowView: View {
                                  listMode: categoryTitle.lowercased().contains("similar"))
             }
         }
-        .alert("Couldn't delete", isPresented: Binding(
+        .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { deleteError != nil },
             set: { if !$0 { deleteError = nil } }
         )) {
@@ -169,7 +170,14 @@ struct SimilarFlowView: View {
     }
 
     private func mapGroups(_ assetGroups: [PHAssetGroup]) -> [SimilarGroup] {
-        assetGroups.map { g in
+        let nounKey: String
+        switch detectionConfig.groupNoun {
+        case "Duplicates":  nounKey = "review.noun.duplicates"
+        case "Screenshots": nounKey = "review.noun.screenshots"
+        case "Videos":      nounKey = "review.noun.videos"
+        default:            nounKey = "review.noun.similar"
+        }
+        return assetGroups.map { g in
             let photos = g.assets.enumerated().map { (idx, asset) in
                 SimilarPhoto(
                     assetID: asset.localIdentifier,
@@ -178,7 +186,7 @@ struct SimilarFlowView: View {
                     isSelected: idx != g.bestMatchIndex
                 )
             }
-            return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex)
+            return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex, nounKey: nounKey)
         }
     }
 
@@ -269,16 +277,16 @@ struct SimilarFlowView: View {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 64))
                     .foregroundStyle(AppColor.brandPrimary)
-                Text("Photos access required")
+                Text(L("compress.permTitle"))
                     .font(.custom("Inter-Bold", size: 22))
                     .foregroundStyle(AppColor.textPrimary)
-                Text("iCleaner needs access to your photo library to find similar photos and duplicates you can clean up.")
+                Text(L("flow.permBody"))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(AppColor.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                 Button(action: { photoLibrary.opensSettings() }) {
-                    Text("Open Settings")
+                    Text(L("common.openSettings"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -290,7 +298,7 @@ struct SimilarFlowView: View {
                 }
                 .padding(.horizontal, 32)
                 Button(action: { dismiss() }) {
-                    Text("Back")
+                    Text(L("common.back"))
                         .font(.custom("Inter-SemiBold", size: 14))
                         .foregroundStyle(AppColor.textSecondary)
                 }
@@ -305,16 +313,16 @@ struct SimilarFlowView: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 56))
                     .foregroundStyle(AppColor.brandPrimary)
-                Text("Nothing to clean")
+                Text(L("flow.emptyTitle"))
                     .font(.custom("Inter-Bold", size: 20))
                     .foregroundStyle(AppColor.textPrimary)
-                Text("We didn't find any similar photos in your library right now.")
+                Text(L("flow.emptyBody"))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(AppColor.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                 Button(action: { dismiss() }) {
-                    Text("Done")
+                    Text(L("common.done"))
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 32)
@@ -340,9 +348,10 @@ struct PreviewTarget: Identifiable {
 
 struct SimilarGroup: Identifiable {
     let id = UUID()
-    let title: String          // e.g. "4 Similar"
+    let title: String          // e.g. "4 Similar" (English; kept for previews)
     var photos: [SimilarPhoto]
     let bestMatchIndex: Int    // index in photos that wears the Best Match pill
+    var nounKey: String = "review.noun.similar"   // localized noun for "N Similar"
 
     // Total size of this group's photos, formatted (e.g. "12 MB").
     var sizeLabel: String {
@@ -379,9 +388,22 @@ struct SimilarFilter: Equatable {
     var dateRange: DateRange = .allTime
     var sources: Set<Source> = [.camera, .screenshots, .download]
 
-    enum SortBySize: String, CaseIterable { case largeFirst = "Large to Small", smallFirst = "Small to Large" }
-    enum DateRange: String, CaseIterable { case sevenDays = "7 days", thirtyDays = "30 days", allTime = "All time" }
-    enum Source: String, CaseIterable, Hashable { case camera = "Camera", screenshots = "Screenshots", download = "Download" }
+    enum SortBySize: String, CaseIterable {
+        case largeFirst = "Large to Small", smallFirst = "Small to Large"
+        var labelKey: String { self == .largeFirst ? "filter.sort.large" : "filter.sort.small" }
+    }
+    enum DateRange: String, CaseIterable {
+        case sevenDays = "7 days", thirtyDays = "30 days", allTime = "All time"
+        var labelKey: String {
+            switch self { case .sevenDays: return "filter.date.7d"; case .thirtyDays: return "filter.date.30d"; case .allTime: return "filter.date.all" }
+        }
+    }
+    enum Source: String, CaseIterable, Hashable {
+        case camera = "Camera", screenshots = "Screenshots", download = "Download"
+        var labelKey: String {
+            switch self { case .camera: return "filter.src.camera"; case .screenshots: return "filter.src.screenshots"; case .download: return "filter.src.download" }
+        }
+    }
 
     static let `default` = SimilarFilter()
 }

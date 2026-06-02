@@ -90,7 +90,7 @@ struct HomeView: View {
         .bottomChromeInset()
         .task { await reloadThumbnails() }
         .fullScreenCover(item: $openedCategory, onDismiss: { Task { await reloadThumbnails() } }) { cat in
-            SimilarFlowView(categoryTitle: cat.title, detectionConfig: cat.detectionConfig)
+            SimilarFlowView(categoryTitle: cat.title, categoryTitleKey: cat.titleKey, detectionConfig: cat.detectionConfig)
         }
         .fullScreenCover(isPresented: $showQuickClean) {
             QuickCleanFlowView()
@@ -200,7 +200,7 @@ private struct HomeCategoryCard: View {
                 Text(L(category.titleKey))
                     .font(.custom("Inter-SemiBold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
-                Text(category.subtitle == "Tap to scan" ? L("home.tapToScan") : category.subtitle)
+                Text(category.photoCount == 0 ? L("home.tapToScan") : L(category.subtitleKey))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x64748B))
             }
@@ -410,6 +410,19 @@ struct HomeCategory: Identifiable {
         case "chat_photos":         return "home.cat.chatPhotos"
         case "videos_organizer":    return "home.cat.videosOrganizer"
         default:                    return "home.cat.other"
+        }
+    }
+
+    var subtitleKey: String {
+        switch key {
+        case "similar":             return "home.sub.similar"
+        case "duplicates":          return "home.sub.duplicates"
+        case "similar_screenshots": return "home.sub.similarScreenshots"
+        case "similar_videos":      return "home.sub.similarVideos"
+        case "other_screenshots":   return "home.sub.otherScreenshots"
+        case "chat_photos":         return "home.sub.chatPhotos"
+        case "videos_organizer":    return "home.sub.videosOrganizer"
+        default:                    return "home.sub.other"
         }
     }
 

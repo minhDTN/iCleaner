@@ -104,7 +104,7 @@ struct SimilarReviewScreen: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                    Text("Select All")
+                    Text(L("review.selectAll"))
                         .font(.custom("Inter-Regular", size: 16))
                 }
                 // Active (all selected) → solid brand-blue fill + white content.
@@ -128,7 +128,7 @@ struct SimilarReviewScreen: View {
     // Figma 2005:21851: "{N} Photos · {X}MB" (left) + bare filter icon (right).
     private var subHeader: some View {
         HStack(spacing: 8) {
-            Text("\(headerPhotoCount) Photos")
+            Text(L("home.photos", headerPhotoCount))
                 .font(.custom("Inter-Medium", size: 14))
                 .foregroundStyle(Color(hex: 0x00091D))
             Text("·")
@@ -163,8 +163,8 @@ struct SimilarReviewScreen: View {
                     .scaledToFit()
                     .frame(width: 22, height: 22)
                 Text(isDisabled
-                     ? "Delete Selected"
-                     : "Delete \(selectedCount) Selected (\(selectedMB) MB)")
+                     ? L("review.deleteSelected")
+                     : L("review.deleteN", selectedCount, "\(selectedMB) MB"))
                     .font(.custom("Inter-Bold", size: 16))
             }
             .foregroundStyle(.white)
@@ -206,7 +206,7 @@ private struct SimilarGroupSection: View {
             // Figma 2005:21866: "N Similar" Bold 16 + "X MB" Medium 12 brand-blue
             // (baseline-aligned) on the left; grey "Select All" text on the right.
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(group.title)
+                Text(L("review.groupTitle", group.photos.count, L(group.nounKey)))
                     .font(.custom("Inter-Bold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
                 Text(group.sizeLabel)
@@ -214,7 +214,7 @@ private struct SimilarGroupSection: View {
                     .foregroundStyle(AppColor.brandPrimary)
                 Spacer()
                 Button(action: toggleAllExceptBest) {
-                    Text(allExceptBestSelected ? "Deselect" : "Select All")
+                    Text(allExceptBestSelected ? L("review.deselect") : L("review.selectAll"))
                         .font(.custom("Inter-SemiBold", size: 12))
                         .foregroundStyle(Color(hex: 0x64748B))
                 }
@@ -305,7 +305,7 @@ private struct SimilarPhotoCell: View {
         HStack(spacing: 4) {
             Image(systemName: "star.fill")
                 .font(.system(size: 9))
-            Text("Best Match")
+            Text(L("home.bestMatch"))
         }
         .font(.custom("Inter-Bold", size: 10))
         .foregroundStyle(AppColor.brandPrimary)
