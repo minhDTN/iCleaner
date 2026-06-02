@@ -45,6 +45,7 @@
 		AA0000000000000000000246 /* ContactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C6 /* ContactsService.swift */; };
 		AA0000000000000000000247 /* VideoCompressor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C7 /* VideoCompressor.swift */; };
 		AA0000000000000000000248 /* PremiumGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C8 /* PremiumGate.swift */; };
+		AA0000000000000000000249 /* VisionSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001C9 /* VisionSimilarity.swift */; };
 		AA0000000000000000000250 /* QuickCleanFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D0 /* QuickCleanFlowView.swift */; };
 		AA0000000000000000000251 /* QuickCleanConfirmModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */; };
 		AA0000000000000000000252 /* QuickCleanSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001D2 /* QuickCleanSuccessView.swift */; };
@@ -124,6 +125,7 @@
 		AA00000000000000000001C6 /* ContactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsService.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C7 /* VideoCompressor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCompressor.swift; sourceTree = "<group>"; };
 		AA00000000000000000001C8 /* PremiumGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumGate.swift; sourceTree = "<group>"; };
+		AA00000000000000000001C9 /* VisionSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionSimilarity.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D0 /* QuickCleanFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanFlowView.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D1 /* QuickCleanConfirmModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanConfirmModal.swift; sourceTree = "<group>"; };
 		AA00000000000000000001D2 /* QuickCleanSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCleanSuccessView.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				AA00000000000000000001C6 /* ContactsService.swift */,
 				AA00000000000000000001C7 /* VideoCompressor.swift */,
 				AA00000000000000000001C8 /* PremiumGate.swift */,
+				AA00000000000000000001C9 /* VisionSimilarity.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -412,6 +415,7 @@
 				AA0000000000000000000246 /* ContactsService.swift in Sources */,
 				AA0000000000000000000247 /* VideoCompressor.swift in Sources */,
 				AA0000000000000000000248 /* PremiumGate.swift in Sources */,
+				AA0000000000000000000249 /* VisionSimilarity.swift in Sources */,
 				AA0000000000000000000280 /* ContactsDashboardView.swift in Sources */,
 				AA0000000000000000000281 /* ContactsDuplicatesView.swift in Sources */,
 				AA0000000000000000000282 /* ContactsIncompleteView.swift in Sources */,
