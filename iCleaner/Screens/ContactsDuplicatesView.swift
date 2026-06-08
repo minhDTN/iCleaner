@@ -15,6 +15,7 @@ struct ContactsDuplicatesView: View {
     @State private var selection: Set<String> = []
     @State private var busy: Bool = false
     @State private var actionError: String?
+    @State private var mergeResult: String?
 
     private var allIDs: [String] { groups.flatMap { $0.contacts.map(\.identifier) } }
     private var totalContacts: Int { allIDs.count }
@@ -59,6 +60,12 @@ struct ContactsDuplicatesView: View {
         )) {
             Button("OK", role: .cancel) { actionError = nil }
         } message: { Text(actionError ?? "") }
+        .alert(L("contacts.merged.title"), isPresented: Binding(
+            get: { mergeResult != nil },
+            set: { if !$0 { mergeResult = nil } }
+        )) {
+            Button("OK", role: .cancel) { mergeResult = nil }
+        } message: { Text(mergeResult ?? "") }
     }
 
     // MARK: - States
@@ -208,12 +215,22 @@ struct ContactsDuplicatesView: View {
         busy = true
         defer { busy = false }
         do {
+            var names: [String] = []
             for group in groups {
                 let sel = group.contacts.filter { selection.contains($0.identifier) }
-                if sel.count >= 2 { try await service.mergeContacts(sel) }
+                if sel.count >= 2 {
+                    let name = try await service.mergeContacts(sel)
+                    if !name.isEmpty { names.append(name) }
+                }
             }
             selection.removeAll()
             groups = await service.fetchDuplicateGroups()
+            // Tell the user what name the merged contact(s) ended up with.
+            if names.count == 1 {
+                mergeResult = L("contacts.merged.one", names[0])
+            } else if names.count > 1 {
+                mergeResult = L("contacts.merged.many", names.joined(separator: ", "))
+            }
             fireActionInterstitial()
         } catch {
             actionError = (error as NSError).localizedDescription

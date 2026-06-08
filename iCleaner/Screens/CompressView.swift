@@ -31,12 +31,34 @@ struct CompressView: View {
     @State private var previewPlayer: AVPlayer?
     @State private var compressedURL: URL?
     @State private var compressedSizeBytes: Int = 0
+    @State private var saving = false   // guards Replace/Keep against a double-tap saving twice
     @State private var showCancelConfirm = false
     @State private var showPaywall = false
     @State private var showError: String?
+    @State private var videoSort: VideoSort = .newest
     @Environment(TabChrome.self) private var chrome: TabChrome?
 
     private enum Step { case empty, ready, confirm, progress, result, notification }
+
+    enum VideoSort: CaseIterable {
+        case newest, largest, longest
+        var labelKey: String {
+            switch self {
+            case .newest:  return "compress.sortNewest"
+            case .largest: return "compress.sortLargest"
+            case .longest: return "compress.sortLongest"
+            }
+        }
+    }
+
+    // Videos run through the chosen sort/filter before the grid renders.
+    private var sortedVideos: [VideoLibraryService.VideoItem] {
+        switch videoSort {
+        case .newest:  return videoLibrary.videos   // already newest-first from the fetch
+        case .largest: return videoLibrary.videos.sorted { $0.sizeBytes > $1.sizeBytes }
+        case .longest: return videoLibrary.videos.sorted { $0.duration > $1.duration }
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -111,6 +133,23 @@ struct CompressView: View {
                     .font(.custom("Inter-SemiBold", size: 18))
                     .foregroundStyle(Color(hex: 0x0F0F0F))
                 Spacer()
+                // Sort/filter the video list (Newest / Largest / Longest).
+                if !videoLibrary.videos.isEmpty {
+                    Menu {
+                        Picker(L("compress.sortBy"), selection: $videoSort) {
+                            ForEach(VideoSort.allCases, id: \.self) { opt in
+                                Text(L(opt.labelKey)).tag(opt)
+                            }
+                        }
+                    } label: {
+                        Image("Clean/ic_filter")
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(Color(hex: 0x0F0F0F))
+                            .frame(width: 22, height: 22)
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .frame(height: 48)
@@ -140,7 +179,7 @@ struct CompressView: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: gridColumns, spacing: 11) {
-                        ForEach(videoLibrary.videos) { v in
+                        ForEach(sortedVideos) { v in
                             videoCell(v)
                                 .onTapGesture { Task { await selectVideo(v) } }
                         }
@@ -642,6 +681,7 @@ struct CompressView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .disabled(saving)
                 Button(action: { Task { await saveAndDismiss(deleteSource: false) } }) {
                     Text(L("compress.keepBoth"))
                         .font(.custom("Inter-Bold", size: 16))
@@ -933,7 +973,9 @@ struct CompressView: View {
     }
 
     private func saveAndDismiss(deleteSource: Bool) async {
-        guard let compressedURL else { return }
+        guard let compressedURL, !saving else { return }   // ignore repeat taps → no duplicate file
+        saving = true
+        defer { saving = false }
         do {
             // Replace Original: delete the source PHAsset in the same change request
             // (iOS shows its own confirm alert). Keep Both: save the compressed copy only.

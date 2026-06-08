@@ -298,7 +298,14 @@ private struct ContactReadOnly: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onDismiss: onDismiss) }
 
     func makeUIViewController(context: Context) -> UINavigationController {
-        let vc = CNContactViewController(for: contact)
+        // CNContactViewController(for:) throws CNPropertyNotFetchedException (→ crash)
+        // unless the contact was fetched with its required keys. Our list fetch uses
+        // a custom key subset, so re-fetch the full contact with the VC's own
+        // descriptor before presenting.
+        let keys: [CNKeyDescriptor] = [CNContactViewController.descriptorForRequiredKeys()]
+        let display = (try? CNContactStore().unifiedContact(withIdentifier: contact.identifier,
+                                                            keysToFetch: keys)) ?? contact
+        let vc = CNContactViewController(for: display)
         vc.allowsEditing = false
         vc.allowsActions = true
         vc.delegate = context.coordinator

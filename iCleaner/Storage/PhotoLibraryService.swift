@@ -54,6 +54,11 @@ final class PhotoLibraryService {
         var exactDuplicates: Bool = false    // group identical (same dims + ~size), not time-window
         var albumNames: [String]? = nil      // restrict to user albums matching these names (e.g. chat apps)
         var groupNoun: String = "Similar"    // group title noun, e.g. "4 Similar" / "3 Duplicates"
+        // Only Similar/Duplicate-style categories cluster into packs and carry a
+        // "Best Match" keeper. Browse buckets (Other, Other Screenshots, Chat,
+        // Videos Organizer) are ONE flat list the user deletes by hand.
+        var grouped: Bool = true             // false → single flat list of all matches, no clustering
+        var hasBestMatch: Bool = true        // false → no Best Match pill / no auto-selection
     }
 
     // Single source of truth for "which assets belong to this category" — used by
@@ -134,6 +139,16 @@ final class PhotoLibraryService {
         let assets: [PHAsset] = await Task.detached(priority: .userInitiated) {
             Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
         }.value
+
+        // Flat browse bucket (Other / Other Screenshots / Chat / Videos Organizer):
+        // no clustering, no Best Match — ONE list of every match, newest first, so
+        // the user can always open it and delete by hand. Returns empty only when
+        // there are genuinely no matching assets.
+        if !config.grouped {
+            guard !assets.isEmpty else { return [] }
+            let flat = assets.sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
+            return [PHAssetGroup(title: "\(flat.count) \(config.groupNoun)", assets: flat, bestMatchIndex: -1)]
+        }
 
         // 2. Cluster by content (images) or time-window (videos).
         let clusters: [[PHAsset]]

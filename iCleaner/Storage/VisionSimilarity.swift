@@ -23,8 +23,11 @@ enum VisionSimilarity {
 
         var threshold: Float {
             switch self {
-            case .similar:   return 0.55
-            case .duplicate: return 0.22
+            // Tightened from 0.55 — 0.55 grouped visibly different photos as
+            // "similar". 0.38 keeps genuine retakes/near-duplicates together
+            // while rejecting unrelated shots.
+            case .similar:   return 0.38
+            case .duplicate: return 0.20
             }
         }
     }

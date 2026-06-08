@@ -176,15 +176,20 @@ struct SimilarFlowView: View {
         case "Duplicates":  nounKey = "review.noun.duplicates"
         case "Screenshots": nounKey = "review.noun.screenshots"
         case "Videos":      nounKey = "review.noun.videos"
+        case "Photos":      nounKey = "review.noun.photos"
         default:            nounKey = "review.noun.similar"
         }
+        // Flat browse buckets have no Best Match → nothing is pre-selected; the
+        // user picks what to delete by hand. Grouped categories pre-select all
+        // but the Best Match keeper.
+        let hasBestMatch = detectionConfig.hasBestMatch
         return assetGroups.map { g in
             let photos = g.assets.enumerated().map { (idx, asset) in
                 SimilarPhoto(
                     assetID: asset.localIdentifier,
                     seed: idx,
                     sizeKB: Int(asset.estimatedSizeKB),
-                    isSelected: idx != g.bestMatchIndex
+                    isSelected: hasBestMatch ? (idx != g.bestMatchIndex) : false
                 )
             }
             return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex, nounKey: nounKey)

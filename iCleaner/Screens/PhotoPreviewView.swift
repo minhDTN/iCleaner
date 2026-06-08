@@ -12,10 +12,13 @@ import AVKit
 // real PHPhotoLibrary delete); Keep clears the selection.
 struct PhotoPreviewView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Binding var group: SimilarGroup
     var listMode: Bool   // true → filmstrip gallery (Similar groups); false → single-photo swipe
     @State private var index: Int
     @State private var dragOffset: CGSize = .zero
+    @State private var vault = VaultService()
+    @State private var vaultToast: String?
 
     init(group: Binding<SimilarGroup>, index: Int, listMode: Bool = true) {
         self._group = group
@@ -47,6 +50,18 @@ struct PhotoPreviewView: View {
         .background(Color.white.ignoresSafeArea())
         // Scenario: similar preview → bottom-anchored banner (banner_preview_similar).
         .safeAreaInset(edge: .bottom) { BannerAdView(adUnitID: AdUnits.bannerPreviewSimilar) }
+        .overlay(alignment: .top) {
+            if let vaultToast {
+                Text(vaultToast)
+                    .font(.custom("Inter-SemiBold", size: 14))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(Capsule().fill(Color(hex: 0x0F172A).opacity(0.9)))
+                    .padding(.top, 100)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: vaultToast)
     }
 
     // MARK: - Top bar
@@ -79,16 +94,21 @@ struct PhotoPreviewView: View {
         mediaContent(for: photo)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay { dragIndicator }
-            .offset(x: dragOffset.width, y: dragOffset.height * 0.15)
+            .offset(x: dragOffset.width, y: dragOffset.height * 0.4)
             .rotationEffect(.degrees(Double(dragOffset.width / 25)))
             .gesture(
                 DragGesture()
                     .onChanged { dragOffset = $0.translation }
                     .onEnded { value in
                         let threshold: CGFloat = 110
-                        if value.translation.width < -threshold {
+                        let t = value.translation
+                        // Pick the dominant axis: horizontal = delete/keep,
+                        // dragging DOWN past the threshold sends to the vault.
+                        if t.height > threshold && t.height > abs(t.width) {
+                            sendToVault()
+                        } else if t.width < -threshold {
                             decide(keep: false)
-                        } else if value.translation.width > threshold {
+                        } else if t.width > threshold {
                             decide(keep: true)
                         } else {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -97,25 +117,35 @@ struct PhotoPreviewView: View {
                         }
                     }
             )
+            // The 3 actions sit at the screen edges dimmed to 20%; the one the
+            // photo is dragged toward brightens to full as you swipe (Figma).
             .overlay(alignment: .leading) {
-                actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A)) {
+                actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A),
+                             opacity: edgeOpacity(-dragOffset.width)) {
                     decide(keep: false)
                 }
                 .padding(.leading, 20)
             }
             .overlay(alignment: .trailing) {
-                actionButton(asset: "Clean/ic_keep", bg: AppColor.success) {
+                actionButton(asset: "Clean/ic_keep", bg: AppColor.success,
+                             opacity: edgeOpacity(dragOffset.width)) {
                     decide(keep: true)
                 }
                 .padding(.trailing, 20)
             }
             .overlay(alignment: .bottom) {
-                actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6)) {
+                actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6),
+                             opacity: edgeOpacity(dragOffset.height)) {
                     sendToVault()
                 }
                 .padding(.bottom, 12)
             }
             .id(index)  // reset drag transform when the photo changes
+    }
+
+    // Idle 20% → 100% as the drag travels `distance` points toward that action.
+    private func edgeOpacity(_ distance: CGFloat) -> Double {
+        0.2 + 0.8 * Double(min(1, max(0, distance / 110)))
     }
 
     // DELETE / KEEP badge that fades in as the user drags.
@@ -158,7 +188,7 @@ struct PhotoPreviewView: View {
         }
     }
 
-    private func actionButton(asset: String, bg: Color, action: @escaping () -> Void) -> some View {
+    private func actionButton(asset: String, bg: Color, opacity: Double = 1, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(asset)
                 .renderingMode(.template)
@@ -171,6 +201,7 @@ struct PhotoPreviewView: View {
                 .shadow(color: Color(hex: 0x0F172A).opacity(0.15), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(.plain)
+        .opacity(opacity)
     }
 
     // MARK: - Filmstrip
@@ -239,10 +270,63 @@ struct PhotoPreviewView: View {
         }
     }
 
+    // Drag-down / vault button → encrypt a copy of the photo into the Private
+    // Vault (the original stays in Photos; delete it with a left-swipe if wanted).
     private func sendToVault() {
-        // Vault move is a Phase 6 integration point.
-        // TODO: wire VaultService import.
+        guard let photo = current, let assetID = photo.assetID else { advanceOrDismiss(); return }
+        // The vault needs a passcode (which provisions the encryption key) first.
+        guard vault.hasPasscode else {
+            showToast(L("preview.vaultSetup"))
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
+            return
+        }
+        Task { await importToVault(assetID: assetID) }
+    }
+
+    private func importToVault(assetID: String) async {
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject else {
+            advanceOrDismiss(); return
+        }
+        guard asset.mediaType == .image else {
+            showToast(L("preview.vaultVideoUnsupported"))
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
+            return
+        }
+        let data: Data? = await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
+            let opts = PHImageRequestOptions()
+            opts.isNetworkAccessAllowed = true
+            opts.deliveryMode = .highQualityFormat
+            opts.isSynchronous = false
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { d, _, _, _ in
+                cont.resume(returning: d)
+            }
+        }
+        if let data {
+            let item = VaultItem(
+                sizeBytes: data.count,
+                fileName: "Photo-\(String(UUID().uuidString.prefix(6)))",
+                mimeType: "image/jpeg",
+                pixelWidth: asset.pixelWidth,
+                pixelHeight: asset.pixelHeight
+            )
+            try? vault.writeEncrypted(data, for: item.id)
+            modelContext.insert(item)
+            try? modelContext.save()
+            showToast(L("preview.vaultAdded"))
+        }
+        advanceOrDismiss()
+    }
+
+    private func advanceOrDismiss() {
         if listMode { advance() } else { dismiss() }
+    }
+
+    private func showToast(_ text: String) {
+        vaultToast = text
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.6))
+            if vaultToast == text { vaultToast = nil }
+        }
     }
 }
 

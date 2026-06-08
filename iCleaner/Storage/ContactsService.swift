@@ -124,17 +124,21 @@ final class ContactsService {
 
     // MARK: - Mutations
 
-    func merge(group: DuplicateGroup) async throws {
+    @discardableResult
+    func merge(group: DuplicateGroup) async throws -> String {
         try await mergeContacts(group.contacts)
     }
 
     // Union-merge an arbitrary set of contacts into the first, delete the rest.
-    func mergeContacts(_ contacts: [CNContact]) async throws {
-        guard authStatus.canRead, contacts.count >= 2 else { return }
-        try await Task.detached(priority: .userInitiated) { [store] in
+    // Returns the display name of the resulting merged contact (for the UI toast).
+    @discardableResult
+    func mergeContacts(_ contacts: [CNContact]) async throws -> String {
+        guard authStatus.canRead, contacts.count >= 2 else { return "" }
+        let name = try await Task.detached(priority: .userInitiated) { [store] in
             try Self.performMerge(contacts: contacts, store: store)
         }.value
         await refresh()
+        return name
     }
 
     func delete(contacts: [CNContact]) async throws {
@@ -328,13 +332,14 @@ final class ContactsService {
 
     // MARK: - Mutation implementations
 
-    nonisolated private static func performMerge(contacts: [CNContact], store: CNContactStore) throws {
-        guard let firstID = contacts.first?.identifier else { return }
+    @discardableResult
+    nonisolated private static func performMerge(contacts: [CNContact], store: CNContactStore) throws -> String {
+        guard let firstID = contacts.first?.identifier else { return "" }
         // Re-fetch with all keys (the snapshot lists fetched only basic keys).
         let predicate = CNContact.predicateForContacts(withIdentifiers: contacts.map(\.identifier))
         let fetched = (try? store.unifiedContacts(matching: predicate, keysToFetch: detailKeys)) ?? []
-        guard let primaryFetched = fetched.first(where: { $0.identifier == firstID }) else { return }
-        guard let primary = primaryFetched.mutableCopy() as? CNMutableContact else { return }
+        guard let primaryFetched = fetched.first(where: { $0.identifier == firstID }) else { return "" }
+        guard let primary = primaryFetched.mutableCopy() as? CNMutableContact else { return "" }
 
         var seenPhones = Set<String>(primary.phoneNumbers.map { Self.phoneKey($0.value.stringValue) })
         var seenEmails = Set<String>(primary.emailAddresses.map { String($0.value).lowercased() })
@@ -366,6 +371,12 @@ final class ContactsService {
             }
         }
         try store.execute(req)
+
+        // Name of the surviving merged contact, for the success toast.
+        let merged = (primary.givenName + " " + primary.familyName).trimmingCharacters(in: .whitespaces)
+        if !merged.isEmpty { return merged }
+        if !primary.organizationName.isEmpty { return primary.organizationName }
+        return primary.phoneNumbers.first?.value.stringValue ?? ""
     }
 
     nonisolated private static func phoneKey(_ raw: String) -> String {

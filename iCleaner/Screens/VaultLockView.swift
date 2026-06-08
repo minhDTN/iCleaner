@@ -117,33 +117,71 @@ struct VaultLockView: View {
         }
     }
 
+    // Full-screen passcode entry — SAME layout as Create/Change Passcode (glass
+    // icon + Inter-Bold 24 title + subtitle + keypad) so the three passcode
+    // screens look identical (was a small dimmed modal card → inconsistent).
     private var passcodeOverlay: some View {
         ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea()
-                .onTapGesture {
-                    showPasscode = false
-                    passcodeEntry = ""
-                }
+            AppColor.surfaceBackground.ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                glassIcon
+                    .padding(.bottom, 32)
+
                 Text(L("passcode.enterTitle"))
-                    .font(.custom("Inter-Bold", size: 22))
+                    .font(.custom("Inter-Bold", size: 24))
+                    .tracking(24 * -0.01)
                     .foregroundStyle(Color(hex: 0x0F172A))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 16)
+
+                Text(L("passcode.enterSub"))
+                    .font(.custom("Inter-Regular", size: 16))
+                    .foregroundStyle(Color(hex: 0x334155))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 32)
 
                 if passcodeError {
                     Text(L("passcode.wrong"))
-                        .font(.custom("Inter-Medium", size: 13))
+                        .font(.custom("Inter-Medium", size: 14))
                         .foregroundStyle(AppColor.danger)
+                        .padding(.bottom, 16)
                 }
 
                 PasscodeKeypad(entry: $passcodeEntry, onComplete: tryPasscode)
+
+                Spacer()
+
+                Button(action: { showPasscode = false; passcodeEntry = ""; passcodeError = false }) {
+                    Text(L("common.cancel"))
+                        .font(.custom("Inter-SemiBold", size: 16))
+                        .foregroundStyle(AppColor.textSecondary)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(AppColor.surfaceBackground)
-            )
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    // Matches the glass shield icon used by Create/Change Passcode.
+    private var glassIcon: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: 0xDBEAFE).opacity(0.5))
+                .frame(width: 76, height: 76)
+                .blur(radius: 24)
+            Circle()
+                .fill(Color.white)
+                .frame(width: 80, height: 80)
+                .overlay(Circle().stroke(Color(hex: 0xE2E8F0), lineWidth: 2))
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(AppColor.brandPrimary)
         }
     }
 

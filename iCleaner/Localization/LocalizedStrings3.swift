@@ -23,6 +23,8 @@ enum LocalizedStrings3 {
         "contacts.dup.title": "Duplicate Contacts", "contacts.dup.scanning": "Scanning for duplicates…",
         "contacts.dup.emptyTitle": "No duplicates found", "contacts.dup.emptyBody": "Your contacts look clean.",
         "contacts.dup.groupCount": "%d duplicate contacts", "contacts.dup.merge": "Merge contacts",
+        "contacts.merged.title": "Contacts merged", "contacts.merged.one": "Merged into \"%@\".",
+        "contacts.merged.many": "Merged into: %@",
         "contacts.inc.title": "Incomplete Contacts", "contacts.inc.missingName": "Missing contact name",
         "contacts.inc.missingPhone": "Missing phone number", "contacts.inc.missingBoth": "Missing name & phone number",
         "contacts.inc.edit": "Edit contacts", "contacts.inc.emptyTitle": "All contacts look complete",

@@ -263,8 +263,12 @@ private struct HomeCategoryCard: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            bestMatchPill
-                .padding(8)
+            // Best Match pill only for Similar/Duplicate-style cards (bug: it
+            // wrongly appeared on browse buckets like Other / Screenshots).
+            if category.hasBestMatch {
+                bestMatchPill
+                    .padding(8)
+            }
         }
     }
 
@@ -403,6 +407,16 @@ struct HomeCategory: Identifiable {
     var metric: String { isVideo ? "\(photoCount) Videos" : "\(photoCount) Photos" }
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
 
+    // Only Similar/Duplicate-style cards cluster into packs + show "Best Match".
+    // Browse buckets (Other, Other Screenshots, Chat Photos, Videos Organizer)
+    // are a flat manual list.
+    var hasBestMatch: Bool {
+        switch key {
+        case "similar", "duplicates", "similar_screenshots", "similar_videos": return true
+        default: return false
+        }
+    }
+
     // Localization key for the card title (the English `title` is still used for
     // SimilarFlow detection logic, so it stays as-is).
     var titleKey: String {
@@ -441,21 +455,30 @@ struct HomeCategory: Identifiable {
         case "duplicates":
             // Exact duplicates: same dimensions + size.
             return .init(mediaType: .image, exactDuplicates: true, groupNoun: "Duplicates")
-        case "similar_screenshots", "other_screenshots":
-            // Screenshot-only clustering.
+        case "similar_screenshots":
+            // Similar screenshots: cluster look-alike screenshots into packs.
             return .init(mediaType: .image, screenshotsOnly: true, groupNoun: "Screenshots")
-        case "similar_videos", "videos_organizer":
-            // Video clustering.
+        case "other_screenshots":
+            // ALL screenshots as a flat manual list (browse + delete by hand).
+            return .init(mediaType: .image, screenshotsOnly: true, groupNoun: "Screenshots",
+                         grouped: false, hasBestMatch: false)
+        case "similar_videos":
+            // Similar videos: time-window clustering into packs.
             return .init(mediaType: .video, groupNoun: "Videos")
+        case "videos_organizer":
+            // All videos as a flat manual list.
+            return .init(mediaType: .video, groupNoun: "Videos", grouped: false, hasBestMatch: false)
         case "chat_photos":
-            // Real chat photos = images saved into messaging-app albums.
+            // Real chat photos = images saved into messaging-app albums, flat list.
             return .init(mediaType: .image, excludeScreenshots: true,
                          albumNames: ["WhatsApp", "Telegram", "Messenger", "Instagram",
                                       "WeChat", "Line", "Viber", "Signal", "Snapchat",
                                       "Facebook", "Zalo", "Messages", "Kakao", "Discord"],
-                         groupNoun: "Similar")
+                         groupNoun: "Photos", grouped: false, hasBestMatch: false)
         case "other":
-            return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar")
+            // Misc photos as a flat manual list.
+            return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Photos",
+                         grouped: false, hasBestMatch: false)
         default:
             return .init()
         }

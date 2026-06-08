@@ -272,9 +272,14 @@ struct PaywallView: View {
                         .foregroundStyle(Color(hex: 0x64748B))
                 }
                 Spacer()
-                Text("$4.99/month")
-                    .font(.custom("Inter-Regular", size: 10))
-                    .foregroundStyle(Color(hex: 0x94A3B8))
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
+                    Text("$4.99")
+                        .font(.custom("Inter-Bold", size: 20))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                    Text("/month")
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(Color(hex: 0x64748B))
+                }
             }
             .padding(20)
             .frame(maxWidth: .infinity)

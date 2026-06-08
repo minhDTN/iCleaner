@@ -32,6 +32,7 @@ enum LocalizedStrings4 {
         "passcode.verifySub": "Enter your current 6-digit passcode to\nverify your identity.",
         "passcode.newSub": "Choose a new 6-digit code for your\nprivate vault.",
         "passcode.usePasscode": "Use Passcode", "passcode.enterTitle": "Enter Passcode", "passcode.wrong": "Wrong passcode — try again",
+        "passcode.enterSub": "Enter your passcode to unlock the vault.",
         "paywall.unlockStorage": "Unlock More Storage", "paywall.enableTrial": "Enable Free Trial",
         "paywall.purchaseFailTitle": "Purchase failed", "paywall.restore": "Restore",
         "paywall.subtitle": "Keep what you want, remove the unnecessary!", "paywall.photos": "Photos", "paywall.drive": "Drive",
@@ -49,6 +50,8 @@ enum LocalizedStrings4 {
         "cleaning.deleting": "Deleting Selected photos...", "deleteconfirm.title": "Delete %d Photos?",
         "deleteconfirm.body": "These %@ of photos will be\npermanently removed.",
         "preview.delete": "DELETE", "preview.keep": "KEEP",
+        "preview.vaultAdded": "Added to Private Vault", "preview.vaultSetup": "Set up the Private Vault first",
+        "preview.vaultVideoUnsupported": "Only photos can be moved to the vault",
     ]
 
     private static let es: [String: String] = [
