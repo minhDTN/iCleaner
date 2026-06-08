@@ -313,6 +313,11 @@ private struct ContactReadOnly: UIViewControllerRepresentable {
         vc.allowsEditing = false
         vc.allowsActions = true
         vc.delegate = context.coordinator
+        // Read-only mode shows no Done/Cancel button, so add an explicit Close
+        // button — otherwise the sheet can't be dismissed.
+        vc.navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .close, target: context.coordinator,
+            action: #selector(Coordinator.closeTapped))
         return UINavigationController(rootViewController: vc)
     }
 
@@ -321,6 +326,7 @@ private struct ContactReadOnly: UIViewControllerRepresentable {
     final class Coordinator: NSObject, CNContactViewControllerDelegate {
         var onDismiss: () -> Void
         init(onDismiss: @escaping () -> Void) { self.onDismiss = onDismiss }
+        @objc func closeTapped() { onDismiss() }
         func contactViewController(_ viewController: CNContactViewController, didCompleteWith contact: CNContact?) {
             onDismiss()
         }
