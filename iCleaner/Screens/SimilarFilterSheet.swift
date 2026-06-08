@@ -12,10 +12,11 @@ struct SimilarFilterSheet: View {
 
     // The sheet hugs its content (Figma) — measure it and feed the height to the
     // detent so there's no dead space pushing the Apply button to the bottom.
-    @State private var contentHeight: CGFloat = 520
+    // Default close to the real content height so the sheet starts compact.
+    @State private var contentHeight: CGFloat = 440
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             Capsule()
                 .fill(Color(hex: 0xE2E8F0))
                 .frame(width: 40, height: 4)
@@ -33,7 +34,7 @@ struct SimilarFilterSheet: View {
             }
             .padding(.horizontal, 24)
 
-            VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 20) {
                 pillSection(title: L("filter.dateRange")) {
                     PillFlow(spacing: 12, lineSpacing: 12) {
                         ForEach(SimilarFilter.DateRange.allCases, id: \.self) { opt in
@@ -82,8 +83,8 @@ struct SimilarFilterSheet: View {
             }
             .padding(.horizontal, 20)
         }
-        .padding(.top, 16)
-        .padding(.bottom, 24)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity)
         .background(GeometryReader { proxy in
             Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
@@ -97,7 +98,7 @@ struct SimilarFilterSheet: View {
 
     @ViewBuilder
     private func pillSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.custom("Inter-Bold", size: 12))
                 .tracking(12 * 0.10)  // 10% letterSpacing from Figma
