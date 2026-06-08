@@ -88,9 +88,10 @@ struct VaultHeader: View {
         HStack(spacing: 12) {
             if let onBack {
                 Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(AppColor.brandPrimary)
+                    Image("Common/icon_back_vault_change_password")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                         .frame(width: 32, height: 32, alignment: .leading)
                         .contentShape(Rectangle())
                 }

@@ -24,6 +24,7 @@ struct VaultPreviewView: View {
     @State private var decryptedURL: URL?
     @State private var showDeleteConfirm = false
     @State private var showShareSheet = false
+    @State private var showChangePass = false
     @State private var loadError: String?
 
     init(vault: VaultService, items: [VaultItem], current: VaultItem) {
@@ -61,6 +62,9 @@ struct VaultPreviewView: View {
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = decryptedURL { ShareSheet(items: [url]) }
+        }
+        .fullScreenCover(isPresented: $showChangePass) {
+            ChangePasscodeView(vault: vault)
         }
         .alert(L("vault.decryptFailTitle"), isPresented: Binding(
             get: { loadError != nil }, set: { if !$0 { loadError = nil } }
@@ -105,15 +109,27 @@ struct VaultPreviewView: View {
             }
             HStack {
                 Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color(hex: 0x374151))
+                    Image("Common/icon_back_vault_change_password")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                         .frame(width: 40, height: 40, alignment: .leading)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Color.clear.frame(width: 34, height: 34)
+                // Change-passcode shortcut (Figma 2010:2382) — was a missing placeholder.
+                Button(action: { showChangePass = true }) {
+                    Image("Vault/ic_change_pass")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(Color(hex: 0x292D32))
+                        .frame(width: 40, height: 40, alignment: .trailing)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 20)
@@ -156,14 +172,18 @@ struct VaultPreviewView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(items) { it in
+                        let isCurrent = it.id == currentID
                         VaultThumbnail(vault: vault, item: it)
                             .frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            // Figma: active item wears a 2px outer blue ring (#003AFF),
+                            // inactive items dim to 60%.
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(Color(hex: 0x003AFF), lineWidth: it.id == currentID ? 2 : 0)
+                                    .inset(by: -2)
+                                    .stroke(Color(hex: 0x003AFF), lineWidth: isCurrent ? 2 : 0)
                             )
-                            .opacity(it.id == currentID ? 1 : 0.6)
+                            .opacity(isCurrent ? 1 : 0.6)
                             .id(it.id)
                             .onTapGesture { currentID = it.id }
                     }
