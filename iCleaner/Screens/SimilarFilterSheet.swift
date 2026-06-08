@@ -16,6 +16,9 @@ struct SimilarFilterSheet: View {
     @State private var contentHeight: CGFloat = 440
 
     var body: some View {
+        // Outer VStack pins the content to the TOP; the trailing Spacer soaks up any
+        // leftover sheet height at the BOTTOM only — never centers (no top gap).
+        VStack(spacing: 0) {
         VStack(spacing: 16) {
             Capsule()
                 .fill(Color(hex: 0xE2E8F0))
@@ -89,6 +92,9 @@ struct SimilarFilterSheet: View {
         .background(GeometryReader { proxy in
             Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
         })
+
+            Spacer(minLength: 0)
+        }
         .onPreferenceChange(FilterSheetHeightKey.self) { contentHeight = $0 }
         .presentationDetents([.height(contentHeight)])
         // Solid white sheet, flush to the device's left/right/bottom edges — no
