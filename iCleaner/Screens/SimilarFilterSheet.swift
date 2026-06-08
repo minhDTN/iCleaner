@@ -85,15 +85,14 @@ struct SimilarFilterSheet: View {
         .padding(.top, 16)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity)
-        .background(
-            AppColor.surfaceBackground
-                .overlay(GeometryReader { proxy in
-                    Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
-                })
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
+        })
         .onPreferenceChange(FilterSheetHeightKey.self) { contentHeight = $0 }
         .presentationDetents([.height(contentHeight)])
+        // Solid white sheet, flush to the device's left/right/bottom edges — no
+        // translucent wrapper. The system still rounds the top corners.
+        .presentationBackground(AppColor.surfaceBackground)
     }
 
     @ViewBuilder
