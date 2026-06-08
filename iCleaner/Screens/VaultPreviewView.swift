@@ -112,7 +112,7 @@ struct VaultPreviewView: View {
                     Image("Common/icon_back_vault_change_password")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 24, height: 24)
+                        .frame(width: 16, height: 16)
                         .frame(width: 40, height: 40, alignment: .leading)
                         .contentShape(Rectangle())
                 }

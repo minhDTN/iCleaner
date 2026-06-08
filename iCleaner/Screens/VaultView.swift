@@ -91,7 +91,7 @@ struct VaultHeader: View {
                     Image("Common/icon_back_vault_change_password")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 16, height: 16)
+                        .frame(width: 12, height: 12)
                         .frame(width: 32, height: 32, alignment: .leading)
                         .contentShape(Rectangle())
                 }
