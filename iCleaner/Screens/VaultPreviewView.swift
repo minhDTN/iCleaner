@@ -134,7 +134,7 @@ struct VaultPreviewView: View {
         }
         .padding(.horizontal, 20)
         .frame(height: 56)
-        .background(.ultraThinMaterial)
+        .background(Color.white)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color(hex: 0xB2B2B2)).frame(height: 1)
         }
@@ -173,17 +173,12 @@ struct VaultPreviewView: View {
                 HStack(spacing: 12) {
                     ForEach(items) { it in
                         let isCurrent = it.id == currentID
+                        // No border (it clipped at the strip edge anyway) — the active
+                        // item is shown just by staying full-opacity while the rest dim.
                         VaultThumbnail(vault: vault, item: it)
                             .frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            // Figma: active item wears a 2px outer blue ring (#003AFF),
-                            // inactive items dim to 60%.
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .inset(by: -2)
-                                    .stroke(Color(hex: 0x003AFF), lineWidth: isCurrent ? 2 : 0)
-                            )
-                            .opacity(isCurrent ? 1 : 0.6)
+                            .opacity(isCurrent ? 1 : 0.5)
                             .id(it.id)
                             .onTapGesture { currentID = it.id }
                     }
@@ -196,8 +191,7 @@ struct VaultPreviewView: View {
                 withAnimation { proxy.scrollTo(id, anchor: .center) }
             }
         }
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xF3F4F6)).frame(height: 1) }
+        .background(Color.white)
     }
 
     // MARK: - Footer
@@ -212,8 +206,7 @@ struct VaultPreviewView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
         .padding(.bottom, 24)
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xE5E7EB).opacity(0.6)).frame(height: 1) }
+        .background(Color.white)
     }
 
     private func footerButton(icon: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
