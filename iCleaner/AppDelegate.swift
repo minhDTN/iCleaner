@@ -7,6 +7,13 @@ import LibEarnMoneyIOS
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        #if DEBUG
+        // TEMP (testing): bypass IAP — treat the user as premium so no paywall blocks
+        // the cleanup flows, our ads are hidden and Compress is unlimited.
+        // ⚠️ Delete this block to restore real IAP gating before release.
+        UserDefaults.standard.set(true, forKey: PremiumGate.forcePremiumKey)
+        #endif
+
         LibEarnMoneyIOS.shared.bootstrap(
             with: makeLibConfig(),
             application: application,
