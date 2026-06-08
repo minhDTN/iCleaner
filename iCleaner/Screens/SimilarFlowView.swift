@@ -116,7 +116,6 @@ struct SimilarFlowView: View {
                 },
                 onClear: { filter = .default }
             )
-            .presentationDetents([.height(510)])
         }
         .fullScreenCover(item: Binding(
             get: { previewGroupIndex.map { PreviewTarget(groupIndex: $0) } },

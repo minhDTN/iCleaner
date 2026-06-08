@@ -10,12 +10,15 @@ struct SimilarFilterSheet: View {
     var onApply: () -> Void
     var onClear: () -> Void
 
+    // The sheet hugs its content (Figma) — measure it and feed the height to the
+    // detent so there's no dead space pushing the Apply button to the bottom.
+    @State private var contentHeight: CGFloat = 520
+
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 24) {
             Capsule()
                 .fill(Color(hex: 0xE2E8F0))
                 .frame(width: 40, height: 4)
-                .padding(.top, 16)
 
             HStack {
                 Text(L("filter.title"))
@@ -29,7 +32,6 @@ struct SimilarFilterSheet: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 16)
 
             VStack(alignment: .leading, spacing: 32) {
                 pillSection(title: L("filter.dateRange")) {
@@ -64,9 +66,6 @@ struct SimilarFilterSheet: View {
                     }
                 }
             }
-            .padding(.top, 24)
-
-            Spacer()
 
             Button(action: onApply) {
                 Text(L("filter.apply"))
@@ -82,10 +81,19 @@ struct SimilarFilterSheet: View {
                     )
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 24)
         }
-        .background(AppColor.surfaceBackground)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity)
+        .background(
+            AppColor.surfaceBackground
+                .overlay(GeometryReader { proxy in
+                    Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
+                })
+        )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .onPreferenceChange(FilterSheetHeightKey.self) { contentHeight = $0 }
+        .presentationDetents([.height(contentHeight)])
     }
 
     @ViewBuilder
@@ -111,9 +119,11 @@ private struct FilterPill: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.custom("Inter-Medium", size: 13))
+                // Figma: Inter Medium 14, pill padding 10×24 (was 13 / 16 — too
+                // narrow, leaving an oversized right margin).
+                .font(.custom("Inter-Medium", size: 14))
                 .foregroundStyle(isActive ? Color(hex: 0x3B82F6) : Color(hex: 0x64748B))
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(
                     Capsule().fill(AppColor.surfaceBackground)
@@ -123,6 +133,12 @@ private struct FilterPill: View {
                 )
         }
     }
+}
+
+// Reports the filter sheet's natural content height so the detent hugs it.
+private struct FilterSheetHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 520
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 #Preview {
