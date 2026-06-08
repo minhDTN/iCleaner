@@ -8,42 +8,32 @@ struct FAQView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("FAQ")
-                    .font(.custom("Inter-Bold", size: 28))
-                    .tracking(28 * -0.025)
-                    .foregroundStyle(Color(hex: 0x0F172A))
-
-                VStack(spacing: 0) {
-                    ForEach(FAQItem.all.indices, id: \.self) { idx in
-                        FAQRow(
-                            item: FAQItem.all[idx],
-                            isExpanded: expanded.contains(idx),
-                            onTap: {
-                                withAnimation(.easeInOut(duration: 0.22)) {
-                                    if expanded.contains(idx) { expanded.remove(idx) }
-                                    else { expanded.insert(idx) }
-                                }
+            VStack(alignment: .leading, spacing: 12) {
+                // Each question is its own bordered box (Figma) — no big "FAQ"
+                // heading above the list (the nav bar already says "FAQ").
+                ForEach(FAQItem.all.indices, id: \.self) { idx in
+                    FAQRow(
+                        item: FAQItem.all[idx],
+                        isExpanded: expanded.contains(idx),
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                if expanded.contains(idx) { expanded.remove(idx) }
+                                else { expanded.insert(idx) }
                             }
-                        )
-                        if idx < FAQItem.all.count - 1 {
-                            Rectangle()
-                                .fill(Color(hex: 0xF1F5F9))
-                                .frame(height: 1)
-                                .padding(.leading, 16)
                         }
-                    }
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(AppColor.surfaceBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppColor.brandPrimary.opacity(0.2), lineWidth: 1)
+                    )
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(AppColor.surfaceBackground)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(hex: 0xE2E8F0), lineWidth: 1)
-                )
 
                 contactCTA
+                    .padding(.top, 12)
 
                 // Scenario: FAQ screen → native (native_faq).
                 NativeAdView(adUnitID: AdUnits.nativeFaq, height: 120)
