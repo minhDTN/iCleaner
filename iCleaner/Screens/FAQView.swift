@@ -4,6 +4,7 @@ import SwiftUI
 // Figma copy (the export only gave headlines without bodies — answers expanded
 // here are plausible MVP copy; replace when content team ships final).
 struct FAQView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var expanded: Set<Int> = []
 
     var body: some View {
@@ -35,8 +36,10 @@ struct FAQView: View {
                 contactCTA
                     .padding(.top, 12)
 
-                // Scenario: FAQ screen → native (native_faq).
-                NativeAdView(adUnitID: AdUnits.nativeFaq, height: 120)
+                // Banner ad sits between Contact Support and the Let's Start CTA.
+                BannerAdView(adUnitID: AdUnits.bannerSetting)
+
+                letsStartButton
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
@@ -59,6 +62,22 @@ struct FAQView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
+    }
+
+    // Bottom CTA — closes the FAQ so the user can get back to using the app.
+    private var letsStartButton: some View {
+        Button(action: { dismiss() }) {
+            Text(L("lang.start"))
+                .font(.custom("Inter-Bold", size: 16))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(AppColor.brandPrimary)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
