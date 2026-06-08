@@ -8,10 +8,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         #if DEBUG
-        // TEMP (testing): bypass IAP — treat the user as premium so no paywall blocks
-        // the cleanup flows, our ads are hidden and Compress is unlimited.
-        // ⚠️ Delete this block to restore real IAP gating before release.
-        UserDefaults.standard.set(true, forKey: PremiumGate.forcePremiumKey)
+        // Revert the earlier test-only IAP bypass: clear the persisted force-premium
+        // flag ONCE so the real IAP flow (paywall, ads, compress quota) is back.
+        // The Settings → Developer → Force Premium toggle still works afterwards.
+        let iapBypassResetKey = "debug.didClearIAPBypass.v1"
+        if !UserDefaults.standard.bool(forKey: iapBypassResetKey) {
+            UserDefaults.standard.set(false, forKey: PremiumGate.forcePremiumKey)
+            UserDefaults.standard.set(true, forKey: iapBypassResetKey)
+        }
         #endif
 
         LibEarnMoneyIOS.shared.bootstrap(
