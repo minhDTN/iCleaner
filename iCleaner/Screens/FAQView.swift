@@ -50,15 +50,23 @@ struct FAQView: View {
     }
 
     private var contactCTA: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Text("Still have questions?")
                 .font(.custom("Inter-SemiBold", size: 14))
                 .foregroundStyle(Color(hex: 0x64748B))
+            // Same filled blue style as the Let's Start button.
             NavigationLink(destination: ContactView()) {
                 Text("Contact Support")
-                    .font(.custom("Inter-Bold", size: 14))
-                    .foregroundStyle(AppColor.brandPrimary)
+                    .font(.custom("Inter-Bold", size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(AppColor.brandPrimary)
+                    )
             }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
