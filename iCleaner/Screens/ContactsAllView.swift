@@ -85,11 +85,17 @@ struct ContactsAllView: View {
             contacts = await service.fetchAllContacts()
             loading = false
         }
-        .sheet(item: Binding(
+        // Push the device's native contact card (CNContactViewController) onto the
+        // nav stack — a full-screen detail with a system back button — instead of
+        // a modal sheet over the list.
+        .navigationDestination(item: Binding(
             get: { editingID.flatMap { id in contacts.first(where: { $0.identifier == id }) }.map { Box(c: $0) } },
             set: { editingID = $0?.c.identifier }
         )) { box in
-            ContactReadOnly(contact: box.c) { editingID = nil }
+            SystemContactView(contact: box.c)
+                .ignoresSafeArea(edges: .bottom)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
         }
         .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { actionError != nil },
@@ -289,46 +295,29 @@ struct ContactsAllView: View {
     }
 }
 
-private struct Box: Identifiable {
+private struct Box: Identifiable, Hashable {
     let c: CNContact
     var id: String { c.identifier }
+    static func == (lhs: Box, rhs: Box) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-// Read-only contact view (no edit) shown when tapping a row in All.
-private struct ContactReadOnly: UIViewControllerRepresentable {
+// The device's native contact card, pushed into the nav stack (SwiftUI supplies
+// the back button). Re-fetches with the VC's required keys, else
+// CNContactViewController crashes (CNPropertyNotFetchedException) on a contact
+// fetched with a key subset.
+private struct SystemContactView: UIViewControllerRepresentable {
     let contact: CNContact
-    var onDismiss: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onDismiss: onDismiss) }
-
-    func makeUIViewController(context: Context) -> UINavigationController {
-        // CNContactViewController(for:) throws CNPropertyNotFetchedException (→ crash)
-        // unless the contact was fetched with its required keys. Our list fetch uses
-        // a custom key subset, so re-fetch the full contact with the VC's own
-        // descriptor before presenting.
+    func makeUIViewController(context: Context) -> CNContactViewController {
         let keys: [CNKeyDescriptor] = [CNContactViewController.descriptorForRequiredKeys()]
         let display = (try? CNContactStore().unifiedContact(withIdentifier: contact.identifier,
                                                             keysToFetch: keys)) ?? contact
         let vc = CNContactViewController(for: display)
         vc.allowsEditing = false
         vc.allowsActions = true
-        vc.delegate = context.coordinator
-        // Read-only mode shows no Done/Cancel button, so add an explicit Close
-        // button — otherwise the sheet can't be dismissed.
-        vc.navigationItem.leftBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .close, target: context.coordinator,
-            action: #selector(Coordinator.closeTapped))
-        return UINavigationController(rootViewController: vc)
+        return vc
     }
 
-    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
-
-    final class Coordinator: NSObject, CNContactViewControllerDelegate {
-        var onDismiss: () -> Void
-        init(onDismiss: @escaping () -> Void) { self.onDismiss = onDismiss }
-        @objc func closeTapped() { onDismiss() }
-        func contactViewController(_ viewController: CNContactViewController, didCompleteWith contact: CNContact?) {
-            onDismiss()
-        }
-    }
+    func updateUIViewController(_ uiViewController: CNContactViewController, context: Context) {}
 }
