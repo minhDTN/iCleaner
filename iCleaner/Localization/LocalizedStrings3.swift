@@ -32,6 +32,7 @@ enum LocalizedStrings3 {
         "contacts.all.title": "All Contacts", "contacts.all.search": "Search contacts",
         "contacts.backups.title": "Backups", "contacts.backups.count": "%d Backups", "contacts.backups.create": "Create backup",
         "contacts.backups.item": "Backup", "contacts.backups.restore": "Restore %d contacts", "contacts.backups.delete": "Delete backup",
+        "contacts.backups.share": "Export / Share",
         "contacts.backups.errorTitle": "Backup error", "contacts.backups.restoredTitle": "Restored",
         "contacts.backups.backing": "Backing up contacts…", "contacts.backups.emptyTitle": "No backups yet",
         "contacts.backups.emptyBody": "Tap Create backup to save a snapshot of every contact as a vCard file on this device.",

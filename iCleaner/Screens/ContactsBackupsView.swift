@@ -16,6 +16,7 @@ struct ContactsBackupsView: View {
     @State private var actionError: String?
     @State private var lastResult: String?
     @State private var showPaywall: Bool = false
+    @State private var shareURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,12 +59,16 @@ struct ContactsBackupsView: View {
         ) {
             if let backup = selectedBackup {
                 Button(L("contacts.backups.restore", backup.contactCount)) { Task { await performRestore(backup) } }
+                Button(L("contacts.backups.share")) { shareURL = backup.url }
                 Button(L("contacts.backups.delete"), role: .destructive) {
                     service.deleteBackup(backup)
                     backups.removeAll { $0.id == backup.id }
                 }
             }
             Button(L("common.cancel"), role: .cancel) {}
+        }
+        .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if !$0 { shareURL = nil } })) {
+            if let shareURL { BackupShareSheet(url: shareURL) }
         }
         .alert(L("contacts.backups.errorTitle"), isPresented: Binding(
             get: { actionError != nil },
@@ -123,36 +128,7 @@ struct ContactsBackupsView: View {
         .onTapGesture { if !busy { selectedBackup = backup } }
     }
 
-    private var progressCard: some View {
-        VStack(spacing: 8) {
-            HStack {
-                HStack(spacing: 8) {
-                    Image("Contacts/ic_backup_cloud")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 16)
-                        .foregroundStyle(AppColor.brandPrimary)
-                    Text(L("contacts.backups.backing"))
-                        .font(.custom("Inter-SemiBold", size: 15))
-                        .foregroundStyle(Color(hex: 0x131B2E))
-                }
-                Spacer()
-            }
-            IndeterminateBar()
-                .frame(height: 8)
-                .padding(.top, 4)
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(hex: 0x004AC6, alpha: 0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color(hex: 0xC3C6D7), lineWidth: 1)
-        )
-    }
+    private var progressCard: some View { BackupProgressCard() }
 
     private var emptyView: some View {
         VStack(spacing: 16) {
@@ -259,28 +235,63 @@ struct ContactsBackupsView: View {
     }
 }
 
-// Looping shimmer bar (track #DAE2FD + sliding brand-blue segment) shown while a
-// backup is being written — honest indeterminate progress (the vCard write isn't
-// incrementally measurable).
-private struct IndeterminateBar: View {
-    @State private var phase: CGFloat = 0
+// "Backing up contacts… N%" card (Figma 2012:4599): title + brand-blue percent on
+// the right, with a determinate fill bar. The vCard write isn't incrementally
+// measurable, so the percent ramps to ~92% while writing and the card is removed
+// when the backup completes (a quick op for most libraries).
+private struct BackupProgressCard: View {
+    @State private var progress: Double = 0.05
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color(hex: 0xDAE2FD))
-                Capsule()
-                    .fill(AppColor.brandPrimary)
-                    .frame(width: w * 0.4)
-                    .offset(x: phase * w * 1.4 - w * 0.4)
+        VStack(spacing: 8) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image("Contacts/ic_backup_cloud")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 16)
+                        .foregroundStyle(AppColor.brandPrimary)
+                    Text(L("contacts.backups.backing"))
+                        .font(.custom("Inter-SemiBold", size: 15))
+                        .foregroundStyle(Color(hex: 0x131B2E))
+                }
+                Spacer()
+                Text("\(Int(progress * 100))%")
+                    .font(.custom("Inter-Bold", size: 15))
+                    .foregroundStyle(AppColor.brandPrimary)
             }
-            .clipShape(Capsule())
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
-                    phase = 1
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color(hex: 0xDAE2FD))
+                    Capsule().fill(AppColor.brandPrimary)
+                        .frame(width: geo.size.width * progress)
                 }
             }
+            .frame(height: 8)
+            .padding(.top, 4)
+            .animation(.linear(duration: 0.1), value: progress)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(hex: 0x004AC6, alpha: 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(hex: 0xC3C6D7), lineWidth: 1)
+        )
+        .onReceive(Timer.publish(every: 0.06, on: .main, in: .common).autoconnect()) { _ in
+            if progress < 0.92 { progress = min(0.92, progress + 0.025) }
         }
     }
+}
+
+// Exports a backup .vcf via the system share sheet (save to Files, AirDrop, etc.).
+private struct BackupShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

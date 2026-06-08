@@ -386,12 +386,22 @@ final class ContactsService {
     }
 
     nonisolated private static func performBackup(store: CNContactStore) throws -> URL {
-        let all = fetchAll(store: store)
-        let data = try CNContactVCardSerialization.data(with: all)
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let url = backupsDirectory.appendingPathComponent("backup-\(stamp).vcf")
-        try data.write(to: url, options: .atomic)
+        try writeAllContacts(to: url, store: store)
         return url
+    }
+
+    /// Serializes EVERY device contact to `url` as a vCard. Shared by the manual
+    /// backup and the auto session backup. vCard serialization REQUIRES contacts
+    /// fetched with its own descriptor — our detailKeys subset makes data(with:)
+    /// throw, which is why the backup failed before.
+    nonisolated static func writeAllContacts(to url: URL, store: CNContactStore) throws {
+        let request = CNContactFetchRequest(keysToFetch: [CNContactVCardSerialization.descriptorForRequiredKeys()])
+        var all: [CNContact] = []
+        try store.enumerateContacts(with: request) { contact, _ in all.append(contact) }
+        let data = try CNContactVCardSerialization.data(with: all)
+        try data.write(to: url, options: .atomic)
     }
 
     nonisolated private static func performRestore(file: BackupFile, store: CNContactStore) throws -> Int {
