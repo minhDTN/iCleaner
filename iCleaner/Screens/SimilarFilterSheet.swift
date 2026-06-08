@@ -35,7 +35,7 @@ struct SimilarFilterSheet: View {
 
             VStack(alignment: .leading, spacing: 32) {
                 pillSection(title: L("filter.dateRange")) {
-                    HStack(spacing: 12) {
+                    PillFlow(spacing: 12, lineSpacing: 12) {
                         ForEach(SimilarFilter.DateRange.allCases, id: \.self) { opt in
                             FilterPill(label: L(opt.labelKey), isActive: filter.dateRange == opt) {
                                 filter.dateRange = opt
@@ -44,7 +44,7 @@ struct SimilarFilterSheet: View {
                     }
                 }
                 pillSection(title: L("filter.sortBySize")) {
-                    HStack(spacing: 12) {
+                    PillFlow(spacing: 12, lineSpacing: 12) {
                         ForEach(SimilarFilter.SortBySize.allCases, id: \.self) { opt in
                             FilterPill(label: L(opt.labelKey), isActive: filter.sortBySize == opt) {
                                 filter.sortBySize = opt
@@ -53,7 +53,7 @@ struct SimilarFilterSheet: View {
                     }
                 }
                 pillSection(title: L("filter.source")) {
-                    HStack(spacing: 12) {
+                    PillFlow(spacing: 12, lineSpacing: 12) {
                         ForEach(SimilarFilter.Source.allCases, id: \.self) { opt in
                             FilterPill(label: L(opt.labelKey), isActive: filter.sources.contains(opt)) {
                                 if filter.sources.contains(opt) {
@@ -139,6 +139,43 @@ private struct FilterPill: View {
 private struct FilterSheetHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 520
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+// Left-aligned flowing layout: pills sit left-to-right and wrap to a new line
+// when the row runs out of width — so long chips (e.g. "Screenshots") drop to the
+// next line instead of overflowing/clipping at the screen edge.
+private struct PillFlow: Layout {
+    var spacing: CGFloat = 12
+    var lineSpacing: CGFloat = 12
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0; y += rowHeight + lineSpacing; rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: maxWidth == .infinity ? x : maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth = bounds.width
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0; y += rowHeight + lineSpacing; rowHeight = 0
+            }
+            sub.place(at: CGPoint(x: bounds.minX + x, y: bounds.minY + y), anchor: .topLeading,
+                      proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
 }
 
 #Preview {
