@@ -92,10 +92,12 @@ struct ContactsAllView: View {
             get: { editingID.flatMap { id in contacts.first(where: { $0.identifier == id }) }.map { Box(c: $0) } },
             set: { editingID = $0?.c.identifier }
         )) { box in
-            SystemContactView(contact: box.c)
-                .ignoresSafeArea(edges: .bottom)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar(.visible, for: .navigationBar)
+            // Hide SwiftUI's nav bar so only the contact card's own bar (with a
+            // single back button) shows — otherwise there are TWO back buttons.
+            SystemContactView(contact: box.c, onClose: { editingID = nil })
+                .ignoresSafeArea()
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
         }
         .alert(L("flow.deleteErrorTitle"), isPresented: Binding(
             get: { actionError != nil },
@@ -302,22 +304,34 @@ private struct Box: Identifiable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-// The device's native contact card, pushed into the nav stack (SwiftUI supplies
-// the back button). Re-fetches with the VC's required keys, else
-// CNContactViewController crashes (CNPropertyNotFetchedException) on a contact
-// fetched with a key subset.
+// The device's native contact card. Wrapped in its OWN UINavigationController so
+// it shows a single nav bar with one back button (SwiftUI's bar is hidden on this
+// destination). Re-fetches with the VC's required keys, else CNContactViewController
+// crashes (CNPropertyNotFetchedException) on a contact fetched with a key subset.
 private struct SystemContactView: UIViewControllerRepresentable {
     let contact: CNContact
+    var onClose: () -> Void
 
-    func makeUIViewController(context: Context) -> CNContactViewController {
+    func makeCoordinator() -> Coordinator { Coordinator(onClose: onClose) }
+
+    func makeUIViewController(context: Context) -> UINavigationController {
         let keys: [CNKeyDescriptor] = [CNContactViewController.descriptorForRequiredKeys()]
         let display = (try? CNContactStore().unifiedContact(withIdentifier: contact.identifier,
                                                             keysToFetch: keys)) ?? contact
         let vc = CNContactViewController(for: display)
         vc.allowsEditing = false
         vc.allowsActions = true
-        return vc
+        vc.navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain, target: context.coordinator, action: #selector(Coordinator.close))
+        return UINavigationController(rootViewController: vc)
     }
 
-    func updateUIViewController(_ uiViewController: CNContactViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
+
+    final class Coordinator: NSObject {
+        let onClose: () -> Void
+        init(onClose: @escaping () -> Void) { self.onClose = onClose }
+        @objc func close() { onClose() }
+    }
 }
