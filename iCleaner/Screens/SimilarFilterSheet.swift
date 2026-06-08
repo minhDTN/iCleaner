@@ -10,34 +10,30 @@ struct SimilarFilterSheet: View {
     var onApply: () -> Void
     var onClear: () -> Void
 
-    // The sheet hugs its content (Figma) — measure it and feed the height to the
-    // detent so there's no dead space pushing the Apply button to the bottom.
-    // Default close to the real content height so the sheet starts compact.
-    @State private var contentHeight: CGFloat = 440
-
     var body: some View {
-        // Outer VStack pins the content to the TOP; the trailing Spacer soaks up any
-        // leftover sheet height at the BOTTOM only — never centers (no top gap).
-        VStack(spacing: 0) {
-        VStack(spacing: 16) {
-            Capsule()
-                .fill(Color(hex: 0xE2E8F0))
-                .frame(width: 40, height: 4)
-
-            HStack {
-                Text(L("filter.title"))
-                    .font(.custom("Inter-Bold", size: 20))
-                    .foregroundStyle(Color(hex: 0x0F172A))
-                Spacer()
-                Button(action: onClear) {
-                    Text(L("filter.clearAll"))
-                        .font(.custom("Inter-SemiBold", size: 14))
-                        .foregroundStyle(Color(hex: 0x3B82F6))
-                }
-            }
-            .padding(.horizontal, 24)
-
+        // Filter options scroll (so a small device with wrapping pills never cuts
+        // anything off); the Apply button is pinned to the very bottom via
+        // safeAreaInset so it always hugs the bottom edge — no dead space below it.
+        ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                Capsule()
+                    .fill(Color(hex: 0xE2E8F0))
+                    .frame(width: 40, height: 4)
+                    .frame(maxWidth: .infinity)   // centered drag handle
+
+                HStack {
+                    Text(L("filter.title"))
+                        .font(.custom("Inter-Bold", size: 20))
+                        .foregroundStyle(Color(hex: 0x0F172A))
+                    Spacer()
+                    Button(action: onClear) {
+                        Text(L("filter.clearAll"))
+                            .font(.custom("Inter-SemiBold", size: 14))
+                            .foregroundStyle(Color(hex: 0x3B82F6))
+                    }
+                }
+                .padding(.horizontal, 24)
+
                 pillSection(title: L("filter.dateRange")) {
                     PillFlow(spacing: 12, lineSpacing: 12) {
                         ForEach(SimilarFilter.DateRange.allCases, id: \.self) { opt in
@@ -70,7 +66,12 @@ struct SimilarFilterSheet: View {
                     }
                 }
             }
-
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollBounceBehavior(.basedOnSize)   // no bounce/scroll when it all fits
+        .safeAreaInset(edge: .bottom) {
             Button(action: onApply) {
                 Text(L("filter.apply"))
                     .font(.custom("Inter-Bold", size: 16))
@@ -85,20 +86,13 @@ struct SimilarFilterSheet: View {
                     )
             }
             .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+            .background(AppColor.surfaceBackground)
         }
-        .padding(.top, 12)
-        .padding(.bottom, 12)
-        .frame(maxWidth: .infinity)
-        .background(GeometryReader { proxy in
-            Color.clear.preference(key: FilterSheetHeightKey.self, value: proxy.size.height)
-        })
-
-            Spacer(minLength: 0)
-        }
-        .onPreferenceChange(FilterSheetHeightKey.self) { contentHeight = $0 }
-        .presentationDetents([.height(contentHeight)])
-        // Solid white sheet, flush to the device's left/right/bottom edges — no
-        // translucent wrapper. The system still rounds the top corners.
+        // Fixed, compact height: snug on normal phones (Apply right under SOURCE),
+        // and the options scroll on small phones so nothing is cut off.
+        .presentationDetents([.height(430)])
         .presentationBackground(AppColor.surfaceBackground)
     }
 
@@ -139,12 +133,6 @@ private struct FilterPill: View {
                 )
         }
     }
-}
-
-// Reports the filter sheet's natural content height so the detent hugs it.
-private struct FilterSheetHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 520
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 // Left-aligned flowing layout: pills sit left-to-right and wrap to a new line
