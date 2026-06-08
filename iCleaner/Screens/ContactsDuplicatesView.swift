@@ -16,6 +16,7 @@ struct ContactsDuplicatesView: View {
     @State private var busy: Bool = false
     @State private var actionError: String?
     @State private var mergeResult: String?
+    @State private var showPaywall: Bool = false
 
     private var allIDs: [String] { groups.flatMap { $0.contacts.map(\.identifier) } }
     private var totalContacts: Int { allIDs.count }
@@ -50,7 +51,9 @@ struct ContactsDuplicatesView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .task {
+            FlowGate.showStartAd()   // ad on feature entry (free users)
             groups = await service.fetchDuplicateGroups()
             loading = false
         }
@@ -212,6 +215,7 @@ struct ContactsDuplicatesView: View {
     // MARK: - Actions
 
     private func performMergeSelected() async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         busy = true
         defer { busy = false }
         do {
@@ -238,6 +242,7 @@ struct ContactsDuplicatesView: View {
     }
 
     private func performDeleteSelected() async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         busy = true
         defer { busy = false }
         do {

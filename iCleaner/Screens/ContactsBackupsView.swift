@@ -15,6 +15,7 @@ struct ContactsBackupsView: View {
     @State private var selectedBackup: BackupFile?
     @State private var actionError: String?
     @State private var lastResult: String?
+    @State private var showPaywall: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +46,11 @@ struct ContactsBackupsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .task { backups = service.fetchBackups() }
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
+        .task {
+            FlowGate.showStartAd()   // ad on feature entry (free users)
+            backups = service.fetchBackups()
+        }
         .confirmationDialog(
             selectedBackup.map { L("contacts.backups.item") + " • " + L("contacts.count", $0.contactCount) } ?? L("contacts.backups.item"),
             isPresented: Binding(get: { selectedBackup != nil }, set: { if !$0 { selectedBackup = nil } }),
@@ -218,6 +223,7 @@ struct ContactsBackupsView: View {
     // MARK: - Actions
 
     private func performCreate() async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         creating = true
         defer { creating = false }
         do {
@@ -230,6 +236,7 @@ struct ContactsBackupsView: View {
     }
 
     private func performRestore(_ file: BackupFile) async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         restoring = file
         defer { restoring = nil }
         do {

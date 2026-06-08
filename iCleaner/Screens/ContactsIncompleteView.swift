@@ -17,6 +17,7 @@ struct ContactsIncompleteView: View {
     @State private var editingID: String?
     @State private var actionError: String?
     @State private var deleting: Bool = false
+    @State private var showPaywall: Bool = false
 
     private var isAllSelected: Bool { !contacts.isEmpty && selection.count == contacts.count }
     private var selectedContacts: [CNContact] {
@@ -46,7 +47,9 @@ struct ContactsIncompleteView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .task {
+            FlowGate.showStartAd()   // ad on feature entry (free users)
             contacts = await service.fetchIncompleteContacts()
             loading = false
         }
@@ -181,6 +184,7 @@ struct ContactsIncompleteView: View {
     }
 
     private func performDelete() async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         deleting = true
         defer { deleting = false }
         do {
@@ -233,7 +237,12 @@ private struct ContactEditor: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
 
     func makeUIViewController(context: Context) -> UINavigationController {
-        let vc = CNContactViewController(for: contact)
+        // Re-fetch with the VC's required keys, else CNContactViewController crashes
+        // (CNPropertyNotFetchedException) on a contact fetched with a key subset.
+        let keys: [CNKeyDescriptor] = [CNContactViewController.descriptorForRequiredKeys()]
+        let display = (try? CNContactStore().unifiedContact(withIdentifier: contact.identifier,
+                                                            keysToFetch: keys)) ?? contact
+        let vc = CNContactViewController(for: display)
         vc.allowsEditing = true
         vc.delegate = context.coordinator
         let nav = UINavigationController(rootViewController: vc)

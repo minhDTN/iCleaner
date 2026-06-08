@@ -198,10 +198,11 @@ struct SettingsView: View {
     }
 
     private var supportSection: some View {
-        // FAQ / Terms / Privacy open their web pages IN-APP (WebViewScreen pushed
-        // here), not in Safari. Order matches Figma 336:4696.
+        // FAQ → native designed accordion screen (Figma 2005:23659).
+        // Terms / Privacy open their web pages IN-APP (WebViewScreen), not Safari.
+        // Order matches Figma 336:4696.
         SettingsSection(title: L("settings.support")) {
-            NavigationLink(destination: WebViewScreen(title: L("settings.faq"), url: AppInfo.faqURL)) {
+            NavigationLink(destination: FAQView()) {
                 SettingsRowChrome(assetIcon: "Settings/ic_faq", title: L("settings.faq"))
             }
             divider

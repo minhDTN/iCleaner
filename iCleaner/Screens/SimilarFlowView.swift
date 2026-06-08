@@ -25,6 +25,7 @@ struct SimilarFlowView: View {
     @State private var groups: [SimilarGroup] = []
     @State private var showFilter: Bool = false
     @State private var showDeleteConfirm: Bool = false
+    @State private var showPaywall: Bool = false
     @State private var filter: SimilarFilter = .default
     @State private var deletedMB: Int = 0
     @State private var deleteError: String?
@@ -65,7 +66,12 @@ struct SimilarFlowView: View {
                     selectedMB: totalSelectedMB,
                     onBack: { dismiss() },
                     onFilter: { showFilter = true },
-                    onDeleteTap: { if !selectedPhotos.isEmpty { showDeleteConfirm = true } },
+                    onDeleteTap: {
+                        guard !selectedPhotos.isEmpty else { return }
+                        // Final step → free users hit the paywall (must upgrade to clean).
+                        if FlowGate.requiresPaywall { showPaywall = true }
+                        else { showDeleteConfirm = true }
+                    },
                     onOpenPreview: { gIdx, pIdx in
                         previewPhotoIndex = pIdx
                         previewGroupIndex = gIdx
@@ -100,6 +106,7 @@ struct SimilarFlowView: View {
                 .transition(.opacity)
             }
         }
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .sheet(isPresented: $showFilter) {
             SimilarFilterSheet(
                 filter: $filter,
@@ -146,6 +153,7 @@ struct SimilarFlowView: View {
             step = .permissionGate
             return
         }
+        FlowGate.showStartAd()   // ad on feature entry (free users)
         await reloadGroups()
     }
 

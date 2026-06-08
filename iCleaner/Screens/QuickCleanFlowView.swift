@@ -21,6 +21,7 @@ struct QuickCleanFlowView: View {
     @State private var deletablePhotoCount: Int = 0
     @State private var deletableGroupCount: Int = 0
     @State private var deleteError: String?
+    @State private var showPaywall: Bool = false
 
     private enum Step { case scanning, permissionGate, confirm, empty, cleaning, success }
 
@@ -67,6 +68,7 @@ struct QuickCleanFlowView: View {
         } message: {
             Text(deleteError ?? "")
         }
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .task { await bootstrap() }
         .animation(.easeInOut(duration: 0.3), value: step)
     }
@@ -81,6 +83,7 @@ struct QuickCleanFlowView: View {
             step = .permissionGate
             return
         }
+        FlowGate.showStartAd()   // ad on feature entry (free users)
         let groups = await photoLibrary.detectSimilarGroups()
         guard !groups.isEmpty else {
             step = .empty
@@ -210,7 +213,8 @@ struct QuickCleanFlowView: View {
             photoCount: deletablePhotoCount,
             groupCount: deletableGroupCount,
             onCancel: { dismiss() },
-            onClean: { step = .cleaning }
+            // Final step → free users hit the paywall instead of cleaning.
+            onClean: { if FlowGate.requiresPaywall { showPaywall = true } else { step = .cleaning } }
         )
     }
 }

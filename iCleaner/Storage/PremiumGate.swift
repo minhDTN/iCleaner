@@ -21,3 +21,21 @@ enum PremiumGate {
         return PermissionManager.shared.isPremium
     }
 }
+
+// Monetization flow gate (product spec): free users see an interstitial when they
+// OPEN a cleanup feature, and hit the paywall at the feature's FINAL action
+// (delete / merge / backup …) — they must upgrade to complete it. Compress is the
+// exception: it keeps its own 2-free-per-day quota and is NOT gated here.
+@MainActor
+enum FlowGate {
+    /// Interstitial on feature entry. No-op for premium; lib's 30s global cap
+    /// prevents back-to-back spam when navigating between sub-screens.
+    static func showStartAd() {
+        guard !PremiumGate.isPremium, let vc = AdHelpers.topViewController() else { return }
+        AdManager.shared.showInterstitialAd(adUnitID: AdUnits.interGlobal, from: vc, completion: nil)
+    }
+
+    /// Returns true and (caller should) present the paywall when a free user tries
+    /// the final action; returns false for premium so the action proceeds.
+    static var requiresPaywall: Bool { !PremiumGate.isPremium }
+}

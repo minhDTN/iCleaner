@@ -19,6 +19,7 @@ struct ContactsAllView: View {
     @State private var selection: Set<String> = []
     @State private var deleting: Bool = false
     @State private var actionError: String?
+    @State private var showPaywall: Bool = false
 
     private var selectionMode: Bool { !selection.isEmpty }
 
@@ -78,7 +79,9 @@ struct ContactsAllView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .task {
+            FlowGate.showStartAd()   // ad on feature entry (free users)
             contacts = await service.fetchAllContacts()
             loading = false
         }
@@ -265,6 +268,7 @@ struct ContactsAllView: View {
     }
 
     private func performDelete() async {
+        if FlowGate.requiresPaywall { showPaywall = true; return }   // final step → paywall for free
         deleting = true
         defer { deleting = false }
         let toDelete = contacts.filter { selection.contains($0.identifier) }
