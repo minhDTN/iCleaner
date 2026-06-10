@@ -146,34 +146,69 @@ final class PhotoLibraryService {
         // there are genuinely no matching assets.
         if !config.grouped {
             guard !assets.isEmpty else { return [] }
-            let flat = assets.sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
-            return [PHAssetGroup(title: "\(flat.count) \(config.groupNoun)", assets: flat, bestMatchIndex: -1)]
+            return await Task.detached(priority: .userInitiated) {
+                let flat = assets.sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
+                let sizes = flat.map { Self.realBytesKB($0) }
+                return [PHAssetGroup(title: "\(flat.count) \(config.groupNoun)",
+                                     assets: flat, sizesKB: sizes, bestMatchIndex: -1)]
+            }.value
         }
 
-        // 2. Cluster by content (images) or time-window (videos).
+        // 2. Cluster. Exact duplicates use a CHEAP signature (dimensions + real byte
+        // size), NOT Vision — running Vision feature prints over the whole library
+        // froze the Duplicates screen for ~2 min. Similar = Vision (content), videos
+        // = time-window.
         let clusters: [[PHAsset]]
-        if config.mediaType == .video {
-            clusters = Self.timeWindowClusters(assets, window: clusteringWindow)
+        if config.exactDuplicates {
+            clusters = await Task.detached(priority: .userInitiated) {
+                Self.exactDuplicateClusters(assets)
+            }.value
+        } else if config.mediaType == .video {
+            clusters = await Task.detached(priority: .userInitiated) {
+                Self.timeWindowClusters(assets, window: clusteringWindow)
+            }.value
         } else {
-            clusters = await VisionSimilarity.cluster(
-                assets,
-                mode: config.exactDuplicates ? .duplicate : .similar
-            )
+            clusters = await VisionSimilarity.cluster(assets, mode: .similar)
         }
 
-        // 3. Sort groups by estimated total size per the filter.
-        let sized = clusters.map { cluster -> (cluster: [PHAsset], bytes: Int) in
-            (cluster, cluster.reduce(0) { $0 + Int($1.estimatedSizeKB) })
-        }
-        let ordered = sized.sorted { largestFirst ? $0.bytes > $1.bytes : $0.bytes < $1.bytes }
+        // 3. Real byte sizes per asset + sort groups by total size.
+        return await Task.detached(priority: .userInitiated) {
+            let sized = clusters.map { cluster -> (cluster: [PHAsset], sizes: [Int], bytes: Int) in
+                let sizes = cluster.map { Self.realBytesKB($0) }
+                return (cluster, sizes, sizes.reduce(0, +))
+            }
+            let ordered = sized.sorted { largestFirst ? $0.bytes > $1.bytes : $0.bytes < $1.bytes }
+            return ordered.map { item in
+                PHAssetGroup(title: "\(item.cluster.count) \(config.groupNoun)",
+                             assets: item.cluster, sizesKB: item.sizes,
+                             bestMatchIndex: 0)  // first asset (oldest) wins as MVP
+            }
+        }.value
+    }
 
-        return ordered.map { item in
-            PHAssetGroup(
-                title: "\(item.cluster.count) \(config.groupNoun)",
-                assets: item.cluster,
-                bestMatchIndex: 0  // first asset (oldest) wins as MVP
-            )
+    /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
+    /// back to the dimension estimate when the resource size is unavailable.
+    nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
+        for resource in PHAssetResource.assetResources(for: asset) {
+            if let bytes = resource.value(forKey: "fileSize") as? Int, bytes > 0 {
+                return bytes / 1024
+            }
         }
+        return Int(asset.estimatedSizeKB)
+    }
+
+    /// Exact-duplicate clustering WITHOUT Vision: group assets sharing the same
+    /// dimensions AND real byte size (a strong exact-copy signal), O(n). Each
+    /// cluster has ≥2 members, oldest first.
+    nonisolated static func exactDuplicateClusters(_ assets: [PHAsset]) -> [[PHAsset]] {
+        var buckets: [String: [PHAsset]] = [:]
+        for a in assets {
+            let key = "\(a.pixelWidth)x\(a.pixelHeight)-\(realBytesKB(a))"
+            buckets[key, default: []].append(a)
+        }
+        return buckets.values
+            .filter { $0.count >= 2 }
+            .map { $0.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) } }
     }
 
     // Groups consecutive assets shot within `window` seconds at the same
@@ -237,5 +272,9 @@ struct PHAssetGroup: Identifiable {
     let id = UUID()
     let title: String
     let assets: [PHAsset]
+    var sizesKB: [Int] = []   // real per-asset size (KB), parallel to `assets`
     let bestMatchIndex: Int
+
+    /// Real total size of the group in KB.
+    var totalSizeKB: Int { sizesKB.reduce(0, +) }
 }

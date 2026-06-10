@@ -89,16 +89,18 @@ struct QuickCleanFlowView: View {
             step = .empty
             return
         }
-        // Auto-select all non-Best-Match across every group.
+        // Auto-select all non-Best-Match across every group; sum their REAL sizes.
         var assets: [PHAsset] = []
+        var totalKB = 0
         for g in groups {
             for (idx, asset) in g.assets.enumerated() where idx != g.bestMatchIndex {
                 assets.append(asset)
+                totalKB += idx < g.sizesKB.count ? g.sizesKB[idx] : Int(asset.estimatedSizeKB)
             }
         }
         deletableAssets = assets
         deletablePhotoCount = assets.count
-        deletableSizeMB = assets.reduce(0) { $0 + Int($1.estimatedSizeKB) } / 1024
+        deletableSizeMB = totalKB / 1024
         deletableGroupCount = groups.count
         step = .confirm
     }

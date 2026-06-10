@@ -195,7 +195,7 @@ struct SimilarFlowView: View {
                 SimilarPhoto(
                     assetID: asset.localIdentifier,
                     seed: idx,
-                    sizeKB: Int(asset.estimatedSizeKB),
+                    sizeKB: idx < g.sizesKB.count ? g.sizesKB[idx] : Int(asset.estimatedSizeKB),
                     isSelected: hasBestMatch ? (idx != g.bestMatchIndex) : false
                 )
             }
