@@ -58,6 +58,7 @@ struct CreatePasscodeView: View {
                 .padding(.bottom, 24)
             }
         }
+        .bottomChromeInset()   // keep content above the now-visible tab bar
         .alert(L("passcode.saveErrorTitle"), isPresented: Binding(
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }

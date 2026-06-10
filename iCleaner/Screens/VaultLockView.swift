@@ -53,6 +53,7 @@ struct VaultLockView: View {
             }
             }
         }
+        .bottomChromeInset()   // keep content above the now-visible tab bar
         .alert(L("vault.authFailTitle"), isPresented: Binding(
             get: { biometryError != nil },
             set: { if !$0 { biometryError = nil } }

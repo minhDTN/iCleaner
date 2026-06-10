@@ -16,9 +16,6 @@ struct VaultView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TabChrome.self) private var chrome: TabChrome?
 
-    // The lock / create-passcode screens are full-screen gates → no tab bar.
-    private var gated: Bool { !vault.hasPasscode || !vault.isUnlocked }
-
     var body: some View {
         Group {
             if !vault.hasPasscode {
@@ -31,10 +28,10 @@ struct VaultView: View {
                 }
             }
         }
-        // Hide the tab bar + banner whenever a full-screen gate (create / lock /
-        // change passcode) is showing. `initial: true` sets it on first appearance
-        // too — onAppear alone doesn't fire reliably on TabView tab switches.
-        .onChange(of: gated, initial: true) { _, isGated in chrome?.vaultGated = isGated }
+        // Keep the bottom tab bar visible on the lock / passcode-entry screens so
+        // the user can switch tabs without unlocking (only the pushed Change
+        // Passcode screen hides chrome, via chrome.vaultDepth).
+        .onAppear { chrome?.vaultGated = false }
         .animation(.easeInOut(duration: 0.25), value: vault.hasPasscode)
         .animation(.easeInOut(duration: 0.25), value: vault.isUnlocked)
         .onChange(of: vault.isUnlocked) { _, unlocked in

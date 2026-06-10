@@ -38,6 +38,10 @@ struct PhotoPreviewView: View {
                 mediaCard(for: photo)
                     .padding(.horizontal, 14)
                     .frame(maxHeight: .infinity)
+                    // Buttons anchored to the screen edges (full-width container).
+                    .overlay(alignment: .leading) { deleteEdgeButton.padding(.leading, 16) }
+                    .overlay(alignment: .trailing) { keepEdgeButton.padding(.trailing, 16) }
+                    .overlay(alignment: .bottom) { vaultEdgeButton.padding(.bottom, 16) }
             } else {
                 Spacer()
             }
@@ -117,30 +121,24 @@ struct PhotoPreviewView: View {
                         }
                     }
             )
-            // The 3 actions sit at the screen edges dimmed to 20%; the one the
-            // photo is dragged toward brightens to full as you swipe (Figma).
-            .overlay(alignment: .leading) {
-                actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A),
-                             opacity: edgeOpacity(-dragOffset.width)) {
-                    decide(keep: false)
-                }
-                .padding(.leading, 20)
-            }
-            .overlay(alignment: .trailing) {
-                actionButton(asset: "Clean/ic_keep", bg: AppColor.success,
-                             opacity: edgeOpacity(dragOffset.width)) {
-                    decide(keep: true)
-                }
-                .padding(.trailing, 20)
-            }
-            .overlay(alignment: .bottom) {
-                actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6),
-                             opacity: edgeOpacity(dragOffset.height)) {
-                    sendToVault()
-                }
-                .padding(.bottom, 12)
-            }
             .id(index)  // reset drag transform when the photo changes
+    }
+
+    // The 3 actions, pinned to the SCREEN edges (not the image edges) via overlays
+    // on the full-width media container. Only the 64pt buttons are hit-testable, so
+    // the image keeps its swipe gesture. Dimmed to 20%; the one the photo is dragged
+    // toward brightens to full as you swipe.
+    private var deleteEdgeButton: some View {
+        actionButton(asset: "Clean/ic_delete_x", bg: Color(hex: 0xBA1A1A),
+                     opacity: edgeOpacity(-dragOffset.width)) { decide(keep: false) }
+    }
+    private var keepEdgeButton: some View {
+        actionButton(asset: "Clean/ic_keep", bg: AppColor.success,
+                     opacity: edgeOpacity(dragOffset.width)) { decide(keep: true) }
+    }
+    private var vaultEdgeButton: some View {
+        actionButton(asset: "Clean/ic_vault", bg: Color(hex: 0x004AC6),
+                     opacity: edgeOpacity(dragOffset.height)) { sendToVault() }
     }
 
     // Idle 20% → 100% as the drag travels `distance` points toward that action.
