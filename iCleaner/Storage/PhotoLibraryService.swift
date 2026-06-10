@@ -188,7 +188,16 @@ final class PhotoLibraryService {
                 Self.timeWindowClusters(assets, window: clusteringWindow)
             }.value
         } else {
-            clusters = await VisionSimilarity.cluster(assets, mode: .similar)
+            // Similar photos: time-window pre-cluster (cheap) → Vision-refine ONLY the
+            // candidate runs. Avoids Vision-printing the whole library (which froze it).
+            let candidates = await Task.detached(priority: .userInitiated) {
+                Self.timeWindowClusters(assets, window: 180)
+            }.value
+            var refined: [[PHAsset]] = []
+            for run in candidates {
+                refined.append(contentsOf: await VisionSimilarity.cluster(run, mode: .similar))
+            }
+            clusters = refined
         }
 
         // 3. Real byte sizes per asset + sort groups by total size.
@@ -221,31 +230,38 @@ final class PhotoLibraryService {
     func detectSimilarGroupsStreaming(
         config: DetectionConfig,
         sinceDays: Int? = nil,
-        chunkSize: Int = 150,
+        chunkSize: Int = 100,
+        onProgress: @MainActor @escaping (_ scanned: Int, _ total: Int) -> Void,
         onBatch: @MainActor @escaping ([PHAssetGroup]) -> Void
     ) async {
-        guard authStatus.canRead else { return }
-        // Whole pool, newest first (so recent groups appear at the top first).
-        let all: [PHAsset] = await Task.detached(priority: .userInitiated) {
-            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: true, limit: nil)
+        _ = chunkSize
+        guard authStatus.canRead else { onProgress(0, 0); return }
+
+        // 1. CHEAP time-window pre-clustering over the WHOLE gallery (O(n), instant):
+        // similar photos are virtually always shot seconds–minutes apart, so only
+        // assets that have a near-in-time neighbour are similarity CANDIDATES. The
+        // thousands of isolated photos are skipped — they can't be in a similar
+        // group, so we never pay the Vision cost for them. THIS is the fix for the
+        // multi-minute scan.
+        let candidates: [[PHAsset]] = await Task.detached(priority: .userInitiated) {
+            let all = Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
+            return Self.timeWindowClusters(all, window: 180)   // runs of ≥2, ≤3 min apart, same orientation
         }.value
-        guard !all.isEmpty else { return }
+        let totalToScan = candidates.reduce(0) { $0 + $1.count }
+        guard totalToScan > 0 else { onProgress(0, 0); return }
+        onProgress(0, totalToScan)
 
-        var start = 0
-        while start < all.count {
+        // 2. Vision-refine each candidate run (newest first) — splits a time burst
+        // into visually-coherent sub-groups — and emit groups as they're found.
+        var scanned = 0
+        for run in candidates.reversed() {
             if Task.isCancelled { return }
-            let end = min(start + chunkSize, all.count)
-            let chunk = Array(all[start..<end])
-            start = end
-
-            // Cluster this chunk (assets sorted ascending for the time-window union-find).
-            let ascending = chunk.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
-            let clusters = await VisionSimilarity.cluster(ascending, mode: .similar)
-            guard !clusters.isEmpty else { continue }
-
-            // Build groups + real sizes off main, then hand to the UI.
+            let subClusters = await VisionSimilarity.cluster(run, mode: .similar)
+            scanned += run.count
+            onProgress(scanned, totalToScan)
+            guard !subClusters.isEmpty else { continue }
             let groups: [PHAssetGroup] = await Task.detached(priority: .userInitiated) {
-                clusters.map { c in
+                subClusters.map { c in
                     let sizes = c.map { Self.realBytesKB($0) }
                     return PHAssetGroup(title: "\(c.count) \(config.groupNoun)",
                                         assets: c, sizesKB: sizes, bestMatchIndex: 0)

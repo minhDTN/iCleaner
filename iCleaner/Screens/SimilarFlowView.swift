@@ -30,6 +30,8 @@ struct SimilarFlowView: View {
     @State private var deletedMB: Int = 0
     @State private var deleteError: String?
     @State private var isScanning: Bool = false   // streaming whole-gallery similar scan
+    @State private var scanScanned: Int = 0
+    @State private var scanTotal: Int = 0
     @State private var previewGroupIndex: Int?
     @State private var previewPhotoIndex: Int = 0
 
@@ -66,6 +68,8 @@ struct SimilarFlowView: View {
                     selectedCount: selectedPhotos.count,
                     selectedMB: totalSelectedMB,
                     isScanning: isScanning,
+                    scanScanned: scanScanned,
+                    scanTotal: scanTotal,
                     onBack: { dismiss() },
                     onFilter: { showFilter = true },
                     onDeleteTap: {
@@ -234,11 +238,15 @@ struct SimilarFlowView: View {
     // groups as each chunk is found (newest first), and order by size when done.
     private func streamSimilar(goEmptyIfNone: Bool) async {
         groups = []
+        scanScanned = 0; scanTotal = 0
         step = .review
         isScanning = true
-        await photoLibrary.detectSimilarGroupsStreaming(config: detectionConfig, sinceDays: filterSinceDays) { batch in
-            groups.append(contentsOf: mapGroups(batch))
-        }
+        await photoLibrary.detectSimilarGroupsStreaming(
+            config: detectionConfig,
+            sinceDays: filterSinceDays,
+            onProgress: { scanned, total in scanScanned = scanned; scanTotal = total },
+            onBatch: { batch in groups.append(contentsOf: mapGroups(batch)) }
+        )
         isScanning = false
         sortGroupsByFilter()
         if groups.isEmpty && goEmptyIfNone { step = .empty }

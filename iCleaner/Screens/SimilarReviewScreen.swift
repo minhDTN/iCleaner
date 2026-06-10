@@ -13,6 +13,8 @@ struct SimilarReviewScreen: View {
     let selectedCount: Int
     let selectedMB: Int
     var isScanning: Bool = false   // whole-gallery scan still running → show indicator
+    var scanScanned: Int = 0
+    var scanTotal: Int = 0
     var onBack: () -> Void
     var onFilter: () -> Void
     var onDeleteTap: () -> Void
@@ -159,7 +161,7 @@ struct SimilarReviewScreen: View {
     private var scanningBar: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small).tint(AppColor.brandPrimary)
-            Text(L("review.scanning", groups.count))
+            Text(scanTotal > 0 ? L("review.scanning", scanScanned, scanTotal) : L("review.scanningStart"))
                 .font(.custom("Inter-Medium", size: 13))
                 .foregroundStyle(AppColor.textSecondary)
             Spacer()

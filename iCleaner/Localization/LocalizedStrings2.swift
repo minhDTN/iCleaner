@@ -22,7 +22,7 @@ enum LocalizedStrings2 {
         "filter.src.camera": "Camera", "filter.src.screenshots": "Screenshots", "filter.src.download": "Download",
         "review.selectAll": "Select All", "review.deselect": "Deselect", "review.deleteSelected": "Delete Selected",
         "review.deleteN": "Delete %d Selected (%@)", "review.groupTitle": "%d %@",
-        "review.scanning": "Scanning your library… (%d found)",
+        "review.scanning": "Scanning… %d/%d", "review.scanningStart": "Scanning your library…",
         "review.noun.similar": "Similar", "review.noun.duplicates": "Duplicates",
         "review.noun.screenshots": "Screenshots", "review.noun.videos": "Videos", "review.noun.photos": "Photos",
         "flow.permBody": "The app needs access to your photo library to find similar photos and duplicates you can clean up.",

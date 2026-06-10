@@ -36,7 +36,7 @@ enum VisionSimilarity {
     /// large libraries. Oldest beyond this are skipped (logged by caller).
     static let maxScan = 300
     /// How many assets to feature-print concurrently (thumbnail load + Vision).
-    static let printConcurrency = 8
+    static let printConcurrency = 12
     /// Only compare assets created within this window of each other (seconds).
     static let timeWindow: TimeInterval = 60 * 60 * 24  // 1 day
 
