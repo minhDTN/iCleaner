@@ -232,9 +232,15 @@ struct VaultGridView: View {
             pixelWidth: Int(img.size.width * img.scale),
             pixelHeight: Int(img.size.height * img.scale)
         )
-        try vault.writeEncrypted(data, for: item.id)
-        modelContext.insert(item)
-        try? modelContext.save()
+        do {
+            try vault.writeEncrypted(data, for: item.id)
+            modelContext.insert(item)
+            try modelContext.save()   // propagate failures (was swallowed) so the caller alerts
+        } catch {
+            vault.deleteFile(for: item.id)   // remove orphaned blob
+            modelContext.delete(item)
+            throw error
+        }
     }
 
     private func saveImportedVideo(data: Data, fileName: String) throws {
@@ -247,9 +253,15 @@ struct VaultGridView: View {
             pixelWidth: 0,
             pixelHeight: 0
         )
-        try vault.writeEncrypted(data, for: item.id)
-        modelContext.insert(item)
-        try? modelContext.save()
+        do {
+            try vault.writeEncrypted(data, for: item.id)
+            modelContext.insert(item)
+            try modelContext.save()   // propagate failures (was swallowed) so the caller alerts
+        } catch {
+            vault.deleteFile(for: item.id)   // remove orphaned blob
+            modelContext.delete(item)
+            throw error
+        }
     }
 }
 

@@ -309,10 +309,17 @@ struct PhotoPreviewView: View {
                 pixelWidth: asset.pixelWidth,
                 pixelHeight: asset.pixelHeight
             )
-            try? vault.writeEncrypted(data, for: item.id)
-            modelContext.insert(item)
-            try? modelContext.save()
-            showToast(L("preview.vaultAdded"))
+            do {
+                try vault.writeEncrypted(data, for: item.id)
+                modelContext.insert(item)
+                try modelContext.save()
+                showToast(L("preview.vaultAdded"))
+            } catch {
+                // Don't silently lose the photo — clean the orphaned blob and tell the user.
+                vault.deleteFile(for: item.id)
+                modelContext.delete(item)
+                showToast(L("preview.vaultFailed"))
+            }
         }
         advanceOrDismiss()
     }

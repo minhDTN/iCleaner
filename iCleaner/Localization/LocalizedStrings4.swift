@@ -51,6 +51,7 @@ enum LocalizedStrings4 {
         "deleteconfirm.body": "These %@ of photos will be\npermanently removed.",
         "preview.delete": "DELETE", "preview.keep": "KEEP",
         "preview.vaultAdded": "Added to Private Vault", "preview.vaultSetup": "Set up the Private Vault first",
+        "preview.vaultFailed": "Couldn't add to the vault",
         "preview.vaultVideoUnsupported": "Only photos can be moved to the vault",
     ]
 
