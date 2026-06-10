@@ -41,6 +41,11 @@ struct CompressView: View {
 
     private enum Step { case empty, ready, confirm, progress, result, notification }
 
+    // Compressing + result + success = focused full-screen → hide the tab bar.
+    private var isCompressGated: Bool {
+        step == .progress || step == .result || step == .notification
+    }
+
     enum VideoSort: CaseIterable {
         case newest, largest, longest
         var labelKey: String {
@@ -99,15 +104,19 @@ struct CompressView: View {
             }
         }
         // Per-step bottom ad is published to the shared chrome so it renders BELOW
-        // the tab bar (same place as Home), not above it. Scenario: landing
-        // banner_compress, ready/confirm banner_video_compress, compressing
-        // native_video_compress, result banner_success_view_compress.
-        .bottomChromeInset()
+        // the tab bar (same place as Home), not above it. The compressing / result /
+        // success screens are full-screen focused → tab bar hidden (compressGated),
+        // and the bottom inset drops to 0 so the content fills the screen.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: isCompressGated ? 0 : (chrome?.height ?? 0))
+        }
         .onChange(of: step, initial: true) { _, s in
             let ad = Self.compressAd(for: s)
             chrome?.compressAdUnit = ad.unit
             chrome?.compressAdIsNative = ad.isNative
+            chrome?.compressGated = isCompressGated
         }
+        .onDisappear { chrome?.compressGated = false }
         .task { await videoLibrary.load() }
         .fullScreenCover(isPresented: $showPaywall) { PaywallView() }
         .alert(L("compress.errorTitle"), isPresented: Binding(

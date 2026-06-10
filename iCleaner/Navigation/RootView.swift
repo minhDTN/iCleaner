@@ -16,6 +16,7 @@ final class TabChrome {
     // BELOW the tab bar (same place as Home's banner), not above it.
     var compressAdUnit: String? = nil
     var compressAdIsNative = false
+    var compressGated = false   // compressing / success screens → no tab bar
 }
 
 private struct ChromeHeightKey: PreferenceKey {
@@ -91,7 +92,8 @@ struct RootView: View {
         switch selection {
         case .contacts: return chrome.contactsDepth > 0
         case .vault:    return chrome.vaultGated || chrome.vaultDepth > 0
-        default:        return false
+        case .compress: return chrome.compressGated
+        case .home:     return false
         }
     }
 
