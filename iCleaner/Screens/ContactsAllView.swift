@@ -20,20 +20,21 @@ struct ContactsAllView: View {
     @State private var deleting: Bool = false
     @State private var actionError: String?
     @State private var showPaywall: Bool = false
+    // Pre-grouped A–Z sections, rebuilt only when the list or the (debounced) search
+    // changes — NOT on every keystroke / every body render (was the search jank).
+    @State private var sections: [(letter: String, items: [CNContact])] = []
+    @State private var searchTask: Task<Void, Never>?
 
     private var selectionMode: Bool { !selection.isEmpty }
 
-    private var filtered: [CNContact] {
-        guard !query.isEmpty else { return contacts }
+    // Rebuild the filtered + A–Z-grouped sections from the current contacts + query.
+    private func rebuildSections() {
         let q = query.lowercased()
-        return contacts.filter { c in
+        let filtered = q.isEmpty ? contacts : contacts.filter { c in
             ContactsService.displayName(for: c).lowercased().contains(q)
             || c.phoneNumbers.contains { $0.value.stringValue.contains(query) }
             || c.emailAddresses.contains { String($0.value).lowercased().contains(q) }
         }
-    }
-
-    private var grouped: [(letter: String, items: [CNContact])] {
         var buckets: [String: [CNContact]] = [:]
         for c in filtered {
             let name = ContactsService.displayName(for: c)
@@ -41,7 +42,17 @@ struct ContactsAllView: View {
             let letter = key.range(of: "[A-Z]", options: .regularExpression) != nil ? key : "#"
             buckets[letter, default: []].append(c)
         }
-        return buckets.keys.sorted().map { ($0, buckets[$0] ?? []) }
+        sections = buckets.keys.sorted().map { ($0, buckets[$0] ?? []) }
+    }
+
+    // Debounce search so a fast typist doesn't rebuild the whole index per keystroke.
+    private func scheduleSearch() {
+        searchTask?.cancel()
+        searchTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            if Task.isCancelled { return }
+            rebuildSections()
+        }
     }
 
     private var isAllSelected: Bool { !contacts.isEmpty && selection.count == contacts.count }
@@ -66,7 +77,7 @@ struct ContactsAllView: View {
                             searchBar
                                 .padding(.horizontal, 20)
                                 .padding(.top, 8)
-                            ForEach(grouped, id: \.letter) { section in
+                            ForEach(sections, id: \.letter) { section in
                                 sectionView(section)
                                     .padding(.horizontal, 20)
                             }
@@ -84,7 +95,9 @@ struct ContactsAllView: View {
             FlowGate.showStartAd()   // ad on feature entry (free users)
             contacts = await service.fetchAllContacts()
             loading = false
+            rebuildSections()
         }
+        .onChange(of: query) { _, _ in scheduleSearch() }
         // Push the device's native contact card (CNContactViewController) onto the
         // nav stack — a full-screen detail with a system back button — instead of
         // a modal sheet over the list.
@@ -284,6 +297,7 @@ struct ContactsAllView: View {
             try await service.delete(contacts: toDelete)
             contacts.removeAll { selection.contains($0.identifier) }
             selection.removeAll()
+            rebuildSections()
             if !PremiumGate.isPremium, let vc = AdHelpers.topViewController() {
                 AdManager.shared.showInterstitialAd(
                     adUnitID: AdUnits.interGlobal,

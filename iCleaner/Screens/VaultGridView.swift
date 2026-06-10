@@ -301,12 +301,19 @@ struct VaultThumbnail: View {
         }
     }
 
+    // Decrypted+downscaled thumbnails cached in memory so re-scrolling the grid
+    // doesn't re-decrypt + re-decode (and re-extract a video poster frame) every
+    // time a cell reappears. NSCache is thread-safe + auto-evicts on pressure.
+    private static let thumbnailCache = NSCache<NSString, UIImage>()
+
     // Decrypt off the main thread so the grid scrolls smoothly. Capture only
     // `id` (Sendable) before crossing actor boundary — VaultItem isn't Sendable.
     private static func loadThumbnail(vault: VaultService, item: VaultItem, isVideo: Bool) async -> UIImage? {
         let itemID = item.id
         let fileName = item.fileName
-        return await Task.detached(priority: .userInitiated) {
+        let key = itemID.uuidString as NSString
+        if let cached = thumbnailCache.object(forKey: key) { return cached }
+        let img = await Task.detached(priority: .userInitiated) { () -> UIImage? in
             guard let data = try? vault.readDecrypted(for: itemID) else { return nil }
             if isVideo {
                 return Self.videoThumbnail(from: data, fileName: fileName)
@@ -315,6 +322,8 @@ struct VaultThumbnail: View {
             // Downscale to ~256pt longest edge — playbook §4 perf principle.
             return img.preparingThumbnail(of: CGSize(width: 256, height: 256))
         }.value
+        if let img { thumbnailCache.setObject(img, forKey: key) }
+        return img
     }
 
     // Decode a poster frame from decrypted video bytes via a temp file.
