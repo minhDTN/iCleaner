@@ -4,10 +4,10 @@ import Photos
 // Async PHAsset thumbnail loader. Re-fetches when `localIdentifier` changes.
 // Falls back to a neutral grey placeholder while loading.
 //
-// Quality: `.highQualityFormat` + `.resizeMode .exact` so thumbnails are sharp
-// (not the blurry low-res frame `.fastFormat` returns first). `targetSize` is in
-// POINTS — we multiply by the screen scale so PHImageManager renders at native
-// pixel density.
+// Delivery: `.opportunistic` streams TWO frames — the instant local low-res
+// thumbnail first (so iCloud-optimized photos show immediately instead of a
+// blank box), then the sharp high-res once it's rendered/downloaded. We update
+// the view on each frame, so the grid never sits empty waiting on iCloud.
 //
 // Layout: fills its container edge-to-edge via an overlay + `.clipped()`, so the
 // image never overflows the fixed card frame even at `.fill` content mode.
@@ -30,37 +30,43 @@ struct PHAssetThumbnail: View {
             .clipped()
             .contentShape(Rectangle())
             .task(id: localIdentifier) {
+                image = nil
                 let px = CGSize(width: targetSize.width * displayScale,
                                 height: targetSize.height * displayScale)
-                image = await Self.loadThumbnail(localIdentifier: localIdentifier, targetSize: px)
+                for await frame in Self.thumbnailStream(localIdentifier: localIdentifier, targetSize: px) {
+                    image = frame
+                }
             }
     }
 
-    private static func loadThumbnail(localIdentifier: String, targetSize: CGSize) async -> UIImage? {
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil).firstObject else {
-            return nil
-        }
-        return await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
+    // Yields the low-res frame first, then the high-res. Finishes on the final
+    // (non-degraded) callback, an error, or cancellation. Cancels the underlying
+    // Photos request when the task is torn down (id change / scroll-away).
+    private static func thumbnailStream(localIdentifier: String, targetSize: CGSize) -> AsyncStream<UIImage> {
+        AsyncStream { continuation in
+            guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil).firstObject else {
+                continuation.finish(); return
+            }
             let options = PHImageRequestOptions()
-            options.deliveryMode = .highQualityFormat
+            options.deliveryMode = .opportunistic   // local low-res first, then high-res
             options.isSynchronous = false
-            options.resizeMode = .exact
-            options.isNetworkAccessAllowed = true
+            options.resizeMode = .fast
+            options.isNetworkAccessAllowed = true    // allow iCloud download for the sharp frame
 
-            // `.highQualityFormat` usually delivers one final callback, but iCloud
-            // assets can still send a degraded image first — guard against a double
-            // resume (which would trap).
-            nonisolated(unsafe) var resumed = false
-            PHImageManager.default().requestImage(
+            let requestID = PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: targetSize,
                 contentMode: .aspectFill,
                 options: options
             ) { image, info in
+                if let image { continuation.yield(image) }
                 let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-                if degraded && image != nil { return }
-                guard !resumed else { return }; resumed = true
-                cont.resume(returning: image)
+                let cancelled = (info?[PHImageCancelledKey] as? Bool) ?? false
+                let failed = info?[PHImageErrorKey] != nil
+                if !degraded || cancelled || failed { continuation.finish() }
+            }
+            continuation.onTermination = { @Sendable _ in
+                PHImageManager.default().cancelImageRequest(requestID)
             }
         }
     }

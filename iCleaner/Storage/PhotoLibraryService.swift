@@ -60,10 +60,10 @@ final class PhotoLibraryService {
         var grouped: Bool = true             // false → single flat list of all matches, no clustering
         var hasBestMatch: Bool = true        // false → no Best Match pill / no auto-selection
 
-        // Vision content-clustering (Similar / Similar Screenshots) is the only
-        // expensive path — it streams the whole gallery in chunks. Duplicates
-        // (cheap signature), videos (time-window) and flat lists do not.
-        var usesVisionClustering: Bool { grouped && mediaType == .image && !exactDuplicates }
+        // Similar / Similar Screenshots stream the WHOLE gallery in batches (newest
+        // first) so groups appear progressively and the screen opens instantly. Exact
+        // duplicates and flat browse buckets use the simple one-shot scan instead.
+        var usesStreamingScan: Bool { grouped && mediaType == .image && !exactDuplicates }
     }
 
     // Single source of truth for "which assets belong to this category" — used by
@@ -141,10 +141,10 @@ final class PhotoLibraryService {
     // `sinceDays`: only include assets created within the last N days (nil = all).
     // `largestFirst`: sort the resulting groups by total byte size desc/asc.
     //
-    // Clustering is CONTENT-based via Vision feature prints (VisionSimilarity) —
-    // photos are grouped by what they actually look like, not by file
-    // size/dimensions. Videos still fall back to time-window grouping (Vision
-    // image prints don't apply to video frames in this MVP).
+    // One-shot scan used by Duplicates, videos and flat browse buckets. Similar
+    // photos/screenshots use detectSimilarGroupsStreaming instead. Clustering is
+    // TIME-based (bursts shot close together) — instant and iCloud-safe, unlike
+    // Vision feature prints which needed a per-photo thumbnail that stalled.
     func detectSimilarGroups(
         config: DetectionConfig = DetectionConfig(),
         clusteringWindow: TimeInterval = 60,
@@ -175,9 +175,9 @@ final class PhotoLibraryService {
         }
 
         // 2. Cluster. Exact duplicates use a CHEAP signature (dimensions + real byte
-        // size), NOT Vision — running Vision feature prints over the whole library
-        // froze the Duplicates screen for ~2 min. Similar = Vision (content), videos
-        // = time-window.
+        // size); Similar + videos use fast time-window clustering. NO Vision — feature
+        // prints need a per-photo thumbnail that can't load for iCloud-optimized
+        // photos, which stalled the scan for minutes.
         let clusters: [[PHAsset]]
         if config.exactDuplicates {
             clusters = await Task.detached(priority: .userInitiated) {
@@ -188,16 +188,12 @@ final class PhotoLibraryService {
                 Self.timeWindowClusters(assets, window: clusteringWindow)
             }.value
         } else {
-            // Similar photos: time-window pre-cluster (cheap) → Vision-refine ONLY the
-            // candidate runs. Avoids Vision-printing the whole library (which froze it).
-            let candidates = await Task.detached(priority: .userInitiated) {
-                Self.timeWindowClusters(assets, window: 180)
+            // Similar photos: fast TIME-WINDOW clustering (bursts/retakes shot within
+            // 20s). NOT Vision — feature-printing needs a per-photo thumbnail, which
+            // can't load for iCloud-optimized photos and stalled the scan for minutes.
+            clusters = await Task.detached(priority: .userInitiated) {
+                Self.timeWindowClusters(assets, window: 20)
             }.value
-            var refined: [[PHAsset]] = []
-            for run in candidates {
-                refined.append(contentsOf: await VisionSimilarity.cluster(run, mode: .similar))
-            }
-            clusters = refined
         }
 
         // 3. Real byte sizes per asset + sort groups by total size.
@@ -219,59 +215,50 @@ final class PhotoLibraryService {
     // round-trip, and Home re-scans every category on each appearance. Caching by
     // localIdentifier means each asset's size is fetched once for its lifetime.
     private nonisolated(unsafe) static var sizeCacheStore: [String: Int] = [:]
-    private static let sizeCacheLock = NSLock()
+    private nonisolated static let sizeCacheLock = NSLock()
 
-    /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
     /// Streams Similar/Similar-Screenshots groups over the WHOLE gallery, newest
-    /// first, in chunks — so the caller can show the review screen immediately and
-    /// append groups as they're found, instead of blocking on a full Vision scan.
-    /// `onBatch` is called on the main actor for each chunk that yields groups.
-    /// Feature prints are cached, so re-opening is near-instant.
+    /// first, in batches — the caller shows the review screen immediately and appends
+    /// groups as each batch is processed. Uses fast TIME-WINDOW clustering (photos
+    /// shot close in time = bursts/retakes), NOT Vision: no per-photo thumbnail load,
+    /// so it's instant AND works for iCloud-optimized photos (which often can't
+    /// produce a local thumbnail to feature-print, which is why Vision stalled).
     func detectSimilarGroupsStreaming(
         config: DetectionConfig,
         sinceDays: Int? = nil,
-        chunkSize: Int = 100,
+        chunkSize: Int = 400,
         onProgress: @MainActor @escaping (_ scanned: Int, _ total: Int) -> Void,
         onBatch: @MainActor @escaping ([PHAssetGroup]) -> Void
     ) async {
-        _ = chunkSize
         guard authStatus.canRead else { onProgress(0, 0); return }
-
-        // 1. CHEAP time-window pre-clustering over the WHOLE gallery (O(n), instant):
-        // similar photos are virtually always shot seconds–minutes apart, so only
-        // assets that have a near-in-time neighbour are similarity CANDIDATES. The
-        // thousands of isolated photos are skipped — they can't be in a similar
-        // group, so we never pay the Vision cost for them. THIS is the fix for the
-        // multi-minute scan.
-        let candidates: [[PHAsset]] = await Task.detached(priority: .userInitiated) {
-            let all = Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
-            return Self.timeWindowClusters(all, window: 180)   // runs of ≥2, ≤3 min apart, same orientation
+        let all: [PHAsset] = await Task.detached(priority: .userInitiated) {
+            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: true, limit: nil)
         }.value
-        let totalToScan = candidates.reduce(0) { $0 + $1.count }
-        guard totalToScan > 0 else { onProgress(0, 0); return }
-        onProgress(0, totalToScan)
+        let total = all.count
+        guard total > 0 else { onProgress(0, 0); return }
+        onProgress(0, total)
 
-        // 2. Vision-refine each candidate run (newest first) — splits a time burst
-        // into visually-coherent sub-groups — and emit groups as they're found.
-        var scanned = 0
-        for run in candidates.reversed() {
+        var start = 0
+        while start < all.count {
             if Task.isCancelled { return }
-            let subClusters = await VisionSimilarity.cluster(run, mode: .similar)
-            scanned += run.count
-            onProgress(scanned, totalToScan)
-            guard !subClusters.isEmpty else { continue }
+            let end = min(start + chunkSize, all.count)
+            let chunk = Array(all[start..<end])
+            start = end
             let groups: [PHAssetGroup] = await Task.detached(priority: .userInitiated) {
-                subClusters.map { c in
+                let ascending = chunk.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
+                return Self.timeWindowClusters(ascending, window: 20).map { c in
                     let sizes = c.map { Self.realBytesKB($0) }
                     return PHAssetGroup(title: "\(c.count) \(config.groupNoun)",
                                         assets: c, sizesKB: sizes, bestMatchIndex: 0)
                 }
             }.value
             if Task.isCancelled { return }
-            onBatch(groups)
+            onProgress(end, total)
+            if !groups.isEmpty { onBatch(groups) }
         }
     }
 
+    /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
     /// back to the dimension estimate when the resource size is unavailable. Cached.
     nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
         let id = asset.localIdentifier

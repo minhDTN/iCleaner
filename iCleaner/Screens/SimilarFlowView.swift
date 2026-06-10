@@ -166,7 +166,7 @@ struct SimilarFlowView: View {
     // (so the user can open the filter again), unlike the initial bootstrap
     // which routes to .empty.
     private func applyFilter() async {
-        if detectionConfig.usesVisionClustering {
+        if detectionConfig.usesStreamingScan {
             await streamSimilar(goEmptyIfNone: false)
         } else {
             let assetGroups = await photoLibrary.detectSimilarGroups(
@@ -216,7 +216,7 @@ struct SimilarFlowView: View {
     }
 
     private func reloadGroups() async {
-        if detectionConfig.usesVisionClustering {
+        if detectionConfig.usesStreamingScan {
             await streamSimilar(goEmptyIfNone: true)
         } else {
             let assetGroups = await photoLibrary.detectSimilarGroups(
