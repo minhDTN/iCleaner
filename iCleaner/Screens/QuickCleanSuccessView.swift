@@ -9,9 +9,9 @@ import SwiftUI
 //     stroke brand-blue 10%, radius 16). "45" and "1.2 GB" (Inter Bold 20/28).
 //   • CTA reads "Great!" instead of "Perfect!".
 struct QuickCleanSuccessView: View {
-    let cleanedMB: Int
+    let cleanedSizeLabel: String
     let photosOptimized: Int
-    let memoryBoosted: Int   // also in MB
+    let memoryBoostedLabel: String
     var onContinue: () -> Void
 
     var body: some View {
@@ -38,7 +38,7 @@ struct QuickCleanSuccessView: View {
 
                 HStack(spacing: 16) {
                     secondaryStatCard(value: "\(photosOptimized)", label: L("success.photosOptimized"))
-                    secondaryStatCard(value: formatMB(memoryBoosted), label: L("success.memoryBoosted"))
+                    secondaryStatCard(value: memoryBoostedLabel, label: L("success.memoryBoosted"))
                 }
                 .padding(.horizontal, 32)
 
@@ -105,7 +105,7 @@ struct QuickCleanSuccessView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(Color(hex: 0x94A3B8))
 
-            Text(formatMB(cleanedMB))
+            Text(cleanedSizeLabel)
                 .font(.custom("Inter-Bold", size: 36))
                 .foregroundStyle(Color(hex: 0x333333))
 
@@ -154,11 +154,8 @@ struct QuickCleanSuccessView: View {
         )
     }
 
-    private func formatMB(_ mb: Int) -> String {
-        mb >= 1024 ? String(format: "%.1f GB", Double(mb) / 1024) : "\(mb) MB"
-    }
 }
 
 #Preview {
-    QuickCleanSuccessView(cleanedMB: 320, photosOptimized: 45, memoryBoosted: 1228, onContinue: {})
+    QuickCleanSuccessView(cleanedSizeLabel: "320 MB", photosOptimized: 45, memoryBoostedLabel: "1.2 GB", onContinue: {})
 }

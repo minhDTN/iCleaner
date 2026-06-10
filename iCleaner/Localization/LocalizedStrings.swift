@@ -28,7 +28,7 @@ enum LocalizedStrings {
         "common.delete": "Delete", "common.cancel": "Cancel", "common.great": "Great!", "common.openSettings": "Open Settings",
         "home.storage": "Your Storage", "home.quickClean": "Quick Clean (%@)", "home.reviewGroup": "Review Group",
         "home.bestMatch": "Best Match", "home.photos": "%d Photos", "home.videos": "%d Videos",
-        "home.tapToScan": "Tap to scan",
+        "home.tapToScan": "Tap to scan", "home.scanning": "Scanning…",
         "home.cat.similar": "Similar", "home.cat.duplicates": "Duplicates",
         "home.cat.similarScreenshots": "Similar Screenshots", "home.cat.similarVideos": "Similar Videos",
         "home.cat.otherScreenshots": "Other Screenshots", "home.cat.chatPhotos": "Chat Photos",

@@ -4,7 +4,7 @@ import SwiftUI
 // (white card + brand-blue stroke + shadow) but with brand-blue Clean Now CTA
 // instead of destructive red Delete.
 struct QuickCleanConfirmModal: View {
-    let sizeMB: Int
+    let sizeLabel: String
     let photoCount: Int
     let groupCount: Int
     var onCancel: () -> Void
@@ -22,7 +22,7 @@ struct QuickCleanConfirmModal: View {
                 .foregroundStyle(Color(hex: 0x0F172A))
                 .multilineTextAlignment(.center)
 
-            Text("This will permanently delete \(sizeMB) MB across \(groupCount) similar groups (\(photoCount) photos).")
+            Text("This will permanently delete \(sizeLabel) across \(groupCount) similar groups (\(photoCount) photos).")
                 .font(.custom("Inter-Regular", size: 14))
                 .foregroundStyle(Color(hex: 0x64748B))
                 .multilineTextAlignment(.center)
@@ -71,6 +71,6 @@ struct QuickCleanConfirmModal: View {
 #Preview {
     ZStack {
         Color.black.opacity(0.5).ignoresSafeArea()
-        QuickCleanConfirmModal(sizeMB: 320, photoCount: 45, groupCount: 6, onCancel: {}, onClean: {})
+        QuickCleanConfirmModal(sizeLabel: "320 MB", photoCount: 45, groupCount: 6, onCancel: {}, onClean: {})
     }
 }

@@ -64,6 +64,10 @@ final class PhotoLibraryService {
         // first) so groups appear progressively and the screen opens instantly. Exact
         // duplicates and flat browse buckets use the simple one-shot scan instead.
         var usesStreamingScan: Bool { grouped && mediaType == .image && !exactDuplicates }
+
+        // Canonical "Similar photos" rule — non-screenshot image bursts. Shared by
+        // the Home Similar card AND Quick Clean so their numbers match exactly.
+        static var similar: DetectionConfig { .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar") }
     }
 
     // Single source of truth for "which assets belong to this category" — used by
@@ -125,16 +129,50 @@ final class PhotoLibraryService {
         }.value
     }
 
-    /// One scan per Home card: the 3 preview IDs + the REAL count and total byte
-    /// size of the whole category pool — so the card stops showing hardcoded mock
-    /// numbers and reflects the actual library (off main).
-    func categoryScan(config: DetectionConfig, previewLimit: Int = 3) async -> (previewIDs: [String], count: Int, totalKB: Int) {
-        guard authStatus.canRead else { return ([], 0, 0) }
+    // Per-card stats. For GROUPED categories the count/size cover ONLY photos that
+    // land in a cluster (>=2) — so the Home card matches the Review Group header
+    // exactly. `reclaimableKB` = everything except the Best Match per group (what a
+    // 1-tap clean would free). Browse buckets are a flat list of all matches.
+    struct CategoryStat {
+        var previewIDs: [String] = []
+        var count: Int = 0
+        var totalKB: Int = 0
+        var reclaimableKB: Int = 0
+        var reclaimableCount: Int = 0
+        var groupCount: Int = 0
+    }
+
+    /// One scan per Home card: preview IDs + REAL count/size — using the SAME
+    /// clustering policy as the detail scan, so the card never disagrees with what
+    /// the user sees inside Review Group (off main).
+    func categoryScan(config: DetectionConfig, previewLimit: Int = 3) async -> CategoryStat {
+        guard authStatus.canRead else { return CategoryStat() }
         return await Task.detached(priority: .utility) {
-            let assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: true, limit: nil)
-            let previews = assets.prefix(previewLimit).map(\.localIdentifier)
-            let totalKB = assets.reduce(0) { $0 + Self.realBytesKB($1) }
-            return (Array(previews), assets.count, totalKB)
+            let assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: false, limit: nil)
+            guard !assets.isEmpty else { return CategoryStat() }
+
+            // Browse bucket: flat list of EVERY match (its Review Group is the same).
+            if !config.grouped {
+                let newest = Array(assets.suffix(previewLimit).reversed()).map(\.localIdentifier)
+                return CategoryStat(previewIDs: newest, count: assets.count,
+                                    totalKB: assets.reduce(0) { $0 + Self.realBytesKB($1) })
+            }
+
+            // Grouped: cluster exactly like the detail scan, count only clustered photos.
+            let clusters = Self.clusters(config: config, assets: assets)
+            var count = 0, totalKB = 0, reclaimableKB = 0, reclaimableCount = 0
+            for c in clusters {
+                count += c.count
+                for (idx, a) in c.enumerated() {
+                    let kb = Self.realBytesKB(a)
+                    totalKB += kb
+                    if idx != 0 { reclaimableKB += kb; reclaimableCount += 1 }  // best = idx 0
+                }
+            }
+            let previews = Array(clusters.reversed().flatMap { $0 }.prefix(previewLimit)).map(\.localIdentifier)
+            return CategoryStat(previewIDs: previews, count: count, totalKB: totalKB,
+                                reclaimableKB: reclaimableKB, reclaimableCount: reclaimableCount,
+                                groupCount: clusters.count)
         }.value
     }
 
@@ -147,7 +185,6 @@ final class PhotoLibraryService {
     // Vision feature prints which needed a per-photo thumbnail that stalled.
     func detectSimilarGroups(
         config: DetectionConfig = DetectionConfig(),
-        clusteringWindow: TimeInterval = 60,
         sinceDays: Int? = nil,
         largestFirst: Bool = true
     ) async -> [PHAssetGroup] {
@@ -174,27 +211,11 @@ final class PhotoLibraryService {
             }.value
         }
 
-        // 2. Cluster. Exact duplicates use a CHEAP signature (dimensions + real byte
-        // size); Similar + videos use fast time-window clustering. NO Vision — feature
-        // prints need a per-photo thumbnail that can't load for iCloud-optimized
-        // photos, which stalled the scan for minutes.
-        let clusters: [[PHAsset]]
-        if config.exactDuplicates {
-            clusters = await Task.detached(priority: .userInitiated) {
-                Self.exactDuplicateClusters(assets)
-            }.value
-        } else if config.mediaType == .video {
-            clusters = await Task.detached(priority: .userInitiated) {
-                Self.timeWindowClusters(assets, window: clusteringWindow)
-            }.value
-        } else {
-            // Similar photos: fast TIME-WINDOW clustering (bursts/retakes shot within
-            // 20s). NOT Vision — feature-printing needs a per-photo thumbnail, which
-            // can't load for iCloud-optimized photos and stalled the scan for minutes.
-            clusters = await Task.detached(priority: .userInitiated) {
-                Self.timeWindowClusters(assets, window: 20)
-            }.value
-        }
+        // 2. Cluster via the SHARED policy (identical to the Home card scan + the
+        // streaming scan) so a category's groups never disagree across screens.
+        let clusters = await Task.detached(priority: .userInitiated) {
+            Self.clusters(config: config, assets: assets)
+        }.value
 
         // 3. Real byte sizes per asset + sort groups by total size.
         return await Task.detached(priority: .userInitiated) {
@@ -209,6 +230,18 @@ final class PhotoLibraryService {
                              bestMatchIndex: 0)  // first asset (oldest) wins as MVP
             }
         }.value
+    }
+
+    // Single clustering policy shared by the Home card scan (categoryScan), the
+    // streaming Similar scan, and the one-shot detail scan — so a category's photo
+    // count / size is IDENTICAL on the Home card and inside Review Group. Returns
+    // only clusters of >=2 (a lone photo isn't "similar"); assets must be in date
+    // order. Duplicates use the exact-signature match; everything else is grouped
+    // by closeness in time (videos get a wider window than photo bursts).
+    nonisolated static func clusters(config: DetectionConfig, assets: [PHAsset]) -> [[PHAsset]] {
+        if config.exactDuplicates { return exactDuplicateClusters(assets) }
+        if config.mediaType == .video { return timeWindowClusters(assets, window: 60) }
+        return timeWindowClusters(assets, window: 20)
     }
 
     // Per-asset size cache — `PHAssetResource.assetResources(for:)` is a slow Photos
@@ -226,35 +259,42 @@ final class PhotoLibraryService {
     func detectSimilarGroupsStreaming(
         config: DetectionConfig,
         sinceDays: Int? = nil,
-        chunkSize: Int = 400,
+        groupsPerBatch: Int = 8,
         onProgress: @MainActor @escaping (_ scanned: Int, _ total: Int) -> Void,
         onBatch: @MainActor @escaping ([PHAssetGroup]) -> Void
     ) async {
         guard authStatus.canRead else { onProgress(0, 0); return }
-        let all: [PHAsset] = await Task.detached(priority: .userInitiated) {
-            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: true, limit: nil)
+
+        // Cluster the WHOLE library ONCE using the shared policy — IDENTICAL to the
+        // Home card scan, so the header count/size here matches the Similar card
+        // exactly. Time-window clustering is O(n) instant; only the per-asset real
+        // sizes are slow, so we defer those to the per-batch emit below and the
+        // groups still appear progressively (newest first).
+        let clusters: [[PHAsset]] = await Task.detached(priority: .userInitiated) {
+            let all = Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
+            return Array(Self.clusters(config: config, assets: all).reversed())  // newest groups first
         }.value
-        let total = all.count
+        let total = clusters.reduce(0) { $0 + $1.count }
         guard total > 0 else { onProgress(0, 0); return }
         onProgress(0, total)
 
-        var start = 0
-        while start < all.count {
+        var scanned = 0
+        var i = 0
+        while i < clusters.count {
             if Task.isCancelled { return }
-            let end = min(start + chunkSize, all.count)
-            let chunk = Array(all[start..<end])
-            start = end
-            let groups: [PHAssetGroup] = await Task.detached(priority: .userInitiated) {
-                let ascending = chunk.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
-                return Self.timeWindowClusters(ascending, window: 20).map { c in
+            let slice = Array(clusters[i..<min(i + groupsPerBatch, clusters.count)])
+            i += groupsPerBatch
+            let built: [PHAssetGroup] = await Task.detached(priority: .userInitiated) {
+                slice.map { c in
                     let sizes = c.map { Self.realBytesKB($0) }
                     return PHAssetGroup(title: "\(c.count) \(config.groupNoun)",
                                         assets: c, sizesKB: sizes, bestMatchIndex: 0)
                 }
             }.value
             if Task.isCancelled { return }
-            onProgress(end, total)
-            if !groups.isEmpty { onBatch(groups) }
+            scanned += built.reduce(0) { $0 + $1.assets.count }
+            onProgress(scanned, total)
+            onBatch(built)
         }
     }
 

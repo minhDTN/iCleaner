@@ -58,27 +58,33 @@ struct HomeView: View {
     // first granted), so cards refresh on return.
     private func reloadThumbnails() async {
         guard photoLibrary.authStatus.canRead else { return }
-        var ids: [String: [String]] = [:]
-        var st: [String: CardStat] = [:]
         await withTaskGroup(of: (String, [String], CardStat).self) { group in
             for cat in HomeCategory.populatedMock {
                 group.addTask {
                     let r = await photoLibrary.categoryScan(config: cat.detectionConfig, previewLimit: 3)
-                    return (cat.key, r.previewIDs, CardStat(count: r.count, sizeMB: r.totalKB / 1024))
+                    return (cat.key, r.previewIDs, CardStat(count: r.count, sizeKB: r.totalKB, reclaimableKB: r.reclaimableKB))
                 }
             }
-            for await (key, p, s) in group { ids[key] = p; st[key] = s }
+            // Apply each category AS IT FINISHES so the cards fill in live instead of
+            // all-at-once after the slowest scan — first launch shows real numbers
+            // appearing, never a wrong hardcoded default.
+            for await (key, p, s) in group {
+                previewIDs[key] = p
+                stats[key] = s
+            }
         }
-        previewIDs = ids
-        stats = st
     }
 
-    // Real (or mock fallback while scanning) count + size for a card.
-    private func count(for cat: HomeCategory) -> Int { stats[cat.key]?.count ?? cat.photoCount }
-    private func sizeMB(for cat: HomeCategory) -> Int { stats[cat.key]?.sizeMB ?? cat.sizeMB }
+    // nil until this category's real scan lands → the card shows a "scanning" state
+    // rather than a misleading hardcoded number on first launch.
+    private func stat(for cat: HomeCategory) -> CardStat? { stats[cat.key] }
 
-    private var quickCleanTotalMB: Int {
-        categories.reduce(0) { $0 + sizeMB(for: $1) }
+    // Quick Clean frees the non-Best-Match photos of the Similar groups — the SAME
+    // value the confirm popup shows (both derive from the identical Similar scan), so
+    // the CTA number and the popup number always match. "…" while still scanning.
+    private var quickCleanLabel: String {
+        guard let kb = stats["similar"]?.reclaimableKB else { return "…" }
+        return CleanSize.label(kb: kb)
     }
 
     var body: some View {
@@ -91,8 +97,7 @@ struct HomeView: View {
                     ForEach(categories) { cat in
                         HomeCategoryCard(
                             category: cat,
-                            count: count(for: cat),
-                            sizeMB: sizeMB(for: cat),
+                            stat: stat(for: cat),
                             assets: assetIDs(for: cat),
                             onReviewTap: { openedCategory = cat }
                         )
@@ -163,7 +168,7 @@ struct HomeView: View {
                 // Figma uses Material Icons `auto_fix_high` — SF Symbol substitute.
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 18, weight: .semibold))
-                Text(L("home.quickClean", "\(quickCleanTotalMB) MB"))
+                Text(L("home.quickClean", quickCleanLabel))
                     .font(.custom("Inter-SemiBold", size: 16))
             }
             .foregroundStyle(AppColor.textOnBrand)
@@ -184,8 +189,7 @@ struct HomeView: View {
 
 private struct HomeCategoryCard: View {
     let category: HomeCategory
-    var count: Int = 0              // REAL asset count for this category
-    var sizeMB: Int = 0            // REAL total size (MB)
+    var stat: CardStat? = nil       // nil → still scanning (show loading, not mock)
     var assets: CardAssets? = nil   // real PHAsset IDs; nil → placeholder gradient
     var onReviewTap: () -> Void
 
@@ -193,9 +197,9 @@ private struct HomeCategoryCard: View {
     // the same left/right margin inside the card.
     private let cardInset: CGFloat = 16
 
-    private var sizeLabel: String {
-        sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB"
-    }
+    private var isLoading: Bool { stat == nil }
+    private var count: Int { stat?.count ?? 0 }
+    private var sizeLabel: String { stat.map { CleanSize.label(kb: $0.sizeKB) } ?? "…" }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -224,7 +228,7 @@ private struct HomeCategoryCard: View {
                 Text(L(category.titleKey))
                     .font(.custom("Inter-SemiBold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
-                Text(count == 0 ? L("home.tapToScan") : L(category.subtitleKey))
+                Text(isLoading ? L("home.scanning") : (count == 0 ? L("home.tapToScan") : L(category.subtitleKey)))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x64748B))
             }
@@ -235,13 +239,21 @@ private struct HomeCategoryCard: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 24, height: 24)
-                    Text(sizeLabel)
-                        .font(.custom("Inter-Bold", size: 16))
-                        .foregroundStyle(AppColor.brandPrimary)
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(AppColor.brandPrimary)
+                    } else {
+                        Text(sizeLabel)
+                            .font(.custom("Inter-Bold", size: 16))
+                            .foregroundStyle(AppColor.brandPrimary)
+                    }
                 }
-                Text(L(category.isVideo ? "home.videos" : "home.photos", count))
-                    .font(.custom("Inter-Regular", size: 12))
-                    .foregroundStyle(Color(hex: 0x94A3B8))
+                if !isLoading {
+                    Text(L(category.isVideo ? "home.videos" : "home.photos", count))
+                        .font(.custom("Inter-Regular", size: 12))
+                        .foregroundStyle(Color(hex: 0x94A3B8))
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -413,11 +425,14 @@ struct CardAssets {
     let dup2: String?
 }
 
-// Real per-category count + size (MB) scanned from the library — replaces the
-// hardcoded mock numbers on the Home cards.
-struct CardStat {
+// Real per-category stats scanned from the library — replaces the hardcoded mock
+// numbers on the Home cards. `count`/`sizeKB` cover only CLUSTERED photos for
+// grouped categories (so the card matches the Review Group header); `reclaimableKB`
+// is the non-Best-Match total that a 1-tap clean would free.
+struct CardStat: Equatable {
     let count: Int
-    let sizeMB: Int
+    let sizeKB: Int
+    let reclaimableKB: Int
 }
 
 struct HomeCategory: Identifiable {
@@ -476,8 +491,9 @@ struct HomeCategory: Identifiable {
     var detectionConfig: PhotoLibraryService.DetectionConfig {
         switch key {
         case "similar":
-            // Similar photos: image bursts, screenshots excluded.
-            return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Similar")
+            // Similar photos: image bursts, screenshots excluded. Canonical config
+            // shared with Quick Clean so the CTA number matches the popup.
+            return .similar
         case "duplicates":
             // Exact duplicates: same dimensions + size.
             return .init(mediaType: .image, exactDuplicates: true, groupNoun: "Duplicates")

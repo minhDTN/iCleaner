@@ -17,7 +17,7 @@ struct QuickCleanFlowView: View {
     @State private var photoLibrary = PhotoLibraryService()
     @State private var step: Step = .scanning
     @State private var deletableAssets: [PHAsset] = []
-    @State private var deletableSizeMB: Int = 0
+    @State private var deletableKB: Int = 0
     @State private var deletablePhotoCount: Int = 0
     @State private var deletableGroupCount: Int = 0
     @State private var deleteError: String?
@@ -53,9 +53,9 @@ struct QuickCleanFlowView: View {
                 )
             case .success:
                 QuickCleanSuccessView(
-                    cleanedMB: deletableSizeMB,
+                    cleanedSizeLabel: CleanSize.label(kb: deletableKB),
                     photosOptimized: deletablePhotoCount,
-                    memoryBoosted: deletableSizeMB * 4,  // estimate boost ≈ deleted × 4 (cache + thumbs)
+                    memoryBoostedLabel: CleanSize.label(kb: deletableKB * 4),  // boost ≈ deleted × 4 (cache + thumbs)
                     onContinue: showInterstitialThenDismiss
                 )
             }
@@ -84,7 +84,9 @@ struct QuickCleanFlowView: View {
             return
         }
         FlowGate.showStartAd()   // ad on feature entry (free users)
-        let groups = await photoLibrary.detectSimilarGroups()
+        // Same canonical Similar config as the Home card → the popup's size equals
+        // the "Quick Clean (X)" CTA number (both are the Similar non-Best total).
+        let groups = await photoLibrary.detectSimilarGroups(config: .similar)
         guard !groups.isEmpty else {
             step = .empty
             return
@@ -100,7 +102,7 @@ struct QuickCleanFlowView: View {
         }
         deletableAssets = assets
         deletablePhotoCount = assets.count
-        deletableSizeMB = totalKB / 1024
+        deletableKB = totalKB
         deletableGroupCount = groups.count
         step = .confirm
     }
@@ -202,7 +204,7 @@ struct QuickCleanFlowView: View {
 
     private var confirmModal: some View {
         QuickCleanConfirmModal(
-            sizeMB: deletableSizeMB,
+            sizeLabel: CleanSize.label(kb: deletableKB),
             photoCount: deletablePhotoCount,
             groupCount: deletableGroupCount,
             onCancel: { dismiss() },
