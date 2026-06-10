@@ -120,6 +120,19 @@ final class PhotoLibraryService {
         }.value
     }
 
+    /// One scan per Home card: the 3 preview IDs + the REAL count and total byte
+    /// size of the whole category pool — so the card stops showing hardcoded mock
+    /// numbers and reflects the actual library (off main).
+    func categoryScan(config: DetectionConfig, previewLimit: Int = 3) async -> (previewIDs: [String], count: Int, totalKB: Int) {
+        guard authStatus.canRead else { return ([], 0, 0) }
+        return await Task.detached(priority: .utility) {
+            let assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: true, limit: nil)
+            let previews = assets.prefix(previewLimit).map(\.localIdentifier)
+            let totalKB = assets.reduce(0) { $0 + Self.realBytesKB($1) }
+            return (Array(previews), assets.count, totalKB)
+        }.value
+    }
+
     // `sinceDays`: only include assets created within the last N days (nil = all).
     // `largestFirst`: sort the resulting groups by total byte size desc/asc.
     //

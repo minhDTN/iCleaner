@@ -28,6 +28,7 @@ struct HomeView: View {
 
     @State private var photoLibrary = PhotoLibraryService()
     @State private var previewIDs: [String: [String]] = [:]   // per-category card thumbnails
+    @State private var stats: [String: CardStat] = [:]        // per-category REAL count + size
 
     private var isPremium: Bool {
         #if DEBUG
@@ -51,23 +52,33 @@ struct HomeView: View {
         return CardAssets(best: at(0), dup1: at(1), dup2: at(2))
     }
 
-    // Fetch each category's preview thumbnails (cheap per-category fetch, run
-    // concurrently). Called on appear and after a SimilarFlow dismiss — that's
-    // where the Photos permission is first granted, so cards refresh on return.
+    // Scan each category once (concurrently, off main) for its preview thumbnails
+    // AND its REAL count + size — so the cards stop showing hardcoded mock numbers.
+    // Called on appear and after a SimilarFlow dismiss (where Photos permission is
+    // first granted), so cards refresh on return.
     private func reloadThumbnails() async {
         guard photoLibrary.authStatus.canRead else { return }
-        var result: [String: [String]] = [:]
-        await withTaskGroup(of: (String, [String]).self) { group in
+        var ids: [String: [String]] = [:]
+        var st: [String: CardStat] = [:]
+        await withTaskGroup(of: (String, [String], CardStat).self) { group in
             for cat in HomeCategory.populatedMock {
-                group.addTask { (cat.key, await photoLibrary.previewAssetIDs(config: cat.detectionConfig, limit: 3)) }
+                group.addTask {
+                    let r = await photoLibrary.categoryScan(config: cat.detectionConfig, previewLimit: 3)
+                    return (cat.key, r.previewIDs, CardStat(count: r.count, sizeMB: r.totalKB / 1024))
+                }
             }
-            for await (key, ids) in group { result[key] = ids }
+            for await (key, p, s) in group { ids[key] = p; st[key] = s }
         }
-        previewIDs = result
+        previewIDs = ids
+        stats = st
     }
 
+    // Real (or mock fallback while scanning) count + size for a card.
+    private func count(for cat: HomeCategory) -> Int { stats[cat.key]?.count ?? cat.photoCount }
+    private func sizeMB(for cat: HomeCategory) -> Int { stats[cat.key]?.sizeMB ?? cat.sizeMB }
+
     private var quickCleanTotalMB: Int {
-        categories.map(\.sizeMB).reduce(0, +)
+        categories.reduce(0) { $0 + sizeMB(for: $1) }
     }
 
     var body: some View {
@@ -80,6 +91,8 @@ struct HomeView: View {
                     ForEach(categories) { cat in
                         HomeCategoryCard(
                             category: cat,
+                            count: count(for: cat),
+                            sizeMB: sizeMB(for: cat),
                             assets: assetIDs(for: cat),
                             onReviewTap: { openedCategory = cat }
                         )
@@ -171,6 +184,8 @@ struct HomeView: View {
 
 private struct HomeCategoryCard: View {
     let category: HomeCategory
+    var count: Int = 0              // REAL asset count for this category
+    var sizeMB: Int = 0            // REAL total size (MB)
     var assets: CardAssets? = nil   // real PHAsset IDs; nil → placeholder gradient
     var onReviewTap: () -> Void
 
@@ -178,10 +193,14 @@ private struct HomeCategoryCard: View {
     // the same left/right margin inside the card.
     private let cardInset: CGFloat = 16
 
+    private var sizeLabel: String {
+        sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB"
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             titleRow
-            if category.photoCount > 0 {
+            if count > 0 {
                 photoStack
                 reviewGroupButton
             }
@@ -205,7 +224,7 @@ private struct HomeCategoryCard: View {
                 Text(L(category.titleKey))
                     .font(.custom("Inter-SemiBold", size: 16))
                     .foregroundStyle(Color(hex: 0x0F172A))
-                Text(category.photoCount == 0 ? L("home.tapToScan") : L(category.subtitleKey))
+                Text(count == 0 ? L("home.tapToScan") : L(category.subtitleKey))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x64748B))
             }
@@ -216,11 +235,11 @@ private struct HomeCategoryCard: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 24, height: 24)
-                    Text(category.sizeLabel)
+                    Text(sizeLabel)
                         .font(.custom("Inter-Bold", size: 16))
                         .foregroundStyle(AppColor.brandPrimary)
                 }
-                Text(L(category.isVideo ? "home.videos" : "home.photos", category.photoCount))
+                Text(L(category.isVideo ? "home.videos" : "home.photos", count))
                     .font(.custom("Inter-Regular", size: 12))
                     .foregroundStyle(Color(hex: 0x94A3B8))
             }
@@ -336,7 +355,7 @@ private struct HomeCategoryCard: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color(hex: 0xF1F5F9))
-                Text("+\(max(1, category.photoCount - 3))")
+                Text("+\(max(1, count - 3))")
                     .font(.custom("Inter-Medium", size: 12))
                     .foregroundStyle(Color(hex: 0x64748B))
             }
@@ -392,6 +411,13 @@ struct CardAssets {
     let best: String?
     let dup1: String?
     let dup2: String?
+}
+
+// Real per-category count + size (MB) scanned from the library — replaces the
+// hardcoded mock numbers on the Home cards.
+struct CardStat {
+    let count: Int
+    let sizeMB: Int
 }
 
 struct HomeCategory: Identifiable {
