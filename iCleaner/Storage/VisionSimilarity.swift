@@ -110,12 +110,18 @@ enum VisionSimilarity {
             options.resizeMode = .fast
             options.isSynchronous = false
             options.isNetworkAccessAllowed = false  // feature print works on local only
+            // .fastFormat can invoke the handler MORE THAN ONCE — resuming a
+            // continuation twice traps. Guard with a one-shot flag (the handler is
+            // serialised on PHImageManager's queue, so the flag is safe).
+            nonisolated(unsafe) var resumed = false
             PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: CGSize(width: 120, height: 120),
                 contentMode: .aspectFill,
                 options: options
             ) { image, _ in
+                guard !resumed else { return }
+                resumed = true
                 cont.resume(returning: image)
             }
         }

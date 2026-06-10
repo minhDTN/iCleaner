@@ -295,7 +295,9 @@ struct PhotoPreviewView: View {
             opts.isNetworkAccessAllowed = true
             opts.deliveryMode = .highQualityFormat
             opts.isSynchronous = false
+            nonisolated(unsafe) var resumed = false
             PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { d, _, _, _ in
+                guard !resumed else { return }; resumed = true
                 cont.resume(returning: d)
             }
         }
@@ -359,7 +361,9 @@ private struct PreviewMedia: View {
             opts.isNetworkAccessAllowed = true
             opts.deliveryMode = .automatic
             player = await withCheckedContinuation { (cont: CheckedContinuation<AVPlayer?, Never>) in
+                nonisolated(unsafe) var resumed = false
                 PHImageManager.default().requestPlayerItem(forVideo: asset, options: opts) { item, _ in
+                    guard !resumed else { return }; resumed = true
                     cont.resume(returning: item.map(AVPlayer.init(playerItem:)))
                 }
             }
@@ -370,12 +374,20 @@ private struct PreviewMedia: View {
             opts.isNetworkAccessAllowed = true
             opts.resizeMode = .exact
             image = await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
+                nonisolated(unsafe) var resumed = false
                 PHImageManager.default().requestImage(
                     for: asset,
                     targetSize: CGSize(width: 1200, height: 1400),
                     contentMode: .aspectFit,
                     options: opts
-                ) { img, _ in cont.resume(returning: img) }
+                ) { img, info in
+                    // .highQualityFormat may still send a degraded image first; wait
+                    // for the final one, and never resume twice.
+                    let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                    if degraded && img != nil { return }
+                    guard !resumed else { return }; resumed = true
+                    cont.resume(returning: img)
+                }
             }
         }
     }

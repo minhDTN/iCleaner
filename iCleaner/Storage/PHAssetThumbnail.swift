@@ -47,14 +47,19 @@ struct PHAssetThumbnail: View {
             options.resizeMode = .exact
             options.isNetworkAccessAllowed = true
 
-            // `.highQualityFormat` delivers exactly one (final) callback, so a
-            // single resume is safe.
+            // `.highQualityFormat` usually delivers one final callback, but iCloud
+            // assets can still send a degraded image first — guard against a double
+            // resume (which would trap).
+            nonisolated(unsafe) var resumed = false
             PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: targetSize,
                 contentMode: .aspectFill,
                 options: options
-            ) { image, _ in
+            ) { image, info in
+                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                if degraded && image != nil { return }
+                guard !resumed else { return }; resumed = true
                 cont.resume(returning: image)
             }
         }

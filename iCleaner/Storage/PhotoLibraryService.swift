@@ -201,15 +201,27 @@ final class PhotoLibraryService {
         }.value
     }
 
+    // Per-asset size cache — `PHAssetResource.assetResources(for:)` is a slow Photos
+    // round-trip, and Home re-scans every category on each appearance. Caching by
+    // localIdentifier means each asset's size is fetched once for its lifetime.
+    private nonisolated(unsafe) static var sizeCacheStore: [String: Int] = [:]
+    private static let sizeCacheLock = NSLock()
+
     /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
-    /// back to the dimension estimate when the resource size is unavailable.
+    /// back to the dimension estimate when the resource size is unavailable. Cached.
     nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
+        let id = asset.localIdentifier
+        sizeCacheLock.lock(); let cached = sizeCacheStore[id]; sizeCacheLock.unlock()
+        if let cached { return cached }
+
+        var kb = Int(asset.estimatedSizeKB)
         for resource in PHAssetResource.assetResources(for: asset) {
             if let bytes = resource.value(forKey: "fileSize") as? Int, bytes > 0 {
-                return bytes / 1024
+                kb = bytes / 1024; break
             }
         }
-        return Int(asset.estimatedSizeKB)
+        sizeCacheLock.lock(); sizeCacheStore[id] = kb; sizeCacheLock.unlock()
+        return kb
     }
 
     /// Exact-duplicate clustering WITHOUT Vision: group assets sharing the same

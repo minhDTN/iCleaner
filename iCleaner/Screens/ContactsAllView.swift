@@ -228,7 +228,7 @@ struct ContactsAllView: View {
             .joined()
             .uppercased()
         let hash = contact.identifier.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        let pal = Self.avatarPalette[hash % Self.avatarPalette.count]
+        let pal = Self.avatarPalette[abs(hash) % Self.avatarPalette.count]   // &+ can wrap negative → OOB
         return Group {
             if contact.imageDataAvailable, let data = contact.thumbnailImageData, let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFill()

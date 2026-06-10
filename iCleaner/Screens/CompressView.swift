@@ -28,6 +28,7 @@ struct CompressView: View {
     @State private var quality: VideoCompressor.Quality = .balanced
     @State private var pickedDuration: Double = 0
     @State private var pickedDownloadProgress: Double = 0   // iCloud download progress (0..1)
+    @State private var loadTask: Task<Void, Never>?         // cancellable video-load task
     @State private var estimates: [VideoCompressor.Quality: Int] = [:]   // real per-quality output sizes
     @State private var previewPlayer: AVPlayer?
     @State private var compressedURL: URL?
@@ -99,6 +100,16 @@ struct CompressView: View {
                                 .font(.custom("Inter-SemiBold", size: 14))
                                 .foregroundStyle(.white)
                         }
+                        // Always offer a way out — a stuck iCloud fetch is cancellable.
+                        Button(action: { loadTask?.cancel() }) {
+                            Text(L("common.cancel"))
+                                .font(.custom("Inter-SemiBold", size: 15))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 24).padding(.vertical, 10)
+                                .background(Capsule().stroke(Color.white.opacity(0.6), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
                     }
                 }
             }
@@ -200,7 +211,7 @@ struct CompressView: View {
                     LazyVGrid(columns: gridColumns, spacing: 11) {
                         ForEach(sortedVideos) { v in
                             videoCell(v)
-                                .onTapGesture { Task { await selectVideo(v) } }
+                                .onTapGesture { startSelect(v) }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -274,18 +285,30 @@ struct CompressView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // Tap a video → cancel any in-flight load, then start a fresh cancellable one.
+    private func startSelect(_ v: VideoLibraryService.VideoItem) {
+        loadTask?.cancel()
+        loadTask = Task { await selectVideo(v) }
+    }
+
     // Tap a video → check quota → resolve its URL → quality screen.
     private func selectVideo(_ v: VideoLibraryService.VideoItem) async {
         guard compressor.canCompressMore else { showPaywall = true; return }
         loadingPicked = true
         pickedDownloadProgress = 0
         defer { loadingPicked = false; pickedDownloadProgress = 0 }
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [v.id], options: nil).firstObject,
-              let url = await Self.videoURL(for: asset, onProgress: { p in
-                  Task { @MainActor in pickedDownloadProgress = p }
-              }) else {
-            showError = L("compress.errorOpen")
-            return
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [v.id], options: nil).firstObject else {
+            showError = L("compress.errorOpen"); return
+        }
+        // iCloud videos download here; the load is cancellable (Cancel button on the
+        // overlay) so a slow/stuck fetch never spins forever.
+        let url = await Self.videoURL(for: asset, onProgress: { p in
+            Task { @MainActor in pickedDownloadProgress = p }
+        })
+        if Task.isCancelled { return }
+        guard let url else {
+            // nil = not a single-file asset (slow-mo/edited) or the download failed.
+            showError = L("compress.errorOpen"); return
         }
         pickedURL = url
         pickedAssetID = v.id
@@ -316,10 +339,19 @@ struct CompressView: View {
         opts.isNetworkAccessAllowed = true   // allow iCloud download
         opts.deliveryMode = .highQualityFormat
         opts.progressHandler = { progress, _, _, _ in onProgress(progress) }
-        return await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
-            PHImageManager.default().requestAVAsset(forVideo: asset, options: opts) { avAsset, _, _ in
-                cont.resume(returning: (avAsset as? AVURLAsset)?.url)
+        let box = RequestIDBox()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
+                nonisolated(unsafe) var resumed = false
+                let id = PHImageManager.default().requestAVAsset(forVideo: asset, options: opts) { avAsset, _, _ in
+                    guard !resumed else { return }; resumed = true
+                    cont.resume(returning: (avAsset as? AVURLAsset)?.url)
+                }
+                box.requestID = id
             }
+        } onCancel: {
+            // Cancel the (possibly stuck) iCloud download so the await returns.
+            if let id = box.requestID { PHImageManager.default().cancelImageRequest(id) }
         }
     }
 
@@ -1044,6 +1076,17 @@ struct CompressView: View {
         quality = .balanced
         estimates = [:]
         step = .empty
+    }
+}
+
+// Thread-safe holder for a PHImageRequestID so the task-cancellation handler can
+// cancel the in-flight iCloud download from a different thread.
+private final class RequestIDBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _id: PHImageRequestID?
+    var requestID: PHImageRequestID? {
+        get { lock.lock(); defer { lock.unlock() }; return _id }
+        set { lock.lock(); _id = newValue; lock.unlock() }
     }
 }
 
