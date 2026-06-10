@@ -244,11 +244,13 @@ final class PhotoLibraryService {
         return timeWindowClusters(assets, window: 20)
     }
 
-    // Per-asset size cache — `PHAssetResource.assetResources(for:)` is a slow Photos
-    // round-trip, and Home re-scans every category on each appearance. Caching by
-    // localIdentifier means each asset's size is fetched once for its lifetime.
-    private nonisolated(unsafe) static var sizeCacheStore: [String: Int] = [:]
-    private nonisolated static let sizeCacheLock = NSLock()
+    // Per-asset EXACT byte size cache (-1 = no real size, only the dimension
+    // estimate). `PHAssetResource.assetResources(for:)` is a slow Photos round-trip
+    // and Home re-scans every category on each appearance, so each asset's size is
+    // fetched once for its lifetime. Both the size labels and the duplicate
+    // signature read this.
+    private nonisolated(unsafe) static var byteCacheStore: [String: Int] = [:]
+    private nonisolated static let byteCacheLock = NSLock()
 
     /// Streams Similar/Similar-Screenshots groups over the WHOLE gallery, newest
     /// first, in batches — the caller shows the review screen immediately and appends
@@ -298,30 +300,42 @@ final class PhotoLibraryService {
         }
     }
 
-    /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
-    /// back to the dimension estimate when the resource size is unavailable. Cached.
-    nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
+    /// EXACT on-disk byte size from the asset's `PHAssetResource`, or nil when only
+    /// the dimension ESTIMATE is available. nil is critical for duplicate detection:
+    /// the estimate (`pixelWidth*pixelHeight*3/1024`) is identical for every photo of
+    /// the same dimensions, so using it as a signature falsely marks thousands of
+    /// distinct same-size photos as duplicates. Cached.
+    nonisolated static func realBytesExact(_ asset: PHAsset) -> Int? {
         let id = asset.localIdentifier
-        sizeCacheLock.lock(); let cached = sizeCacheStore[id]; sizeCacheLock.unlock()
-        if let cached { return cached }
+        byteCacheLock.lock(); let cached = byteCacheStore[id]; byteCacheLock.unlock()
+        if let cached { return cached < 0 ? nil : cached }
 
-        var kb = Int(asset.estimatedSizeKB)
+        var bytes = -1
         for resource in PHAssetResource.assetResources(for: asset) {
-            if let bytes = resource.value(forKey: "fileSize") as? Int, bytes > 0 {
-                kb = bytes / 1024; break
-            }
+            if let size = resource.value(forKey: "fileSize") as? Int, size > 0 { bytes = size; break }
         }
-        sizeCacheLock.lock(); sizeCacheStore[id] = kb; sizeCacheLock.unlock()
-        return kb
+        byteCacheLock.lock(); byteCacheStore[id] = bytes; byteCacheLock.unlock()
+        return bytes < 0 ? nil : bytes
     }
 
-    /// Exact-duplicate clustering WITHOUT Vision: group assets sharing the same
-    /// dimensions AND real byte size (a strong exact-copy signal), O(n). Each
-    /// cluster has ≥2 members, oldest first.
+    /// Real on-disk size in KB, falling back to the dimension estimate FOR DISPLAY
+    /// when the exact size is unavailable. Never use this as a duplicate signature —
+    /// use `realBytesExact` (which returns nil instead of a degenerate estimate).
+    nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
+        if let bytes = realBytesExact(asset) { return bytes / 1024 }
+        return Int(asset.estimatedSizeKB)
+    }
+
+    /// Exact-duplicate clustering WITHOUT Vision: group assets that share the SAME
+    /// dimensions AND the SAME exact byte count — a strong "identical file" signal,
+    /// O(n). Assets with no real byte size (estimate-only, e.g. some iCloud-optimized
+    /// photos) are SKIPPED so the dimension estimate can't falsely group every
+    /// same-size photo into one giant "duplicate" pile. ≥2 per cluster, oldest first.
     nonisolated static func exactDuplicateClusters(_ assets: [PHAsset]) -> [[PHAsset]] {
         var buckets: [String: [PHAsset]] = [:]
         for a in assets {
-            let key = "\(a.pixelWidth)x\(a.pixelHeight)-\(realBytesKB(a))"
+            guard let bytes = realBytesExact(a) else { continue }   // no real size → not a duplicate candidate
+            let key = "\(a.pixelWidth)x\(a.pixelHeight)-\(bytes)"
             buckets[key, default: []].append(a)
         }
         return buckets.values
