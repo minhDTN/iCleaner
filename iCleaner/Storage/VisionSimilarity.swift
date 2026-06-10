@@ -34,7 +34,9 @@ enum VisionSimilarity {
 
     /// Max assets to feature-print in one pass — keeps the scan responsive on
     /// large libraries. Oldest beyond this are skipped (logged by caller).
-    static let maxScan = 600
+    static let maxScan = 300
+    /// How many assets to feature-print concurrently (thumbnail load + Vision).
+    static let printConcurrency = 8
     /// Only compare assets created within this window of each other (seconds).
     static let timeWindow: TimeInterval = 60 * 60 * 24  // 1 day
 
@@ -44,14 +46,25 @@ enum VisionSimilarity {
         let scan = Array(assets.suffix(maxScan))  // most recent maxScan
         guard scan.count >= 2 else { return [] }
 
-        // 1. Feature print each asset (skip ones that fail to load/print).
-        var prints: [(asset: PHAsset, fp: VNFeaturePrintObservation)] = []
-        prints.reserveCapacity(scan.count)
-        for asset in scan {
-            if let fp = await featurePrint(for: asset) {
-                prints.append((asset, fp))
+        // 1. Feature print CONCURRENTLY (bounded windows). Sequential printing of up
+        // to maxScan assets took 30s–2min on real libraries — this is the fix for
+        // "Review Group loads forever". Order is preserved (time-sorted) for the
+        // windowed union-find below.
+        var printByIndex: [Int: VNFeaturePrintObservation] = [:]
+        var start = 0
+        while start < scan.count {
+            let end = min(start + printConcurrency, scan.count)
+            await withTaskGroup(of: (Int, FeaturePrintBox?).self) { group in
+                for i in start..<end {
+                    let asset = scan[i]
+                    group.addTask { (i, (await featurePrint(for: asset)).map(FeaturePrintBox.init)) }
+                }
+                for await (i, box) in group { if let box { printByIndex[i] = box.fp } }
             }
+            start = end
         }
+        let prints: [(asset: PHAsset, fp: VNFeaturePrintObservation)] =
+            scan.enumerated().compactMap { (i, a) in printByIndex[i].map { (a, $0) } }
         guard prints.count >= 2 else { return [] }
 
         // 2. Union-find over time-windowed pairs under the distance threshold.
@@ -88,10 +101,17 @@ enum VisionSimilarity {
 
     // MARK: - Feature print
 
+    // Feature prints cached by localIdentifier — re-opening the same category (or
+    // re-running after a delete) reuses them instead of re-decoding + re-printing
+    // every asset, so only the FIRST scan pays the cost. NSCache auto-evicts.
+    private static let fpCache = NSCache<NSString, VNFeaturePrintObservation>()
+
     private static func featurePrint(for asset: PHAsset) async -> VNFeaturePrintObservation? {
+        let key = asset.localIdentifier as NSString
+        if let cached = fpCache.object(forKey: key) { return cached }
         guard let image = await thumbnail(for: asset),
               let cg = image.cgImage else { return nil }
-        return await withCheckedContinuation { (cont: CheckedContinuation<VNFeaturePrintObservation?, Never>) in
+        let fp: VNFeaturePrintObservation? = await withCheckedContinuation { (cont: CheckedContinuation<VNFeaturePrintObservation?, Never>) in
             let request = VNGenerateImageFeaturePrintRequest()
             let handler = VNImageRequestHandler(cgImage: cg, options: [:])
             do {
@@ -101,6 +121,8 @@ enum VisionSimilarity {
                 cont.resume(returning: nil)
             }
         }
+        if let fp { fpCache.setObject(fp, forKey: key) }
+        return fp
     }
 
     private static func thumbnail(for asset: PHAsset) async -> UIImage? {
@@ -126,4 +148,12 @@ enum VisionSimilarity {
             }
         }
     }
+}
+
+// VNFeaturePrintObservation isn't Sendable; box it so the concurrent feature-print
+// task group can return it across task boundaries without a data-race warning (the
+// observation is immutable and only read afterward).
+private final class FeaturePrintBox: @unchecked Sendable {
+    let fp: VNFeaturePrintObservation
+    init(_ fp: VNFeaturePrintObservation) { self.fp = fp }
 }
