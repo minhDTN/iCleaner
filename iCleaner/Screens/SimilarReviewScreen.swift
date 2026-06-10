@@ -260,6 +260,21 @@ private struct SimilarPhotoCell: View {
             .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture { onOpen() }
+            // Videos: play badge + duration (bottom-left) + real size (bottom-right).
+            .overlay {
+                if photo.isVideo {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .shadow(color: .black.opacity(0.3), radius: 3)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if photo.isVideo { cellBadge(Self.durationStr(photo.durationSec)).padding(8) }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if photo.isVideo { cellBadge(Self.sizeStr(photo.sizeKB)).padding(8) }
+            }
             .overlay(alignment: .topLeading) {
                 if isBestMatch { bestMatchPill.padding(8) }
             }
@@ -271,6 +286,22 @@ private struct SimilarPhotoCell: View {
                         .onTapGesture { photo.isSelected.toggle() }
                 }
             }
+    }
+
+    private func cellBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.custom("Inter-Medium", size: 10))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.6)))
+    }
+
+    private static func durationStr(_ sec: Double) -> String {
+        let t = Int(sec.rounded()); return String(format: "%d:%02d", t / 60, t % 60)
+    }
+    private static func sizeStr(_ kb: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(kb) * 1024, countStyle: .file)
     }
 
     @ViewBuilder

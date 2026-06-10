@@ -147,10 +147,12 @@ final class PhotoLibraryService {
         if !config.grouped {
             guard !assets.isEmpty else { return [] }
             return await Task.detached(priority: .userInitiated) {
-                let flat = assets.sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
-                let sizes = flat.map { Self.realBytesKB($0) }
-                return [PHAssetGroup(title: "\(flat.count) \(config.groupNoun)",
-                                     assets: flat, sizesKB: sizes, bestMatchIndex: -1)]
+                // Sort the flat list by REAL size so the "Large/Small to size" filter
+                // actually orders the items (it only ordered groups before).
+                let sized = assets.map { ($0, Self.realBytesKB($0)) }
+                    .sorted { largestFirst ? $0.1 > $1.1 : $0.1 < $1.1 }
+                return [PHAssetGroup(title: "\(sized.count) \(config.groupNoun)",
+                                     assets: sized.map(\.0), sizesKB: sized.map(\.1), bestMatchIndex: -1)]
             }.value
         }
 

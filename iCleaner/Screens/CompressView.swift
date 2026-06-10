@@ -27,6 +27,7 @@ struct CompressView: View {
     @State private var pickedSizeBytes: Int = 0
     @State private var quality: VideoCompressor.Quality = .balanced
     @State private var pickedDuration: Double = 0
+    @State private var pickedDownloadProgress: Double = 0   // iCloud download progress (0..1)
     @State private var estimates: [VideoCompressor.Quality: Int] = [:]   // real per-quality output sizes
     @State private var previewPlayer: AVPlayer?
     @State private var compressedURL: URL?
@@ -83,8 +84,17 @@ struct CompressView: View {
             }
             if loadingPicked {
                 ZStack {
-                    Color.black.opacity(0.3).ignoresSafeArea()
-                    ProgressView().tint(.white).scaleEffect(1.3)
+                    Color.black.opacity(0.45).ignoresSafeArea()
+                    VStack(spacing: 14) {
+                        ProgressView().tint(.white).scaleEffect(1.3)
+                        // iCloud clips download before they can be compressed —
+                        // show progress so a long fetch doesn't look frozen.
+                        if pickedDownloadProgress > 0.001 && pickedDownloadProgress < 0.999 {
+                            Text(L("compress.downloadingICloud", Int(pickedDownloadProgress * 100)))
+                                .font(.custom("Inter-SemiBold", size: 14))
+                                .foregroundStyle(.white)
+                        }
+                    }
                 }
             }
         }
@@ -259,9 +269,12 @@ struct CompressView: View {
     private func selectVideo(_ v: VideoLibraryService.VideoItem) async {
         guard compressor.canCompressMore else { showPaywall = true; return }
         loadingPicked = true
-        defer { loadingPicked = false }
+        pickedDownloadProgress = 0
+        defer { loadingPicked = false; pickedDownloadProgress = 0 }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [v.id], options: nil).firstObject,
-              let url = await Self.videoURL(for: asset) else {
+              let url = await Self.videoURL(for: asset, onProgress: { p in
+                  Task { @MainActor in pickedDownloadProgress = p }
+              }) else {
             showError = L("compress.errorOpen")
             return
         }
@@ -288,10 +301,12 @@ struct CompressView: View {
     // Selected quality's real estimated output size (0 until computed).
     private var estimatedBytes: Int { estimates[quality] ?? 0 }
 
-    nonisolated private static func videoURL(for asset: PHAsset) async -> URL? {
+    nonisolated private static func videoURL(for asset: PHAsset,
+                                             onProgress: @escaping @Sendable (Double) -> Void) async -> URL? {
         let opts = PHVideoRequestOptions()
-        opts.isNetworkAccessAllowed = true
+        opts.isNetworkAccessAllowed = true   // allow iCloud download
         opts.deliveryMode = .highQualityFormat
+        opts.progressHandler = { progress, _, _, _ in onProgress(progress) }
         return await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
             PHImageManager.default().requestAVAsset(forVideo: asset, options: opts) { avAsset, _, _ in
                 cont.resume(returning: (avAsset as? AVURLAsset)?.url)

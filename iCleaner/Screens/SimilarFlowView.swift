@@ -196,7 +196,9 @@ struct SimilarFlowView: View {
                     assetID: asset.localIdentifier,
                     seed: idx,
                     sizeKB: idx < g.sizesKB.count ? g.sizesKB[idx] : Int(asset.estimatedSizeKB),
-                    isSelected: hasBestMatch ? (idx != g.bestMatchIndex) : false
+                    isSelected: hasBestMatch ? (idx != g.bestMatchIndex) : false,
+                    isVideo: asset.mediaType == .video,
+                    durationSec: asset.duration
                 )
             }
             return SimilarGroup(title: g.title, photos: photos, bestMatchIndex: g.bestMatchIndex, nounKey: nounKey)
@@ -394,6 +396,8 @@ struct SimilarPhoto: Identifiable {
     let seed: Int           // fallback gradient color when assetID == nil
     let sizeKB: Int
     var isSelected: Bool
+    var isVideo: Bool = false
+    var durationSec: Double = 0   // video length (0 for photos)
 }
 
 struct SimilarFilter: Equatable {
