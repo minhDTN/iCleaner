@@ -59,6 +59,11 @@ final class PhotoLibraryService {
         // Videos Organizer) are ONE flat list the user deletes by hand.
         var grouped: Bool = true             // false → single flat list of all matches, no clustering
         var hasBestMatch: Bool = true        // false → no Best Match pill / no auto-selection
+
+        // Vision content-clustering (Similar / Similar Screenshots) is the only
+        // expensive path — it streams the whole gallery in chunks. Duplicates
+        // (cheap signature), videos (time-window) and flat lists do not.
+        var usesVisionClustering: Bool { grouped && mediaType == .image && !exactDuplicates }
     }
 
     // Single source of truth for "which assets belong to this category" — used by
@@ -208,6 +213,49 @@ final class PhotoLibraryService {
     private static let sizeCacheLock = NSLock()
 
     /// Real on-disk size of an asset in KB (from its `PHAssetResource`), falling
+    /// Streams Similar/Similar-Screenshots groups over the WHOLE gallery, newest
+    /// first, in chunks — so the caller can show the review screen immediately and
+    /// append groups as they're found, instead of blocking on a full Vision scan.
+    /// `onBatch` is called on the main actor for each chunk that yields groups.
+    /// Feature prints are cached, so re-opening is near-instant.
+    func detectSimilarGroupsStreaming(
+        config: DetectionConfig,
+        sinceDays: Int? = nil,
+        chunkSize: Int = 150,
+        onBatch: @MainActor @escaping ([PHAssetGroup]) -> Void
+    ) async {
+        guard authStatus.canRead else { return }
+        // Whole pool, newest first (so recent groups appear at the top first).
+        let all: [PHAsset] = await Task.detached(priority: .userInitiated) {
+            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: true, limit: nil)
+        }.value
+        guard !all.isEmpty else { return }
+
+        var start = 0
+        while start < all.count {
+            if Task.isCancelled { return }
+            let end = min(start + chunkSize, all.count)
+            let chunk = Array(all[start..<end])
+            start = end
+
+            // Cluster this chunk (assets sorted ascending for the time-window union-find).
+            let ascending = chunk.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) }
+            let clusters = await VisionSimilarity.cluster(ascending, mode: .similar)
+            guard !clusters.isEmpty else { continue }
+
+            // Build groups + real sizes off main, then hand to the UI.
+            let groups: [PHAssetGroup] = await Task.detached(priority: .userInitiated) {
+                clusters.map { c in
+                    let sizes = c.map { Self.realBytesKB($0) }
+                    return PHAssetGroup(title: "\(c.count) \(config.groupNoun)",
+                                        assets: c, sizesKB: sizes, bestMatchIndex: 0)
+                }
+            }.value
+            if Task.isCancelled { return }
+            onBatch(groups)
+        }
+    }
+
     /// back to the dimension estimate when the resource size is unavailable. Cached.
     nonisolated static func realBytesKB(_ asset: PHAsset) -> Int {
         let id = asset.localIdentifier

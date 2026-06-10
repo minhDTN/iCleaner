@@ -12,6 +12,7 @@ struct SimilarReviewScreen: View {
     let headerSizeMB: Int
     let selectedCount: Int
     let selectedMB: Int
+    var isScanning: Bool = false   // whole-gallery scan still running → show indicator
     var onBack: () -> Void
     var onFilter: () -> Void
     var onDeleteTap: () -> Void
@@ -54,6 +55,7 @@ struct SimilarReviewScreen: View {
             VStack(spacing: 0) {
                 navBar
                 subHeader
+                if isScanning { scanningBar }
                 ScrollView {
                     LazyVStack(spacing: 24) {
                         ForEach(feed) { item in
@@ -151,6 +153,19 @@ struct SimilarReviewScreen: View {
         }
         .padding(.horizontal, 20)
         .frame(height: 48)
+    }
+
+    // Live indicator while the whole-gallery scan keeps streaming in more groups.
+    private var scanningBar: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small).tint(AppColor.brandPrimary)
+            Text(L("review.scanning", groups.count))
+                .font(.custom("Inter-Medium", size: 13))
+                .foregroundStyle(AppColor.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 6)
     }
 
     private var deleteCTA: some View {

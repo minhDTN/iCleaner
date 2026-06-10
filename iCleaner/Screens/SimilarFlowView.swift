@@ -29,6 +29,7 @@ struct SimilarFlowView: View {
     @State private var filter: SimilarFilter = .default
     @State private var deletedMB: Int = 0
     @State private var deleteError: String?
+    @State private var isScanning: Bool = false   // streaming whole-gallery similar scan
     @State private var previewGroupIndex: Int?
     @State private var previewPhotoIndex: Int = 0
 
@@ -64,6 +65,7 @@ struct SimilarFlowView: View {
                     headerSizeMB: totalMB,
                     selectedCount: selectedPhotos.count,
                     selectedMB: totalSelectedMB,
+                    isScanning: isScanning,
                     onBack: { dismiss() },
                     onFilter: { showFilter = true },
                     onDeleteTap: {
@@ -160,13 +162,17 @@ struct SimilarFlowView: View {
     // (so the user can open the filter again), unlike the initial bootstrap
     // which routes to .empty.
     private func applyFilter() async {
-        let assetGroups = await photoLibrary.detectSimilarGroups(
-            config: detectionConfig,
-            sinceDays: filterSinceDays,
-            largestFirst: filter.sortBySize == .largeFirst
-        )
-        groups = mapGroups(assetGroups)
-        step = .review
+        if detectionConfig.usesVisionClustering {
+            await streamSimilar(goEmptyIfNone: false)
+        } else {
+            let assetGroups = await photoLibrary.detectSimilarGroups(
+                config: detectionConfig,
+                sinceDays: filterSinceDays,
+                largestFirst: filter.sortBySize == .largeFirst
+            )
+            groups = mapGroups(assetGroups)
+            step = .review
+        }
     }
 
     private var filterSinceDays: Int? {
@@ -206,17 +212,44 @@ struct SimilarFlowView: View {
     }
 
     private func reloadGroups() async {
-        let assetGroups = await photoLibrary.detectSimilarGroups(
-            config: detectionConfig,
-            sinceDays: filterSinceDays,
-            largestFirst: filter.sortBySize == .largeFirst
-        )
-        if assetGroups.isEmpty {
-            step = .empty
+        if detectionConfig.usesVisionClustering {
+            await streamSimilar(goEmptyIfNone: true)
         } else {
-            // Selection default: all except Best Match (one-tap dedup cleanup).
-            groups = mapGroups(assetGroups)
-            step = .review
+            let assetGroups = await photoLibrary.detectSimilarGroups(
+                config: detectionConfig,
+                sinceDays: filterSinceDays,
+                largestFirst: filter.sortBySize == .largeFirst
+            )
+            if assetGroups.isEmpty {
+                step = .empty
+            } else {
+                // Selection default: all except Best Match (one-tap dedup cleanup).
+                groups = mapGroups(assetGroups)
+                step = .review
+            }
+        }
+    }
+
+    // Whole-gallery Similar scan: show the review screen immediately, then append
+    // groups as each chunk is found (newest first), and order by size when done.
+    private func streamSimilar(goEmptyIfNone: Bool) async {
+        groups = []
+        step = .review
+        isScanning = true
+        await photoLibrary.detectSimilarGroupsStreaming(config: detectionConfig, sinceDays: filterSinceDays) { batch in
+            groups.append(contentsOf: mapGroups(batch))
+        }
+        isScanning = false
+        sortGroupsByFilter()
+        if groups.isEmpty && goEmptyIfNone { step = .empty }
+    }
+
+    private func sortGroupsByFilter() {
+        let largest = filter.sortBySize == .largeFirst
+        groups.sort {
+            let a = $0.photos.reduce(0) { $0 + $1.sizeKB }
+            let b = $1.photos.reduce(0) { $0 + $1.sizeKB }
+            return largest ? a > b : a < b
         }
     }
 
