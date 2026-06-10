@@ -120,19 +120,10 @@ struct QuickCleanFlowView: View {
         }
     }
 
-    // Same gate as SimilarFlow — lib's 30s global cap handles back-to-back protection.
+    // Show the post-clean interstitial only if one is ready, then dismiss (never
+    // block on a "loading ad" spinner).
     private func showInterstitialThenDismiss() {
-        guard !PremiumGate.isPremium,
-              let vc = AdHelpers.topViewController() else {
-            dismiss()
-            return
-        }
-        AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interGlobal,
-            from: vc
-        ) {
-            Task { @MainActor in dismiss() }
-        }
+        FlowGate.showInterstitial(onDone: { dismiss() })
     }
 
     // MARK: - Step subviews

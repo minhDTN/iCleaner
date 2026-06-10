@@ -256,12 +256,6 @@ struct ContactsDuplicatesView: View {
     }
 
     private func fireActionInterstitial() {
-        guard !PremiumGate.isPremium,
-              let vc = AdHelpers.topViewController() else { return }
-        AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interGlobal,
-            from: vc,
-            completion: nil
-        )
+        FlowGate.showInterstitial()   // only if cached — never block on a loading spinner
     }
 }

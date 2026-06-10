@@ -298,13 +298,7 @@ struct ContactsAllView: View {
             contacts.removeAll { selection.contains($0.identifier) }
             selection.removeAll()
             rebuildSections()
-            if !PremiumGate.isPremium, let vc = AdHelpers.topViewController() {
-                AdManager.shared.showInterstitialAd(
-                    adUnitID: AdUnits.interGlobal,
-                    from: vc,
-                    completion: nil
-                )
-            }
+            FlowGate.showInterstitial()   // only if cached — never block on a loading spinner
         } catch {
             actionError = (error as NSError).localizedDescription
         }

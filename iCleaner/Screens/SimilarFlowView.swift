@@ -303,17 +303,7 @@ struct SimilarFlowView: View {
                 step = .review
             }
         }
-        guard !PremiumGate.isPremium,
-              let vc = AdHelpers.topViewController() else {
-            next()
-            return
-        }
-        AdManager.shared.showInterstitialAd(
-            adUnitID: AdUnits.interGlobal,
-            from: vc
-        ) {
-            Task { @MainActor in next() }
-        }
+        FlowGate.showInterstitial(onDone: next)
     }
 
     // MARK: - State subviews
