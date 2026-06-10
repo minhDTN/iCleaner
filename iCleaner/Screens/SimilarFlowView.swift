@@ -27,7 +27,7 @@ struct SimilarFlowView: View {
     @State private var showDeleteConfirm: Bool = false
     @State private var showPaywall: Bool = false
     @State private var filter: SimilarFilter = .default
-    @State private var deletedMB: Int = 0
+    @State private var deletedKB: Int = 0
     @State private var deleteError: String?
     @State private var isScanning: Bool = false   // streaming whole-gallery similar scan
     @State private var scanScanned: Int = 0
@@ -40,14 +40,16 @@ struct SimilarFlowView: View {
     private var selectedPhotos: [SimilarPhoto] {
         groups.flatMap { $0.photos.filter { $0.isSelected } }
     }
-    private var totalSelectedMB: Int {
-        selectedPhotos.reduce(0) { $0 + $1.sizeKB } / 1024
+    // Raw KB totals (NOT pre-divided to MB) so the label formatter can round
+    // properly and never collapse a sub-1 MB selection to "0 MB".
+    private var selectedKB: Int {
+        selectedPhotos.reduce(0) { $0 + $1.sizeKB }
+    }
+    private var totalKB: Int {
+        groups.flatMap(\.photos).reduce(0) { $0 + $1.sizeKB }
     }
     private var totalPhotos: Int {
         groups.reduce(0) { $0 + $1.photos.count }
-    }
-    private var totalMB: Int {
-        groups.flatMap(\.photos).reduce(0) { $0 + $1.sizeKB } / 1024
     }
 
     var body: some View {
@@ -64,9 +66,9 @@ struct SimilarFlowView: View {
                     categoryTitle: L(categoryTitleKey),
                     groups: $groups,
                     headerPhotoCount: totalPhotos,
-                    headerSizeMB: totalMB,
+                    headerSizeLabel: CleanSize.label(kb: totalKB),
                     selectedCount: selectedPhotos.count,
-                    selectedMB: totalSelectedMB,
+                    selectedSizeLabel: CleanSize.label(kb: selectedKB),
                     isScanning: isScanning,
                     scanScanned: scanScanned,
                     scanTotal: scanTotal,
@@ -95,16 +97,16 @@ struct SimilarFlowView: View {
                     }
                 )
             case .success:
-                SimilarSuccessView(deletedMB: deletedMB, onContinue: continueAfterSuccess)
+                SimilarSuccessView(deletedSizeLabel: CleanSize.label(kb: deletedKB), onContinue: continueAfterSuccess)
             }
 
             if showDeleteConfirm {
                 SimilarDeleteConfirm(
                     photoCount: selectedPhotos.count,
-                    sizeMB: totalSelectedMB,
+                    sizeLabel: CleanSize.label(kb: selectedKB),
                     onCancel: { showDeleteConfirm = false },
                     onDelete: {
-                        deletedMB = totalSelectedMB
+                        deletedKB = selectedKB
                         showDeleteConfirm = false
                         step = .deleting
                     }
@@ -392,6 +394,23 @@ struct PreviewTarget: Identifiable {
     var id: Int { groupIndex }
 }
 
+// Single source of truth for size labels across the Similar flow (header,
+// group titles, photo badges, delete CTA, confirm, success) so the SAME bytes
+// always read the same. Rounds instead of truncating — a 5.9 MB group reads
+// "5.9 MB", not "5 MB" — and never collapses a sub-1 MB total to "0 MB"
+// (which made small selections look like a no-op). Binary (1024) base, matching
+// the rest of the app.
+enum CleanSize {
+    static func label(kb: Int) -> String {
+        let mb = Double(max(0, kb)) / 1024
+        if mb >= 1024 { return String(format: "%.1f GB", mb / 1024) }
+        if mb >= 10   { return "\(Int(mb.rounded())) MB" }   // big enough: whole MB
+        if mb >= 1    { return String(format: "%.1f MB", mb) } // 1–10 MB: one decimal
+        if kb >= 1    { return String(format: "%.1f MB", mb) } // <1 MB: e.g. "0.6 MB"
+        return "0 MB"
+    }
+}
+
 struct SimilarGroup: Identifiable {
     let id = UUID()
     let title: String          // e.g. "4 Similar" (English; kept for previews)
@@ -400,10 +419,7 @@ struct SimilarGroup: Identifiable {
     var nounKey: String = "review.noun.similar"   // localized noun for "N Similar"
 
     // Total size of this group's photos, formatted (e.g. "12 MB").
-    var sizeLabel: String {
-        let mb = photos.reduce(0) { $0 + $1.sizeKB } / 1024
-        return mb >= 1024 ? String(format: "%.1f GB", Double(mb) / 1024) : "\(mb) MB"
-    }
+    var sizeLabel: String { CleanSize.label(kb: photos.reduce(0) { $0 + $1.sizeKB }) }
 
     // Mock kept for SwiftUI previews + design QA. Real groups come from
     // PhotoLibraryService.detectSimilarGroups().

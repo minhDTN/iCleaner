@@ -7,7 +7,7 @@ import SwiftUI
 // Inter Bold 16/24 white, padding 16/0, radius 16) + Cancel (text only).
 struct SimilarDeleteConfirm: View {
     let photoCount: Int
-    let sizeMB: Int
+    let sizeLabel: String
     var onCancel: () -> Void
     var onDelete: () -> Void
 
@@ -23,7 +23,7 @@ struct SimilarDeleteConfirm: View {
                     .foregroundStyle(Color(hex: 0x0F172A))
                     .multilineTextAlignment(.center)
 
-                Text(L("deleteconfirm.body", "\(sizeMB) MB"))
+                Text(L("deleteconfirm.body", sizeLabel))
                     .font(.custom("Inter-Regular", size: 14))
                     .foregroundStyle(Color(hex: 0x64748B))
                     .multilineTextAlignment(.center)
@@ -67,5 +67,5 @@ struct SimilarDeleteConfirm: View {
 }
 
 #Preview {
-    SimilarDeleteConfirm(photoCount: 5, sizeMB: 12, onCancel: {}, onDelete: {})
+    SimilarDeleteConfirm(photoCount: 5, sizeLabel: "12 MB", onCancel: {}, onDelete: {})
 }

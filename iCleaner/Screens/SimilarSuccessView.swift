@@ -9,7 +9,7 @@ import SwiftUI
 // "Junk Files Removed" + footer "CLEANED". Bottom CTA "Perfect!" (335×56 brand
 // blue, Inter Bold 18/28 white, radius 16, brand-blue 0.2 shadow).
 struct SimilarSuccessView: View {
-    let deletedMB: Int
+    let deletedSizeLabel: String
     var onContinue: () -> Void
 
     var body: some View {
@@ -103,7 +103,7 @@ struct SimilarSuccessView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(Color(hex: 0x94A3B8))
 
-            Text("\(deletedMB) MB")
+            Text(deletedSizeLabel)
                 .font(.custom("Inter-Bold", size: 36))
                 .foregroundStyle(Color(hex: 0x333333))
 
@@ -128,5 +128,5 @@ struct SimilarSuccessView: View {
 }
 
 #Preview {
-    SimilarSuccessView(deletedMB: 12, onContinue: {})
+    SimilarSuccessView(deletedSizeLabel: "12 MB", onContinue: {})
 }

@@ -9,9 +9,9 @@ struct SimilarReviewScreen: View {
     let categoryTitle: String
     @Binding var groups: [SimilarGroup]
     let headerPhotoCount: Int
-    let headerSizeMB: Int
+    let headerSizeLabel: String
     let selectedCount: Int
-    let selectedMB: Int
+    let selectedSizeLabel: String
     var isScanning: Bool = false   // whole-gallery scan still running → show indicator
     var scanScanned: Int = 0
     var scanTotal: Int = 0
@@ -138,7 +138,7 @@ struct SimilarReviewScreen: View {
             Text("·")
                 .font(.custom("Inter-Medium", size: 14))
                 .foregroundStyle(AppColor.textMuted)
-            Text("\(headerSizeMB)MB")
+            Text(headerSizeLabel)
                 .font(.custom("Inter-Medium", size: 14))
                 .foregroundStyle(AppColor.brandPrimary)
 
@@ -181,7 +181,7 @@ struct SimilarReviewScreen: View {
                     .frame(width: 22, height: 22)
                 Text(isDisabled
                      ? L("review.deleteSelected")
-                     : L("review.deleteN", selectedCount, "\(selectedMB) MB"))
+                     : L("review.deleteN", selectedCount, selectedSizeLabel))
                     .font(.custom("Inter-Bold", size: 16))
             }
             .foregroundStyle(.white)
@@ -290,7 +290,7 @@ private struct SimilarPhotoCell: View {
                 if photo.isVideo { cellBadge(Self.durationStr(photo.durationSec)).padding(8) }
             }
             .overlay(alignment: .bottomTrailing) {
-                if photo.isVideo { cellBadge(Self.sizeStr(photo.sizeKB)).padding(8) }
+                if photo.isVideo { cellBadge(CleanSize.label(kb: photo.sizeKB)).padding(8) }
             }
             .overlay(alignment: .topLeading) {
                 if isBestMatch { bestMatchPill.padding(8) }
@@ -316,9 +316,6 @@ private struct SimilarPhotoCell: View {
 
     private static func durationStr(_ sec: Double) -> String {
         let t = Int(sec.rounded()); return String(format: "%d:%02d", t / 60, t % 60)
-    }
-    private static func sizeStr(_ kb: Int) -> String {
-        ByteCountFormatter.string(fromByteCount: Int64(kb) * 1024, countStyle: .file)
     }
 
     @ViewBuilder
