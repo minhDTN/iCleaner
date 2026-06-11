@@ -159,7 +159,7 @@ final class PhotoLibraryService {
             }
 
             // Grouped: cluster exactly like the detail scan, count only clustered photos.
-            let clusters = Self.clusters(config: config, assets: assets)
+            let clusters = await Self.clustersAsync(config: config, assets: assets)
             var count = 0, totalKB = 0, reclaimableKB = 0, reclaimableCount = 0
             for c in clusters {
                 count += c.count
@@ -214,7 +214,7 @@ final class PhotoLibraryService {
         // 2. Cluster via the SHARED policy (identical to the Home card scan + the
         // streaming scan) so a category's groups never disagree across screens.
         let clusters = await Task.detached(priority: .userInitiated) {
-            Self.clusters(config: config, assets: assets)
+            await Self.clustersAsync(config: config, assets: assets)
         }.value
 
         // 3. Real byte sizes per asset + sort groups by total size.
@@ -236,12 +236,113 @@ final class PhotoLibraryService {
     // streaming Similar scan, and the one-shot detail scan — so a category's photo
     // count / size is IDENTICAL on the Home card and inside Review Group. Returns
     // only clusters of >=2 (a lone photo isn't "similar"); assets must be in date
-    // order. Duplicates use the exact-signature match; everything else is grouped
-    // by closeness in time (videos get a wider window than photo bursts).
+    // order. Time-window grouping for Similar/videos (Duplicates take the async
+    // content-hash path in `clustersAsync`; the exact-byte branch here is a fallback).
     nonisolated static func clusters(config: DetectionConfig, assets: [PHAsset]) -> [[PHAsset]] {
         if config.exactDuplicates { return exactDuplicateClusters(assets) }
         if config.mediaType == .video { return timeWindowClusters(assets, window: 60) }
         return timeWindowClusters(assets, window: 20)
+    }
+
+    // Async entry point — same as `clusters` but Duplicates use CONTENT matching
+    // (perceptual hash), which needs to load a tiny thumbnail per asset. Similar and
+    // videos stay on the instant metadata-only time-window path.
+    nonisolated static func clustersAsync(config: DetectionConfig, assets: [PHAsset]) async -> [[PHAsset]] {
+        if config.exactDuplicates { return await duplicateClusters(assets) }
+        return clusters(config: config, assets: assets)
+    }
+
+    // Content-based duplicate clustering. Groups photos that look the SAME via a
+    // 64-bit perceptual hash (dHash) of a TINY 9×8 thumbnail — so a re-saved /
+    // re-compressed / resized copy lands with its original even though its bytes
+    // differ. Tiny local thumbnails load fast and exist even for iCloud-optimized
+    // photos (it's what the Photos grid shows), so this never stalls the way the
+    // old Vision feature-print did. Falls back to the exact-byte signature when a
+    // thumbnail can't be produced. Hashes run in parallel and are cached.
+    nonisolated static func duplicateClusters(_ assets: [PHAsset]) async -> [[PHAsset]] {
+        let maxConcurrent = 12
+        var keyed: [(PHAsset, String)] = []
+        await withTaskGroup(of: (PHAsset, String?).self) { group in
+            var next = 0
+            while next < min(maxConcurrent, assets.count) {
+                let a = assets[next]; next += 1
+                group.addTask { (a, await Self.duplicateKey(a)) }
+            }
+            while let (asset, key) = await group.next() {
+                if let key { keyed.append((asset, key)) }
+                if next < assets.count {
+                    let a = assets[next]; next += 1
+                    group.addTask { (a, await Self.duplicateKey(a)) }
+                }
+            }
+        }
+        var buckets: [String: [PHAsset]] = [:]
+        for (a, key) in keyed { buckets[key, default: []].append(a) }
+        return buckets.values
+            .filter { $0.count >= 2 }
+            .map { $0.sorted { ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast) } }
+    }
+
+    // Visual fingerprint key for an asset: the perceptual hash if we can render a
+    // thumbnail, else the exact-byte signature, else nil (excluded — never grouped
+    // by the dimension estimate).
+    private nonisolated static func duplicateKey(_ asset: PHAsset) async -> String? {
+        if let h = await perceptualHash(asset) { return "dh\(h)" }
+        if let bytes = realBytesExact(asset) { return "by\(asset.pixelWidth)x\(asset.pixelHeight)-\(bytes)" }
+        return nil
+    }
+
+    // dHash: render the asset into a 9×8 grayscale buffer, then for each row emit a
+    // bit per adjacent-pixel comparison (left brighter than right) → 64 bits. Robust
+    // to brightness / compression, so true duplicates collapse to the same hash.
+    private nonisolated(unsafe) static var hashCacheStore: [String: UInt64] = [:]
+    private nonisolated static func cachedHash(_ id: String) -> UInt64? {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        return hashCacheStore[id]
+    }
+    private nonisolated static func storeHash(_ id: String, _ hash: UInt64) {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        hashCacheStore[id] = hash
+    }
+    private nonisolated static func perceptualHash(_ asset: PHAsset) async -> UInt64? {
+        let id = asset.localIdentifier
+        if let cached = cachedHash(id) { return cached }
+
+        guard let cg = await smallCGImage(asset) else { return nil }
+        let w = 9, h = 8
+        var pixels = [UInt8](repeating: 0, count: w * h)
+        guard let ctx = CGContext(data: &pixels, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: w, space: CGColorSpaceCreateDeviceGray(),
+                                  bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var hash: UInt64 = 0, bit = 0
+        for row in 0..<h {
+            for col in 0..<(w - 1) {
+                if pixels[row * w + col] > pixels[row * w + col + 1] { hash |= (UInt64(1) << UInt64(bit)) }
+                bit += 1
+            }
+        }
+        storeHash(id, hash)
+        return hash
+    }
+
+    // Tiny LOCAL thumbnail (no iCloud wait). Returns the first frame delivered.
+    private nonisolated static func smallCGImage(_ asset: PHAsset) async -> CGImage? {
+        await withCheckedContinuation { (cont: CheckedContinuation<CGImage?, Never>) in
+            let opts = PHImageRequestOptions()
+            opts.deliveryMode = .fastFormat
+            opts.resizeMode = .fast
+            opts.isSynchronous = false
+            opts.isNetworkAccessAllowed = false   // tiny grid thumbnail is always local → never stalls
+            nonisolated(unsafe) var resumed = false
+            PHImageManager.default().requestImage(
+                for: asset, targetSize: CGSize(width: 32, height: 32),
+                contentMode: .aspectFit, options: opts
+            ) { image, _ in
+                if resumed { return }; resumed = true
+                cont.resume(returning: image?.cgImage)
+            }
+        }
     }
 
     // Per-asset EXACT byte size cache (-1 = no real size, only the dimension
@@ -274,7 +375,7 @@ final class PhotoLibraryService {
         // groups still appear progressively (newest first).
         let clusters: [[PHAsset]] = await Task.detached(priority: .userInitiated) {
             let all = Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: false, limit: nil)
-            return Array(Self.clusters(config: config, assets: all).reversed())  // newest groups first
+            return Array((await Self.clustersAsync(config: config, assets: all)).reversed())  // newest groups first
         }.value
         let total = clusters.reduce(0) { $0 + $1.count }
         guard total > 0 else { onProgress(0, 0); return }
