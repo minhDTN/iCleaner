@@ -236,19 +236,41 @@ struct SimilarFlowView: View {
         }
     }
 
-    // Whole-gallery Similar scan: show the review screen immediately, then append
-    // groups as each chunk is found (newest first), and order by size when done.
+    // Whole-gallery scan: show the review screen immediately, then append results as
+    // each batch is found (newest first), and order by size when done. Chat uses the
+    // OCR scan; everything else uses time-window clustering.
     private func streamSimilar(goEmptyIfNone: Bool) async {
         groups = []
         scanScanned = 0; scanTotal = 0
         step = .review
         isScanning = true
-        await photoLibrary.detectSimilarGroupsStreaming(
-            config: detectionConfig,
-            sinceDays: filterSinceDays,
-            onProgress: { scanned, total in scanScanned = scanned; scanTotal = total },
-            onBatch: { batch in groups.append(contentsOf: mapGroups(batch)) }
-        )
+        let isFlat = !detectionConfig.grouped   // chat = one growing flat list, not sections
+        let onProgress: @MainActor (Int, Int) -> Void = { scanned, total in
+            scanScanned = scanned; scanTotal = total
+        }
+        let onBatch: @MainActor ([PHAssetGroup]) -> Void = { batch in
+            let mapped = mapGroups(batch)
+            if isFlat {
+                let photos = mapped.flatMap(\.photos)
+                if let first = mapped.first, groups.isEmpty {
+                    groups = [SimilarGroup(title: first.title, photos: photos,
+                                           bestMatchIndex: -1, nounKey: first.nounKey)]
+                } else if !groups.isEmpty {
+                    groups[0].photos.append(contentsOf: photos)
+                }
+            } else {
+                groups.append(contentsOf: mapped)
+            }
+        }
+        if detectionConfig.detectChat {
+            await photoLibrary.detectChatImagesStreaming(
+                config: detectionConfig, sinceDays: filterSinceDays,
+                onProgress: onProgress, onBatch: onBatch)
+        } else {
+            await photoLibrary.detectSimilarGroupsStreaming(
+                config: detectionConfig, sinceDays: filterSinceDays,
+                onProgress: onProgress, onBatch: onBatch)
+        }
         isScanning = false
         sortGroupsByFilter()
         if groups.isEmpty && goEmptyIfNone { step = .empty }

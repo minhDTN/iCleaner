@@ -1,5 +1,6 @@
 import Photos
 import UIKit
+import Vision
 import Observation
 
 // Wraps PHPhotoLibrary access for the Similar flow.
@@ -59,11 +60,12 @@ final class PhotoLibraryService {
         // Videos Organizer) are ONE flat list the user deletes by hand.
         var grouped: Bool = true             // false → single flat list of all matches, no clustering
         var hasBestMatch: Bool = true        // false → no Best Match pill / no auto-selection
+        var detectChat: Bool = false         // OCR-classify ANY image: keep only chat conversations
 
-        // Similar / Similar Screenshots stream the WHOLE gallery in batches (newest
-        // first) so groups appear progressively and the screen opens instantly. Exact
-        // duplicates and flat browse buckets use the simple one-shot scan instead.
-        var usesStreamingScan: Bool { grouped && mediaType == .image && !exactDuplicates }
+        // Similar / Similar Screenshots / Chat stream in batches so results appear
+        // progressively while the slow part (clustering sizes, or OCR for Chat) runs.
+        // Exact duplicates and the other flat browse buckets use the one-shot scan.
+        var usesStreamingScan: Bool { (grouped || detectChat) && mediaType == .image && !exactDuplicates }
 
         // Canonical "Similar photos" rule — non-screenshot image bursts. Shared by
         // the Home Similar card AND Quick Clean so their numbers match exactly.
@@ -148,7 +150,10 @@ final class PhotoLibraryService {
     func categoryScan(config: DetectionConfig, previewLimit: Int = 3) async -> CategoryStat {
         guard authStatus.canRead else { return CategoryStat() }
         return await Task.detached(priority: .utility) {
-            let assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: false, limit: nil)
+            var assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: false, limit: nil)
+            // Chat: keep only screenshots OCR-classified as chats (same filter the
+            // detail scan uses, so the card count matches Review Group).
+            if config.detectChat { assets = await Self.filterChatImages(assets) }
             guard !assets.isEmpty else { return CategoryStat() }
 
             // Browse bucket: flat list of EVERY match (its Review Group is the same).
@@ -343,6 +348,205 @@ final class PhotoLibraryService {
                 cont.resume(returning: image?.cgImage)
             }
         }
+    }
+
+    // MARK: - Chat detection (OCR, any image)
+
+    // true = this image looks like a chat conversation. Cached per asset AND persisted
+    // to disk so the (slow) OCR runs once per image for its lifetime, not every launch.
+    private nonisolated(unsafe) static var chatCacheStore: [String: Bool] = [:]
+    private nonisolated(unsafe) static var chatCacheLoaded = false
+    private nonisolated static let chatCacheURL: URL = FileManager.default
+        .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("chat_classify_cache.json")
+
+    private nonisolated static func loadChatCacheIfNeeded() {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        guard !chatCacheLoaded else { return }
+        chatCacheLoaded = true
+        if let data = try? Data(contentsOf: chatCacheURL),
+           let dict = try? JSONDecoder().decode([String: Bool].self, from: data) {
+            chatCacheStore = dict
+        }
+    }
+    private nonisolated static func saveChatCache() {
+        byteCacheLock.lock(); let snapshot = chatCacheStore; byteCacheLock.unlock()
+        // Encode + write off the main thread (this is called from the MainActor scan
+        // loop); atomic write + last-writer-wins is fine for a derived cache.
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONEncoder().encode(snapshot) {
+                try? data.write(to: chatCacheURL, options: .atomic)
+            }
+        }
+    }
+    private nonisolated static func cachedChat(_ id: String) -> Bool? {
+        loadChatCacheIfNeeded()
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        return chatCacheStore[id]
+    }
+    private nonisolated static func storeChat(_ id: String, _ v: Bool) {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        chatCacheStore[id] = v
+    }
+
+    // Cheap, SAFE pre-filter: an image that is clearly a camera capture is never a
+    // chat, so we skip OCR for it (no thumbnail, no Vision). Uses only in-memory
+    // PHAsset metadata. A chat (screenshot or downloaded) has no GPS and none of
+    // these camera subtypes, so this never drops a real chat.
+    private nonisolated static func isObviouslyCamera(_ asset: PHAsset) -> Bool {
+        if asset.location != nil { return true }   // geotagged → taken by a camera
+        let cameraOnly: PHAssetMediaSubtype = [.photoLive, .photoPanorama, .photoHDR, .photoDepthEffect]
+        return !asset.mediaSubtypes.isDisjoint(with: cameraOnly)
+    }
+
+    /// OCR an image and decide if it's a chat conversation. Cached + pre-filtered.
+    nonisolated static func isChatImage(_ asset: PHAsset) async -> Bool {
+        let id = asset.localIdentifier
+        if let c = cachedChat(id) { return c }
+        if isObviouslyCamera(asset) { storeChat(id, false); return false }
+        guard let cg = await ocrCGImage(asset) else { return false }
+        let result = await classifyChat(cg)
+        storeChat(id, result)
+        return result
+    }
+
+    // Larger (sharp-ish) thumbnail so OCR can read the text. We DON'T wait on iCloud
+    // (networkAccessAllowed = false) to avoid downloading full images en masse — the
+    // local thumbnail is enough to read chat-sized text. Skips the degraded frame.
+    private nonisolated static func ocrCGImage(_ asset: PHAsset) async -> CGImage? {
+        await withCheckedContinuation { (cont: CheckedContinuation<CGImage?, Never>) in
+            let opts = PHImageRequestOptions()
+            opts.deliveryMode = .highQualityFormat
+            opts.resizeMode = .fast
+            opts.isSynchronous = false
+            opts.isNetworkAccessAllowed = false
+            nonisolated(unsafe) var resumed = false
+            PHImageManager.default().requestImage(
+                for: asset, targetSize: CGSize(width: 1000, height: 2000),
+                contentMode: .aspectFit, options: opts
+            ) { image, info in
+                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                if degraded { return }                 // wait for the sharp frame
+                if resumed { return }; resumed = true
+                cont.resume(returning: image?.cgImage)
+            }
+        }
+    }
+
+    // Vision text recognition → run the layout heuristic on the boxes/strings.
+    private nonisolated static func classifyChat(_ cg: CGImage) async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let req = VNRecognizeTextRequest { request, _ in
+                let obs = (request.results as? [VNRecognizedTextObservation]) ?? []
+                cont.resume(returning: looksLikeChat(obs))
+            }
+            req.recognitionLevel = .fast
+            req.usesLanguageCorrection = false
+            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+            do { try handler.perform([req]) } catch { cont.resume(returning: false) }
+        }
+    }
+
+    private nonisolated static let timeRegex = try? NSRegularExpression(pattern: "\\b\\d{1,2}:\\d{2}\\b")
+    private nonisolated static func isTimeLike(_ s: String) -> Bool {
+        guard let re = timeRegex else { return false }
+        return re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil
+    }
+
+    // Heuristic: a chat conversation has MANY short text lines whose bubbles sit on
+    // BOTH sides (incoming left / outgoing right), usually with timestamps. A normal
+    // screenshot (settings, web, doc) is mostly left-aligned with no times.
+    private nonisolated static func looksLikeChat(_ obs: [VNRecognizedTextObservation]) -> Bool {
+        guard obs.count >= 6 else { return false }
+        var left = 0, right = 0, times = 0
+        for o in obs {
+            let cx = o.boundingBox.midX            // normalized (origin bottom-left)
+            if cx < 0.42 { left += 1 }
+            if cx > 0.58 { right += 1 }
+            if let s = o.topCandidates(1).first?.string, isTimeLike(s) { times += 1 }
+        }
+        let bothSides = left >= 2 && right >= 2     // bubbles on the left AND the right
+        return bothSides || (times >= 2 && obs.count >= 10)
+    }
+
+    /// Keep only images classified as chats (parallel OCR, bounded, cached).
+    /// Order-preserving. Used by the Home card scan (count/size).
+    nonisolated static func filterChatImages(_ assets: [PHAsset]) async -> [PHAsset] {
+        var keep: [(Int, PHAsset)] = []
+        await withTaskGroup(of: (Int, PHAsset, Bool).self) { group in
+            var next = 0
+            let maxConcurrent = 4                   // OCR is CPU-heavy; don't flood
+            while next < min(maxConcurrent, assets.count) {
+                let i = next, a = assets[i]; next += 1
+                group.addTask { (i, a, await Self.isChatImage(a)) }
+            }
+            while let (i, a, isChat) = await group.next() {
+                if isChat { keep.append((i, a)) }
+                if next < assets.count {
+                    let j = next, b = assets[j]; next += 1
+                    group.addTask { (j, b, await Self.isChatImage(b)) }
+                }
+            }
+        }
+        saveChatCache()   // persist OCR verdicts so this never re-runs for these assets
+        return keep.sorted { $0.0 < $1.0 }.map { $0.1 }
+    }
+
+    private nonisolated static func buildFlatGroup(_ assets: [PHAsset], noun: String) -> PHAssetGroup {
+        let sizes = assets.map { Self.realBytesKB($0) }
+        return PHAssetGroup(title: "\(assets.count) \(noun)", assets: assets, sizesKB: sizes, bestMatchIndex: -1)
+    }
+
+    /// Streams chat images: OCR every image (newest first, parallel, pre-filtered)
+    /// and emit each recognised chat photo in small batches so the review list fills
+    /// as they're found, reporting scan progress per image. Verdicts persist to disk.
+    func detectChatImagesStreaming(
+        config: DetectionConfig,
+        sinceDays: Int? = nil,
+        batchSize: Int = 6,
+        onProgress: @MainActor @escaping (_ scanned: Int, _ total: Int) -> Void,
+        onBatch: @MainActor @escaping ([PHAssetGroup]) -> Void
+    ) async {
+        guard authStatus.canRead else { onProgress(0, 0); return }
+        let shots: [PHAsset] = await Task.detached(priority: .userInitiated) {
+            Self.matchingAssets(config: config, sinceDays: sinceDays, recentFirst: true, limit: nil)
+        }.value
+        let total = shots.count
+        guard total > 0 else { onProgress(0, 0); return }
+        onProgress(0, total)
+
+        var scanned = 0
+        var pending: [PHAsset] = []
+        func flush() async {
+            guard !pending.isEmpty else { return }
+            let chunk = pending; pending = []
+            let g = await Task.detached(priority: .userInitiated) { Self.buildFlatGroup(chunk, noun: config.groupNoun) }.value
+            onBatch([g])
+        }
+        await withTaskGroup(of: (PHAsset, Bool).self) { group in
+            var next = 0
+            let maxConcurrent = 4
+            while next < min(maxConcurrent, shots.count) {
+                let a = shots[next]; next += 1
+                group.addTask { (a, await Self.isChatImage(a)) }
+            }
+            while let (asset, isChat) = await group.next() {
+                if Task.isCancelled { Self.saveChatCache(); return }
+                scanned += 1
+                if isChat { pending.append(asset) }
+                if pending.count >= batchSize { await flush() }
+                // Persist verdicts periodically so a mid-scan quit doesn't waste OCR.
+                if scanned % 100 == 0 { Self.saveChatCache() }
+                onProgress(scanned, total)
+                if next < shots.count {
+                    let a = shots[next]; next += 1
+                    group.addTask { (a, await Self.isChatImage(a)) }
+                }
+            }
+        }
+        Self.saveChatCache()
+        if Task.isCancelled { return }
+        await flush()
     }
 
     // Per-asset EXACT byte size cache (-1 = no real size, only the dimension

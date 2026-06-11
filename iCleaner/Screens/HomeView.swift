@@ -511,12 +511,12 @@ struct HomeCategory: Identifiable {
             // All videos as a flat manual list.
             return .init(mediaType: .video, groupNoun: "Videos", grouped: false, hasBestMatch: false)
         case "chat_photos":
-            // Real chat photos = images saved into messaging-app albums, flat list.
-            return .init(mediaType: .image, excludeScreenshots: true,
-                         albumNames: ["WhatsApp", "Telegram", "Messenger", "Instagram",
-                                      "WeChat", "Line", "Viber", "Signal", "Snapchat",
-                                      "Facebook", "Zalo", "Messages", "Kakao", "Discord"],
-                         groupNoun: "Photos", grouped: false, hasBestMatch: false)
+            // Chat photos = ANY image (screenshot OR downloaded) that looks like a chat
+            // conversation, classified by OCR + bubble-layout. Camera shots are
+            // pre-filtered out cheaply. Flat list.
+            return .init(mediaType: .image,
+                         groupNoun: "Photos", grouped: false, hasBestMatch: false,
+                         detectChat: true)
         case "other":
             // Misc photos as a flat manual list.
             return .init(mediaType: .image, excludeScreenshots: true, groupNoun: "Photos",
