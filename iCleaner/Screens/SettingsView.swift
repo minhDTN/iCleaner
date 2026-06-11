@@ -111,6 +111,12 @@ struct SettingsView: View {
                 Toggle("", isOn: $forcePremium)
                     .labelsHidden()
                     .tint(AppColor.brandPrimary)
+                    // Also flip the LIB's premium flag so app-open / splash ads stop
+                    // too (not just app-rendered banners). Turn OFF needs a relaunch
+                    // to fully revert the lib flag — fine for a DEBUG-only switch.
+                    .onChange(of: forcePremium) { _, on in
+                        if on { PermissionManager.shared.fakePremium() }
+                    }
             }
             .padding(16)
         }

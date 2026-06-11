@@ -24,6 +24,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             launchOptions: launchOptions
         )
 
+        #if DEBUG
+        // Force Premium must also mark the LIB premium, else its app-open / splash
+        // ads still run (the app-side toggle only hides app-rendered ads). Applied on
+        // the next runloop so it lands AFTER the lib's initial premium sync (which
+        // would otherwise reset it back to free).
+        if UserDefaults.standard.bool(forKey: PremiumGate.forcePremiumKey) {
+            DispatchQueue.main.async { PermissionManager.shared.fakePremium() }
+        }
+        #endif
+
         UNUserNotificationCenter.current().delegate = LibEarnMoneyIOS.shared.notificationDelegate
         Messaging.messaging().delegate = LibEarnMoneyIOS.shared.messagingDelegate
         application.registerForRemoteNotifications()
