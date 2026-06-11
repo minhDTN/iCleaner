@@ -35,7 +35,7 @@ enum LocalizedStrings {
         "home.cat.videosOrganizer": "Videos Organizer", "home.cat.other": "Other",
         "compress.title": "Compress", "compress.videosCount": "%d Videos", "compress.noVideos": "No videos found",
         "compress.sortBy": "Sort by", "compress.sortNewest": "Newest", "compress.sortLargest": "Largest", "compress.sortLongest": "Longest",
-        "compress.downloadingICloud": "Downloading from iCloud… %d%%",
+        "compress.downloadingICloud": "Downloading from iCloud… %d%%", "compress.loadingVideo": "Loading video…",
         "compress.permTitle": "Photos access required",
         "compress.permBody": "Allow access so the app can list your videos to compress.",
         "compress.videoCompress": "Video Compress", "compress.selectedFile": "Selected File",

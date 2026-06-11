@@ -93,13 +93,15 @@ struct CompressView: View {
                     Color.black.opacity(0.45).ignoresSafeArea()
                     VStack(spacing: 14) {
                         ProgressView().tint(.white).scaleEffect(1.3)
-                        // iCloud clips download before they can be compressed —
-                        // show progress so a long fetch doesn't look frozen.
-                        if pickedDownloadProgress > 0.001 && pickedDownloadProgress < 0.999 {
-                            Text(L("compress.downloadingICloud", Int(pickedDownloadProgress * 100)))
-                                .font(.custom("Inter-SemiBold", size: 14))
-                                .foregroundStyle(.white)
-                        }
+                        // iCloud clips download before they can be compressed. ALWAYS
+                        // show a label (never a bare spinner): the % while downloading,
+                        // a generic "Loading…" before the first callback and during the
+                        // post-download size estimate — so it never looks frozen.
+                        Text(pickedDownloadProgress > 0.001 && pickedDownloadProgress < 0.999
+                             ? L("compress.downloadingICloud", Int(pickedDownloadProgress * 100))
+                             : L("compress.loadingVideo"))
+                            .font(.custom("Inter-SemiBold", size: 14))
+                            .foregroundStyle(.white)
                         // Always offer a way out — a stuck iCloud fetch is cancellable.
                         Button(action: { loadTask?.cancel() }) {
                             Text(L("common.cancel"))
