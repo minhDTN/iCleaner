@@ -29,6 +29,7 @@ struct HomeView: View {
     @State private var photoLibrary = PhotoLibraryService()
     @State private var previewIDs: [String: [String]] = [:]   // per-category card thumbnails
     @State private var stats: [String: CardStat] = [:]        // per-category REAL count + size
+    @State private var isReloading = false                    // guards against overlapping scans
 
     private var isPremium: Bool {
         #if DEBUG
@@ -58,6 +59,13 @@ struct HomeView: View {
     // first granted), so cards refresh on return.
     private func reloadThumbnails() async {
         guard photoLibrary.authStatus.canRead else { return }
+        // Overlap guard: Home re-scans on appear AND after every flow dismiss. On a
+        // huge library a scan runs for a while — never start a second concurrent full
+        // scan, it would pile up and thrash the device.
+        guard !isReloading else { return }
+        isReloading = true
+        defer { isReloading = false }
+
         let cats = HomeCategory.populatedMock
         // Phase 1: light scans (metadata clustering + sizes) → cards appear quickly
         // even on a 100GB+ library. Phase 2: the heavy per-image analysis (Duplicates
@@ -73,6 +81,10 @@ struct HomeView: View {
         await scanCategories(cats.filter { !$0.isHeavyScan })
         await scanCategories(cats.filter { $0.isHeavyScan })
         #endif
+
+        // Save derived caches so the NEXT cold launch skips the per-asset round-trips
+        // (size + perceptual hash) — the key to staying fast at 100GB+ after run one.
+        PhotoLibraryService.persistCaches()
     }
 
     // Scan a set of categories concurrently, applying each card's stats AS IT

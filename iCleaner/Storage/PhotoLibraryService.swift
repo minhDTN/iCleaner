@@ -302,6 +302,7 @@ final class PhotoLibraryService {
     // to brightness / compression, so true duplicates collapse to the same hash.
     private nonisolated(unsafe) static var hashCacheStore: [String: UInt64] = [:]
     private nonisolated static func cachedHash(_ id: String) -> UInt64? {
+        loadHashCacheIfNeeded()
         byteCacheLock.lock(); defer { byteCacheLock.unlock() }
         return hashCacheStore[id]
     }
@@ -416,6 +417,7 @@ final class PhotoLibraryService {
     // the SAME read so chat detection and size labels don't pay two Photos round-trips.
     private nonisolated(unsafe) static var nameCacheStore: [String: String] = [:]
     private nonisolated static func originalFilename(_ asset: PHAsset) -> String {
+        loadByteCacheIfNeeded()
         let id = asset.localIdentifier
         byteCacheLock.lock(); let cached = nameCacheStore[id]; byteCacheLock.unlock()
         if let cached { return cached }
@@ -536,6 +538,42 @@ final class PhotoLibraryService {
     private nonisolated(unsafe) static var byteCacheStore: [String: Int] = [:]
     private nonisolated static let byteCacheLock = NSLock()
 
+    // Persistence: the size + perceptual-hash caches survive launches (keyed by
+    // localIdentifier) so the slow per-asset Photos round-trips run ONCE per asset for
+    // its lifetime — not on every cold launch. THIS is what keeps a 100GB+ library
+    // fast after the first scan. (Chat verdicts persist via their own file.)
+    private nonisolated static func cacheURL(_ name: String) -> URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(name)
+    }
+    private nonisolated(unsafe) static var byteCacheLoaded = false
+    private nonisolated static func loadByteCacheIfNeeded() {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        guard !byteCacheLoaded else { return }
+        byteCacheLoaded = true
+        if let data = try? Data(contentsOf: cacheURL("asset_bytes_cache.json")),
+           let dict = try? JSONDecoder().decode([String: Int].self, from: data) { byteCacheStore = dict }
+    }
+    private nonisolated(unsafe) static var hashCacheLoaded = false
+    private nonisolated static func loadHashCacheIfNeeded() {
+        byteCacheLock.lock(); defer { byteCacheLock.unlock() }
+        guard !hashCacheLoaded else { return }
+        hashCacheLoaded = true
+        if let data = try? Data(contentsOf: cacheURL("asset_hash_cache.json")),
+           let dict = try? JSONDecoder().decode([String: UInt64].self, from: data) { hashCacheStore = dict }
+    }
+    /// Persist all derived per-asset caches (size, perceptual-hash, chat) off the main
+    /// thread. Call after a Home scan; atomic write + last-writer-wins.
+    nonisolated static func persistCaches() {
+        byteCacheLock.lock()
+        let bytes = byteCacheStore, hashes = hashCacheStore, chats = chatCacheStore
+        byteCacheLock.unlock()
+        DispatchQueue.global(qos: .utility).async {
+            if let d = try? JSONEncoder().encode(bytes) { try? d.write(to: cacheURL("asset_bytes_cache.json"), options: .atomic) }
+            if let d = try? JSONEncoder().encode(hashes) { try? d.write(to: cacheURL("asset_hash_cache.json"), options: .atomic) }
+            if let d = try? JSONEncoder().encode(chats) { try? d.write(to: cacheURL("chat_classify_cache.json"), options: .atomic) }
+        }
+    }
+
     /// Streams Similar/Similar-Screenshots groups over the WHOLE gallery, newest
     /// first, in batches — the caller shows the review screen immediately and appends
     /// groups as each batch is processed. Uses fast TIME-WINDOW clustering (photos
@@ -590,6 +628,7 @@ final class PhotoLibraryService {
     /// the same dimensions, so using it as a signature falsely marks thousands of
     /// distinct same-size photos as duplicates. Cached.
     nonisolated static func realBytesExact(_ asset: PHAsset) -> Int? {
+        loadByteCacheIfNeeded()
         let id = asset.localIdentifier
         byteCacheLock.lock(); let cached = byteCacheStore[id]; byteCacheLock.unlock()
         if let cached { return cached < 0 ? nil : cached }
