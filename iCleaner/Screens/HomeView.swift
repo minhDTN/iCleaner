@@ -62,8 +62,17 @@ struct HomeView: View {
         // Phase 1: light scans (metadata clustering + sizes) → cards appear quickly
         // even on a 100GB+ library. Phase 2: the heavy per-image analysis (Duplicates
         // content-hash) runs AFTER, so it never blocks the other cards from showing.
+        #if DEBUG
+        let t0 = Date()
+        await scanCategories(cats.filter { !$0.isHeavyScan })
+        print("[HomeScan] ⏱ phase 1 (light cards visible) = \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+        let t1 = Date()
+        await scanCategories(cats.filter { $0.isHeavyScan })
+        print("[HomeScan] ⏱ phase 2 (Duplicates/Chat) = \(String(format: "%.1f", Date().timeIntervalSince(t1)))s, TOTAL = \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+        #else
         await scanCategories(cats.filter { !$0.isHeavyScan })
         await scanCategories(cats.filter { $0.isHeavyScan })
+        #endif
     }
 
     // Scan a set of categories concurrently, applying each card's stats AS IT
@@ -72,7 +81,13 @@ struct HomeView: View {
         await withTaskGroup(of: (String, [String], CardStat).self) { group in
             for cat in cats {
                 group.addTask {
+                    #if DEBUG
+                    let t0 = Date()
+                    #endif
                     let r = await photoLibrary.categoryScan(config: cat.detectionConfig, previewLimit: 3)
+                    #if DEBUG
+                    print("[HomeScan] \(cat.key): \(r.count) items, \(r.totalKB / 1024)MB in \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+                    #endif
                     return (cat.key, r.previewIDs, CardStat(count: r.count, sizeKB: r.totalKB, reclaimableKB: r.reclaimableKB))
                 }
             }
