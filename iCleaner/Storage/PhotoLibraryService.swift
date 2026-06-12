@@ -441,6 +441,10 @@ final class PhotoLibraryService {
         if markers.contains(where: { n.contains($0) }) { return true }
         // WhatsApp variants: IMG-/VID-/STK-/PTT- … "-wa" immediately followed by a digit.
         if let r = n.range(of: "-wa"), r.upperBound < n.endIndex, n[r.upperBound].isNumber { return true }
+        // Messenger / Facebook save received media as a 32-char hex (MD5) basename,
+        // e.g. "80f6941241f39ef64630d1b250a23c86.jpeg" — camera/screenshots never do.
+        let base = (n as NSString).deletingPathExtension
+        if base.count == 32 && base.allSatisfy({ $0.isHexDigit }) { return true }
         return false
     }
 
