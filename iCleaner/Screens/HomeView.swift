@@ -58,16 +58,24 @@ struct HomeView: View {
     // first granted), so cards refresh on return.
     private func reloadThumbnails() async {
         guard photoLibrary.authStatus.canRead else { return }
+        let cats = HomeCategory.populatedMock
+        // Phase 1: light scans (metadata clustering + sizes) → cards appear quickly
+        // even on a 100GB+ library. Phase 2: the heavy per-image analysis (Duplicates
+        // content-hash) runs AFTER, so it never blocks the other cards from showing.
+        await scanCategories(cats.filter { !$0.isHeavyScan })
+        await scanCategories(cats.filter { $0.isHeavyScan })
+    }
+
+    // Scan a set of categories concurrently, applying each card's stats AS IT
+    // FINISHES (live fill-in), not all-at-once after the slowest one.
+    private func scanCategories(_ cats: [HomeCategory]) async {
         await withTaskGroup(of: (String, [String], CardStat).self) { group in
-            for cat in HomeCategory.populatedMock {
+            for cat in cats {
                 group.addTask {
                     let r = await photoLibrary.categoryScan(config: cat.detectionConfig, previewLimit: 3)
                     return (cat.key, r.previewIDs, CardStat(count: r.count, sizeKB: r.totalKB, reclaimableKB: r.reclaimableKB))
                 }
             }
-            // Apply each category AS IT FINISHES so the cards fill in live instead of
-            // all-at-once after the slowest scan — first launch shows real numbers
-            // appearing, never a wrong hardcoded default.
             for await (key, p, s) in group {
                 previewIDs[key] = p
                 stats[key] = s
@@ -446,6 +454,11 @@ struct HomeCategory: Identifiable {
 
     var id: String { key }
     var metric: String { isVideo ? "\(photoCount) Videos" : "\(photoCount) Photos" }
+
+    // Duplicates content-hashes every image (expensive at scale), so its Home scan
+    // runs in a deferred second phase and never blocks the lighter cards. (Chat now
+    // counts from cache on Home — its OCR runs only inside the Chat screen.)
+    var isHeavyScan: Bool { key == "duplicates" }
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
 
     // Only Similar/Duplicate-style cards cluster into packs + show "Best Match".

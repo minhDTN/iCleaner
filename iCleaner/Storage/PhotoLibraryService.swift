@@ -151,9 +151,12 @@ final class PhotoLibraryService {
         guard authStatus.canRead else { return CategoryStat() }
         return await Task.detached(priority: .utility) {
             var assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: false, limit: nil)
-            // Chat: keep only screenshots OCR-classified as chats (same filter the
-            // detail scan uses, so the card count matches Review Group).
-            if config.detectChat { assets = await Self.filterChatImages(assets) }
+            // Chat: the Home card must NOT OCR the whole library — on a large library
+            // that's tens of thousands of OCR passes (20+ min) and blocks every other
+            // card. Count ONLY images already classified as chat (persistent cache);
+            // the full OCR runs when the user opens the Chat screen (streaming) and is
+            // saved, so the count then shows here on the next scan.
+            if config.detectChat { assets = assets.filter { Self.cachedChat($0.localIdentifier) == true } }
             guard !assets.isEmpty else { return CategoryStat() }
 
             // Browse bucket: flat list of EVERY match (its Review Group is the same).
