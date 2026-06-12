@@ -423,13 +423,12 @@ struct PreviewTarget: Identifiable {
 // (which made small selections look like a no-op). Binary (1024) base, matching
 // the rest of the app.
 enum CleanSize {
+    // Format with ByteCountFormatter `.file` (DECIMAL / 1000-based) — the same base
+    // iOS Settings, the Photos app, and the Compress screen use — so a size reads the
+    // SAME everywhere (e.g. Home "Videos" == Compress total) and matches what the user
+    // sees in iOS Storage. The KB input is converted back to bytes for the formatter.
     static func label(kb: Int) -> String {
-        let mb = Double(max(0, kb)) / 1024
-        if mb >= 1024 { return String(format: "%.1f GB", mb / 1024) }
-        if mb >= 10   { return "\(Int(mb.rounded())) MB" }   // big enough: whole MB
-        if mb >= 1    { return String(format: "%.1f MB", mb) } // 1–10 MB: one decimal
-        if kb >= 1    { return String(format: "%.1f MB", mb) } // <1 MB: e.g. "0.6 MB"
-        return "0 MB"
+        ByteCountFormatter.string(fromByteCount: Int64(max(0, kb)) * 1024, countStyle: .file)
     }
 }
 
