@@ -1,6 +1,5 @@
 import Photos
 import UIKit
-import Vision
 import Observation
 
 // Wraps PHPhotoLibrary access for the Similar flow.
@@ -151,12 +150,10 @@ final class PhotoLibraryService {
         guard authStatus.canRead else { return CategoryStat() }
         return await Task.detached(priority: .utility) {
             var assets = Self.matchingAssets(config: config, sinceDays: nil, recentFirst: false, limit: nil)
-            // Chat: the Home card must NOT OCR the whole library — on a large library
-            // that's tens of thousands of OCR passes (20+ min) and blocks every other
-            // card. Count ONLY images already classified as chat (persistent cache);
-            // the full OCR runs when the user opens the Chat screen (streaming) and is
-            // saved, so the count then shows here on the next scan.
-            if config.detectChat { assets = assets.filter { Self.cachedChat($0.localIdentifier) == true } }
+            // Chat: keep only images whose filename matches a chat app (cheap metadata
+            // read, not OCR). Runs in the deferred phase so it doesn't block the other
+            // cards; verdicts are cached + persisted so it's one-time per asset.
+            if config.detectChat { assets = await Self.filterChatImages(assets) }
             guard !assets.isEmpty else { return CategoryStat() }
 
             // Browse bucket: flat list of EVERY match (its Review Group is the same).
@@ -353,10 +350,10 @@ final class PhotoLibraryService {
         }
     }
 
-    // MARK: - Chat detection (OCR, any image)
+    // MARK: - Chat detection (filename match)
 
-    // true = this image looks like a chat conversation. Cached per asset AND persisted
-    // to disk so the (slow) OCR runs once per image for its lifetime, not every launch.
+    // true = this image is a chat photo (filename matched a chat app). Cached per asset
+    // AND persisted to disk so the resource read runs once per image, not every launch.
     private nonisolated(unsafe) static var chatCacheStore: [String: Bool] = [:]
     private nonisolated(unsafe) static var chatCacheLoaded = false
     private nonisolated static let chatCacheURL: URL = FileManager.default
@@ -392,84 +389,59 @@ final class PhotoLibraryService {
         chatCacheStore[id] = v
     }
 
-    // Cheap, SAFE pre-filter: an image that is clearly a camera capture is never a
-    // chat, so we skip OCR for it (no thumbnail, no Vision). Uses only in-memory
-    // PHAsset metadata. A chat (screenshot or downloaded) has no GPS and none of
-    // these camera subtypes, so this never drops a real chat.
+    // Cheap metadata pre-filter (no resource read): a geotagged / Live / Portrait /
+    // Panorama / HDR photo is a camera capture, never a saved chat image — skip it
+    // before paying the filename round-trip. Saved chat media has none of these.
     private nonisolated static func isObviouslyCamera(_ asset: PHAsset) -> Bool {
         if asset.location != nil { return true }   // geotagged → taken by a camera
         let cameraOnly: PHAssetMediaSubtype = [.photoLive, .photoPanorama, .photoHDR, .photoDepthEffect]
         return !asset.mediaSubtypes.isDisjoint(with: cameraOnly)
     }
 
-    /// OCR an image and decide if it's a chat conversation. Cached + pre-filtered.
+    /// Decide if an image is a chat photo by its ORIGINAL FILENAME — chat apps save
+    /// media with telltale names. ~100× cheaper than OCR (one resource metadata read,
+    /// no thumbnail / Vision), so it scales to large libraries. Cached + persisted.
+    /// NOTE: catches SAVED chat media (WhatsApp, WeChat, …), NOT chat screenshots
+    /// (named IMG_xxxx, no app marker — undetectable from metadata).
     nonisolated static func isChatImage(_ asset: PHAsset) async -> Bool {
         let id = asset.localIdentifier
         if let c = cachedChat(id) { return c }
         if isObviouslyCamera(asset) { storeChat(id, false); return false }
-        guard let cg = await ocrCGImage(asset) else { return false }
-        let result = await classifyChat(cg)
+        let result = matchesChatPattern(originalFilename(asset))
         storeChat(id, result)
         return result
     }
 
-    // Larger (sharp-ish) thumbnail so OCR can read the text. We DON'T wait on iCloud
-    // (networkAccessAllowed = false) to avoid downloading full images en masse — the
-    // local thumbnail is enough to read chat-sized text. Skips the degraded frame.
-    private nonisolated static func ocrCGImage(_ asset: PHAsset) async -> CGImage? {
-        await withCheckedContinuation { (cont: CheckedContinuation<CGImage?, Never>) in
-            let opts = PHImageRequestOptions()
-            opts.deliveryMode = .highQualityFormat
-            opts.resizeMode = .fast
-            opts.isSynchronous = false
-            opts.isNetworkAccessAllowed = false
-            nonisolated(unsafe) var resumed = false
-            PHImageManager.default().requestImage(
-                for: asset, targetSize: CGSize(width: 1000, height: 2000),
-                contentMode: .aspectFit, options: opts
-            ) { image, info in
-                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-                if degraded { return }                 // wait for the sharp frame
-                if resumed { return }; resumed = true
-                cont.resume(returning: image?.cgImage)
-            }
+    // First resource's original filename (the round-trip). Caches the byte size from
+    // the SAME read so chat detection and size labels don't pay two Photos round-trips.
+    private nonisolated(unsafe) static var nameCacheStore: [String: String] = [:]
+    private nonisolated static func originalFilename(_ asset: PHAsset) -> String {
+        let id = asset.localIdentifier
+        byteCacheLock.lock(); let cached = nameCacheStore[id]; byteCacheLock.unlock()
+        if let cached { return cached }
+
+        var name = ""; var bytes = -1
+        for r in PHAssetResource.assetResources(for: asset) {
+            if name.isEmpty { name = r.originalFilename }
+            if bytes < 0, let sz = r.value(forKey: "fileSize") as? Int, sz > 0 { bytes = sz }
         }
+        byteCacheLock.lock()
+        nameCacheStore[id] = name
+        if byteCacheStore[id] == nil { byteCacheStore[id] = bytes }   // size is free here
+        byteCacheLock.unlock()
+        return name
     }
 
-    // Vision text recognition → run the layout heuristic on the boxes/strings.
-    private nonisolated static func classifyChat(_ cg: CGImage) async -> Bool {
-        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            let req = VNRecognizeTextRequest { request, _ in
-                let obs = (request.results as? [VNRecognizedTextObservation]) ?? []
-                cont.resume(returning: looksLikeChat(obs))
-            }
-            req.recognitionLevel = .fast
-            req.usesLanguageCorrection = false
-            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
-            do { try handler.perform([req]) } catch { cont.resume(returning: false) }
-        }
-    }
-
-    private nonisolated static let timeRegex = try? NSRegularExpression(pattern: "\\b\\d{1,2}:\\d{2}\\b")
-    private nonisolated static func isTimeLike(_ s: String) -> Bool {
-        guard let re = timeRegex else { return false }
-        return re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil
-    }
-
-    // Heuristic: a chat conversation has MANY short text lines whose bubbles sit on
-    // BOTH sides (incoming left / outgoing right), usually with timestamps. A normal
-    // screenshot (settings, web, doc) is mostly left-aligned with no times.
-    private nonisolated static func looksLikeChat(_ obs: [VNRecognizedTextObservation]) -> Bool {
-        guard obs.count >= 6 else { return false }
-        var left = 0, right = 0, times = 0
-        for o in obs {
-            let cx = o.boundingBox.midX            // normalized (origin bottom-left)
-            if cx < 0.42 { left += 1 }
-            if cx > 0.58 { right += 1 }
-            if let s = o.topCandidates(1).first?.string, isTimeLike(s) { times += 1 }
-        }
-        let bothSides = left >= 2 && right >= 2     // bubbles on the left AND the right
-        return bothSides || (times >= 2 && obs.count >= 10)
+    // Distinctive per-app markers in a saved filename: WhatsApp `IMG-…-WA0001`,
+    // WeChat `mmexport…`/`wx_camera…`, KakaoTalk, Viber, Telegram, Signal, LINE.
+    private nonisolated static func matchesChatPattern(_ filename: String) -> Bool {
+        guard !filename.isEmpty else { return false }
+        let n = filename.lowercased()
+        let markers = ["mmexport", "wx_camera", "kakaotalk", "viber", "telegram", "signal-", "line_"]
+        if markers.contains(where: { n.contains($0) }) { return true }
+        // WhatsApp variants: IMG-/VID-/STK-/PTT- … "-wa" immediately followed by a digit.
+        if let r = n.range(of: "-wa"), r.upperBound < n.endIndex, n[r.upperBound].isNumber { return true }
+        return false
     }
 
     /// Keep only images classified as chats (parallel OCR, bounded, cached).

@@ -455,10 +455,10 @@ struct HomeCategory: Identifiable {
     var id: String { key }
     var metric: String { isVideo ? "\(photoCount) Videos" : "\(photoCount) Photos" }
 
-    // Duplicates content-hashes every image (expensive at scale), so its Home scan
-    // runs in a deferred second phase and never blocks the lighter cards. (Chat now
-    // counts from cache on Home — its OCR runs only inside the Chat screen.)
-    var isHeavyScan: Bool { key == "duplicates" }
+    // Duplicates content-hashes every image; Chat reads every image's filename — both
+    // touch the whole library, so they scan in a deferred second phase and never block
+    // the lighter cards (Similar / Screenshots / Videos / browse).
+    var isHeavyScan: Bool { key == "duplicates" || key == "chat_photos" }
     var sizeLabel: String { sizeMB >= 1024 ? String(format: "%.1f GB", Double(sizeMB) / 1024) : "\(sizeMB) MB" }
 
     // Only Similar/Duplicate-style cards cluster into packs + show "Best Match".
